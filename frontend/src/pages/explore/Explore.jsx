@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Plus, Layers, Package, Store, FolderOpen, X, Map as MapIcon, LayoutList, Users } from 'lucide-react';
+import { Search, Plus, Network, Package, Store, FolderOpen, X, Map as MapIcon, LayoutList, Users } from 'lucide-react';
 import clsx from 'clsx';
 
 import { materialService } from '../../services/materialService';
@@ -466,10 +466,10 @@ export default function Explore() {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="inline-flex items-center gap-2">
-            <Layers className="w-5 h-5 text-gray-700" />
-            <h1 className="text-2xl font-bold text-gray-900">Explore</h1>
+            <Network className="w-5 h-5 text-gray-700" />
+            <h1 className="text-2xl font-bold text-gray-900">Netzwerk</h1>
           </div>
-          <span className="text-sm text-gray-500">Alles in einer Ansicht: Materialien, Materialangebote &amp; Projekte</span>
+          <span className="text-sm text-gray-500">Die regionale Plattform, auf der Materialien, Projekte und Beteiligte zusammenfinden.</span>
         </div>
 
         <div className="relative">
@@ -478,7 +478,7 @@ export default function Explore() {
             className="inline-flex items-center gap-2 bg-primary-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-800 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            Anlegen
+            Jetzt eintragen
           </button>
 
           {createMenuOpen && (

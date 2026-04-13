@@ -8,6 +8,7 @@ import ProjectForm from '../../components/projects/ProjectForm';
 import GeoMap from '../../components/maps/GeoMap';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
+import RzzDecoration from '../../components/ui/RzzDecoration';
 import { useToast } from '../../store/toastStore';
 import { OwnerLine } from '../../components/shared/ContactButton';
 
@@ -133,10 +134,7 @@ export default function Projects() {
     <div>
       {/* Hero */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-project-600 via-project-500 to-project-400 mb-8">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-white translate-x-32 -translate-y-16" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-white -translate-x-16 translate-y-16" />
-        </div>
+        <RzzDecoration className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-8 w-56 sm:w-72 md:w-96 lg:w-[30rem] text-white opacity-[0.13]" />
         <div className="relative px-8 py-12 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 text-white text-sm font-medium mb-4">
             <FolderOpen className="w-4 h-4" />

@@ -10,7 +10,7 @@ import {
   Mail,
   Menu,
   Package,
-  Store,
+  Network,
   User,
   Users,
   X,
@@ -32,7 +32,7 @@ import { messageService } from '../services/messageService';
 import { authService } from '../services/authService';
 
 const navigation = [
-  { name: 'Explore', href: '/', icon: Store },
+  { name: 'Netzwerk', href: '/', icon: Network },
   { name: 'Projekte', href: '/projects', icon: FolderOpen },
   { name: 'Materialien', href: '/materials', icon: Package },
   { name: 'Akteure', href: '/actors', icon: Users },

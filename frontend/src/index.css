@@ -29,6 +29,12 @@ html, body {
   font-family: 'Geist', ui-sans-serif, system-ui, sans-serif;
 }
 
+@keyframes rzzFloat {
+  0%,  100% { transform: translateY(0px)  rotate(0deg);   }
+  35%        { transform: translateY(-8px) rotate(1deg);   }
+  68%        { transform: translateY(4px)  rotate(-0.7deg); }
+}
+
 body {
   margin: 0;
   min-width: 320px;
