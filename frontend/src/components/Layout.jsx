@@ -50,7 +50,7 @@ function Logo() {
       </div>
       <div className="leading-tight">
         <div className="font-display font-extrabold text-sm text-gray-900 tracking-tight">
-          Materialnetzwerk
+          RZZ Materialien
         </div>
         <div className="text-[11px] text-gray-500">Materialien • Projekte • Akteure</div>
       </div>
@@ -684,7 +684,7 @@ export default function Layout() {
       {/* Footer */}
       <footer className="mx-auto max-w-[1400px] px-4 pb-6 pt-2">
         <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
-          <span className="text-[11px] text-gray-400">© {new Date().getFullYear()} Materialnetzwerk</span>
+          <span className="text-[11px] text-gray-400">© {new Date().getFullYear()} RZZ Materialien</span>
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowDatenschutz(true)}
