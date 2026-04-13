@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle } from 'lucide-react';
+import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2 } from 'lucide-react';
 import { OwnerLine } from '../shared/ContactButton';
 
 function safeJsonParse(value, fallback) {
@@ -46,7 +46,7 @@ function TagGroup({ title, items }) {
   );
 }
 
-export default function MaterialDetailModal({ material, onClose }) {
+export default function MaterialDetailModal({ material, onClose, onEdit, canEdit = false }) {
   const similarIds = useMemo(() => {
     const parsed = safeJsonParse(material?.similar_material_ids, []);
     return Array.isArray(parsed) ? parsed : [];
@@ -111,6 +111,17 @@ export default function MaterialDetailModal({ material, onClose }) {
                 ownerEmail={material.owner_email}
                 contextLabel={material.name}
               />
+            )}
+            {canEdit && onEdit && (
+              <button
+                onClick={onEdit}
+                className="p-2 rounded-lg text-gray-500 hover:text-primary-600 hover:bg-primary-50"
+                aria-label="Edit"
+                type="button"
+                title="Material bearbeiten"
+              >
+                <Edit2 className="w-5 h-5" />
+              </button>
             )}
             <button
               onClick={onClose}

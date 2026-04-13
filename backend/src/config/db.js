@@ -281,7 +281,13 @@ const ensureColumns = () => {
     addCol('projects', 'tools', 'tools TEXT');
     addCol('projects', 'steps', 'steps TEXT');
 
-    // project_images may have been created without these columns on old DBs
+    // *_images tables may have been created without these columns on old DBs
+    addCol('material_images', 'sort_order', 'sort_order INTEGER DEFAULT 0');
+    addCol('material_images', 'step_index', 'step_index INTEGER');
+    addCol('material_images', 'step_caption', 'step_caption TEXT');
+    addCol('inventory_images', 'sort_order', 'sort_order INTEGER DEFAULT 0');
+    addCol('inventory_images', 'step_index', 'step_index INTEGER');
+    addCol('inventory_images', 'step_caption', 'step_caption TEXT');
     addCol('project_images', 'sort_order', 'sort_order INTEGER DEFAULT 0');
     addCol('project_images', 'step_index', 'step_index INTEGER');
     addCol('project_images', 'step_caption', 'step_caption TEXT');
