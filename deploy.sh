@@ -28,6 +28,7 @@ rsync -avz --progress \
   --exclude 'backend/data' \
   --exclude 'backend/logs' \
   --exclude 'backend/uploads' \
+  --exclude 'certbot' \
   --exclude '.DS_Store' \
   . $SERVER:$REMOTE_PATH/
 
@@ -35,4 +36,4 @@ rsync -avz --progress \
 echo "🔨 Building and restarting on server..."
 ssh $SERVER "cd $REMOTE_PATH && docker compose up -d --build --force-recreate"
 
-echo "✅ Done! App is live at http://materialien.reallabor-zekiwa-zeitz.de"
+echo "✅ Done! App is live at https://materialien.reallabor-zekiwa-zeitz.de"
