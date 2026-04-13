@@ -48,7 +48,7 @@ function Logo() {
         <RefreshCw className="w-5 h-5 text-white" />
       </div>
       <div className="leading-tight">
-        <div className="font-display font-extrabold text-sm text-gray-900 tracking-tight">
+        <div className="font-display font-extrabold text-[16.2px] text-gray-900 tracking-tight">
           RZZ Materialien
         </div>
         <div className="text-[11px] text-gray-500">Materialien • Projekte • Akteure</div>

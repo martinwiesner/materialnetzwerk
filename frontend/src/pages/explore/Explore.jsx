@@ -466,8 +466,8 @@ export default function Explore() {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="inline-flex items-center gap-2">
-            <Network className="w-5 h-5 text-gray-700" />
-            <h1 className="text-2xl font-bold text-gray-900">Netzwerk</h1>
+            <Network className="w-4 h-4 text-gray-700" />
+            <h1 className="text-xl font-bold text-gray-900">Netzwerk</h1>
           </div>
           <span className="text-sm text-gray-500">Die regionale Plattform, auf der Materialien, Projekte und Beteiligte zusammenfinden.</span>
         </div>
@@ -475,9 +475,9 @@ export default function Explore() {
         <div className="relative">
           <button
             onClick={() => setCreateMenuOpen((v) => !v)}
-            className="inline-flex items-center gap-2 bg-primary-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-800 transition-colors"
+            className="inline-flex items-center gap-2 bg-primary-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             Jetzt eintragen
           </button>
 
