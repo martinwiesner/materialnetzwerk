@@ -114,7 +114,8 @@ const Material = {
     for (const f of allowed) {
       if (updates[f] === undefined) continue;
       fields.push(`${f} = ?`);
-      values.push(BOOL_FIELDS.has(f) ? (updates[f]?1:0) : updates[f]);
+      const raw = updates[f];
+      values.push(BOOL_FIELDS.has(f) ? (raw?1:0) : (raw === '' ? null : raw));
     }
     if (fields.length === 0) return Material.findById(id);
     values.push(id);
