@@ -124,6 +124,7 @@ export const updateMaterial = (req, res) => {
     const updated = Material.update(req.params.id, req.body);
     res.json(updated);
   } catch (error) {
+    console.error('[updateMaterial] ERROR:', error.message, '\nBody keys:', Object.keys(req.body || {}));
     res.status(500).json({ message: 'Failed to update material', error: error.message });
   }
 };
