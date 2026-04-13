@@ -475,7 +475,7 @@ export default function Explore() {
         <div className="relative">
           <button
             onClick={() => setCreateMenuOpen((v) => !v)}
-            className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
+            className="inline-flex items-center gap-2 bg-primary-700 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-800 transition-colors"
           >
             <Plus className="w-5 h-5" />
             Anlegen
@@ -548,28 +548,28 @@ export default function Explore() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setShowMaterials((v) => !v)}
-              className={clsx(
-                'px-3 py-2 rounded-full text-sm font-medium border transition-colors',
-                showMaterials ? 'bg-primary-100 border-primary-700 text-primary-800' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              )}
+              className="px-3 py-2 rounded-full text-sm font-medium border transition-all"
+              style={showMaterials
+                ? { background: 'linear-gradient(to bottom, #0033FF, rgba(0,51,255,0.72))', borderColor: '#0033FF', color: '#fff' }
+                : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
             >
               Materialien
             </button>
             <button
               onClick={() => setShowProjects((v) => !v)}
-              className={clsx(
-                'px-3 py-2 rounded-full text-sm font-medium border transition-colors',
-                showProjects ? 'bg-project-100 border-project-500 text-project-800' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              )}
+              className="px-3 py-2 rounded-full text-sm font-medium border transition-all"
+              style={showProjects
+                ? { background: 'linear-gradient(to bottom, #639530, rgba(99,149,48,0.72))', borderColor: '#639530', color: '#fff' }
+                : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
             >
               Projekte
             </button>
             <button
               onClick={() => setShowActors((v) => !v)}
-              className={clsx(
-                'px-3 py-2 rounded-full text-sm font-medium border transition-colors',
-                showActors ? 'bg-actor-100 border-actor-500 text-actor-800' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              )}
+              className="px-3 py-2 rounded-full text-sm font-medium border transition-all"
+              style={showActors
+                ? { background: 'linear-gradient(to bottom, #FF3B36, rgba(255,59,54,0.72))', borderColor: '#FF3B36', color: '#fff' }
+                : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
             >
               Akteure
             </button>

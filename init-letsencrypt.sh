@@ -11,7 +11,8 @@ DOMAIN="materialien.reallabor-zekiwa-zeitz.de"
 EMAIL="martin.wiesner@hs-anhalt.de"
 CERT_PATH="./certbot/conf/live/$DOMAIN"
 
-echo "📁 Verzeichnisse anlegen..."
+echo "📁 Verzeichnisse anlegen (certbot-State komplett zurücksetzen)..."
+rm -rf ./certbot/conf
 mkdir -p "$CERT_PATH"
 mkdir -p ./certbot/www
 
@@ -28,7 +29,7 @@ echo "   ⏳ Warte 8 Sekunden bis nginx bereit ist..."
 sleep 8
 
 echo "🌐 Let's Encrypt Zertifikat anfordern..."
-docker compose run --rm --no-deps certbot certonly \
+docker compose run --rm --no-deps --entrypoint certbot certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
   --email "$EMAIL" \

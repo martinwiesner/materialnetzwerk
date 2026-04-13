@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -73,20 +73,37 @@ function toLatLng(entity) {
   return [lat, lon];
 }
 
-function styleForType(type, active) {
-  if (type === 'material') {
-    // Core Blue #0033FF
-    return { color: '#0029cc', fillColor: '#0033FF', weight: active ? 4 : 2, radius: active ? 11 : 8 };
-  }
-  if (type === 'offer') {
-    return { color: '#0029cc', fillColor: '#3366ff', weight: active ? 4 : 2, radius: active ? 11 : 8 };
-  }
-  if (type === 'actor') {
-    // Pulse Red #FF3B36
-    return { color: '#cc1f1a', fillColor: '#FF3B36', weight: active ? 4 : 2, radius: active ? 13 : 10 };
-  }
-  // project — Extra Grün #639530
-  return { color: '#507826', fillColor: '#639530', weight: active ? 4 : 2, radius: active ? 11 : 8 };
+const MARKER_COLORS = {
+  material: { fill: '#0033FF', stroke: '#0033FF' },
+  offer:    { fill: '#0033FF', stroke: '#0033FF' },
+  actor:    { fill: '#FF3B36', stroke: '#FF3B36' },
+  project:  { fill: '#639530', stroke: '#639530' },
+};
+
+function createGradientMarker(type, active) {
+  const { fill, stroke } = MARKER_COLORS[type] || MARKER_COLORS.material;
+  const r = active ? 11 : 8;
+  const sw = active ? 3 : 2;
+  const size = (r + sw) * 2;
+  const cx = size / 2;
+  const gradId = `g${fill.replace('#', '')}${active ? 'a' : ''}`;
+  // Encode the SVG as a data URI to avoid HTML entity issues in DivIcon
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
+    `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">`,
+    `<stop offset="0%" stop-color="${fill}" stop-opacity="1"/>`,
+    `<stop offset="100%" stop-color="${fill}" stop-opacity="0.55"/>`,
+    `</linearGradient></defs>`,
+    `<circle cx="${cx}" cy="${cx}" r="${r}" fill="url(#${gradId})" stroke="${stroke}" stroke-width="${sw}"/>`,
+    `</svg>`,
+  ].join('');
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [cx, cx],
+    popupAnchor: [0, -(cx + 4)],
+  });
 }
 
 const CONNECTION_STYLES = {
@@ -162,18 +179,11 @@ export default function ExploreMap({
       {/* Entity markers */}
       {points.map(({ e, pos }) => {
         const active = selected?.id === e.id;
-        const style = styleForType(e.type, active);
         return (
-          <CircleMarker
+          <Marker
             key={e.id}
-            center={pos}
-            radius={style.radius}
-            pathOptions={{
-              color: style.color,
-              fillColor: style.fillColor,
-              fillOpacity: 0.9,
-              weight: style.weight,
-            }}
+            position={pos}
+            icon={createGradientMarker(e.type, active)}
             eventHandlers={{ click: () => onSelect?.(e) }}
           >
             <Popup>
@@ -217,7 +227,7 @@ export default function ExploreMap({
                 ) : null}
               </div>
             </Popup>
-          </CircleMarker>
+          </Marker>
         );
       })}
     </MapContainer>
