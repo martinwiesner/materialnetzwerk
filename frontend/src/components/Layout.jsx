@@ -15,7 +15,6 @@ import {
   Users,
   X,
   Scale,
-  Shield,
   Edit2,
   Check,
   MessageSquare,
@@ -86,105 +85,60 @@ function ImpressumOverlay({ onClose }) {
         </div>
         <div className="overflow-y-auto px-5 py-5 space-y-4 text-xs text-gray-600 leading-relaxed">
           <div>
-            <p className="font-semibold text-gray-800 text-sm mb-1">Angaben gemäß § 5 TMG</p>
-            <p>Ressourcenzentrum Zukunft (RZZ)<br />
-            Musterstraße 1<br />
-            12345 Musterstadt<br />
-            Deutschland</p>
+            <p className="font-semibold text-gray-800 text-sm mb-2">Projektverbund Reallabor Zekiwa Zeitz</p>
+            <p className="mb-2">Das Reallabor ZEKIWA Zeitz ist ein gemeinsames Projekt von:</p>
+            <ul className="list-disc pl-4 space-y-0.5">
+              <li>Hochschule Anhalt</li>
+              <li>Stiftung Bauhaus Dessau</li>
+              <li>Burg Giebichenstein Kunsthochschule Halle</li>
+              <li>Martin-Luther-Universität Halle-Wittenberg</li>
+              <li>Forum Rathenau e. V.</li>
+              <li>Stadt Zeitz</li>
+            </ul>
           </div>
           <div>
-            <p className="font-medium text-gray-700 mb-0.5">Kontakt</p>
-            <p>E-Mail: kontakt@rzz.de</p>
+            <p className="font-medium text-gray-700 mb-0.5">Angaben gemäß § 5 TMG</p>
+            <p>Hochschule Anhalt<br />
+            Bernburger Straße 55<br />
+            06366 Köthen<br />
+            E-Mail: <a href="mailto:info@hs-anhalt.de" className="underline hover:text-gray-800">info@hs-anhalt.de</a></p>
           </div>
           <div>
-            <p className="font-medium text-gray-700 mb-0.5">Verantwortlich für den Inhalt (§ 18 Abs. 2 MStV)</p>
-            <p>Ressourcenzentrum Zukunft, Musterstraße 1, 12345 Musterstadt</p>
+            <p className="font-medium text-gray-700 mb-0.5">Umsatzsteuer</p>
+            <p>Umsatzsteuer-Identifikationsnummer gemäß §27 a Umsatzsteuergesetz: DE814092585</p>
+          </div>
+          <div>
+            <p className="font-medium text-gray-700 mb-0.5">Aufsichtsbehörde</p>
+            <p>Ministerium für Wissenschaft, Energie, Klimaschutz und Umwelt des Landes Sachsen-Anhalt<br />
+            Leipziger Straße 58<br />
+            39112 Magdeburg<br />
+            E-Mail: <a href="mailto:poststelle@mwu.sachsen-anhalt.de" className="underline hover:text-gray-800">poststelle@mwu.sachsen-anhalt.de</a><br />
+            Web: <a href="https://www.mwu.sachsen-anhalt.de" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-800">www.mwu.sachsen-anhalt.de</a></p>
+          </div>
+          <div>
+            <p className="font-medium text-gray-700 mb-0.5">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</p>
+            <p>Reallabor ZEKIWA Zeitz<br />
+            Gastprofessor Martin Wiesner (Projektkoordinator)<br />
+            Telefon: +49 (0) 340 5197 1748<br />
+            E-Mail: <a href="mailto:martin.wiesner@hs-anhalt.de" className="underline hover:text-gray-800">martin.wiesner@hs-anhalt.de</a></p>
           </div>
           <div>
             <p className="font-medium text-gray-700 mb-0.5">Haftungsausschluss</p>
-            <p>Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für die Inhalte
-            externer Links. Für den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.
-            Die Nutzungsinhalte (Materialien, Akteure, Projekte) werden von den jeweiligen Nutzer·innen
-            eingetragen und liegen in deren Verantwortung.</p>
+            <p className="mb-2">Die inhaltliche Verantwortung der einzelnen WWW-Seiten liegt bei den jeweiligen informationseinstellenden Einrichtungen oder Personen. Eine Haftung für die Aktualität, Korrektheit, Vollständigkeit und Qualität dieser Webseiten kann trotz sorgfältiger Prüfung nicht übernommen werden. Die Hochschule Anhalt übernimmt insbesondere keinerlei Haftung für eventuelle Schäden oder Konsequenzen, die durch die direkte oder indirekte Nutzung der angebotenen Inhalte entstehen.</p>
+            <p className="font-medium text-gray-700 mb-0.5">Rechtswirksamkeit des Haftungsausschlusses</p>
+            <p>Dieser Haftungsausschluss ist als Teil des Internetangebotes zu betrachten, von dem aus auf diesen Text verwiesen wurde. Sollten Teile oder einzelne Formulierungen des Textes der geltenden Rechtslage nicht, nicht mehr oder nicht vollständig entsprechen, gilt das rechtlich Gewollte und bleiben die übrigen Teile des Dokuments in ihrem Inhalt und ihrer Gültigkeit davon unberührt.</p>
           </div>
           <div>
+            <p className="font-medium text-gray-700 mb-0.5">Urheberrecht</p>
+            <p>Alle im Internetangebot der Hochschule Anhalt veröffentlichten Inhalte (Layout, Texte, Bilder, Grafiken, Tondokumente, Videosequenzen usw.) unterliegen dem Urheberrecht. Jede vom Urheberrechtsgesetz nicht zugelassene Verwertung bedarf vorheriger ausdrücklicher Zustimmung. Dies gilt insbesondere für Vervielfältigung, Bearbeitung, Übersetzung, Einspeicherung, Verarbeitung bzw. (öffentliche) Wiedergabe von Inhalten in Datenbanken oder anderen elektronischen Medien und Systemen. Fotokopien und Downloads von Web-Seiten für den privaten, wissenschaftlichen und nicht kommerziellen Gebrauch dürfen hergestellt werden. Alle innerhalb des Internetangebotes genannten und ggf. durch Dritte geschützten Marken und Warenzeichen unterliegen uneingeschränkt den Bestimmungen des jeweils gültigen Kennzeichenrechts und den Besitzrechten der jeweiligen eingetragenen Eigentümer. Allein aufgrund der bloßen Nennung ist nicht der Schluss zu ziehen, dass Markenzeichen nicht durch Rechte Dritter geschützt sind.</p>
+          </div>
+          <div className="pt-2 border-t border-gray-100">
             <p className="font-medium text-gray-700 mb-0.5">Datenschutz</p>
-            <p>Es werden ausschließlich die zur Nutzung der Plattform notwendigen Daten gespeichert
-            (E-Mail, Passwort-Hash). Es erfolgt keine Weitergabe an Dritte.
-            Anfragen zur Datenlöschung bitte per E-Mail an kontakt@rzz.de.</p>
-          </div>
-        </div>
-        <div className="px-5 py-3 border-t border-gray-100 flex justify-end">
-          <button onClick={onClose} className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
-            Schließen
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Datenschutz Overlay ───────────────────────────────────────────────────────
-
-function DatenschutzOverlay({ onClose }) {
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-  useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 text-gray-800">
-            <Shield className="w-4 h-4 text-gray-400" />
-            <span className="text-sm font-semibold">Datenschutzerklärung</span>
-          </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="overflow-y-auto px-5 py-5 space-y-4 text-xs text-gray-600 leading-relaxed">
-          <div>
-            <p className="font-semibold text-gray-800 text-sm mb-1">1. Verantwortliche Stelle</p>
-            <p>Ressourcenzentrum Zukunft (RZZ), Musterstraße 1, 12345 Musterstadt. E-Mail: kontakt@rzz.de</p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-800 mb-1">2. Erhobene Daten</p>
-            <p>Bei der Registrierung werden <strong>Vorname, Nachname und E-Mail-Adresse</strong> erhoben.
-            Das Passwort wird ausschließlich als nicht umkehrbarer Hash gespeichert.
-            Nutzungsinhalte (Materialien, Projekte, Akteure, Nachrichten) werden dem jeweiligen Account zugeordnet.</p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-800 mb-1">3. Zweck der Verarbeitung</p>
-            <p>Die Daten dienen ausschließlich dem Betrieb der Plattform (Authentifizierung, Zuordnung von Inhalten, interne Kommunikation zwischen Nutzer·innen).</p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-800 mb-1">4. Weitergabe an Dritte</p>
-            <p>Eine Weitergabe personenbezogener Daten an Dritte erfolgt nicht. Die Plattform nutzt keine externen Tracking- oder Analysedienste.</p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-800 mb-1">5. Cookies & lokaler Speicher</p>
-            <p>Die Anwendung speichert den Login-Token im lokalen Browserspeicher (localStorage) zur Aufrechterhaltung der Sitzung. Es werden keine Tracking-Cookies gesetzt.</p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-800 mb-1">6. Rechte der Nutzer·innen</p>
-            <p>Sie haben das Recht auf Auskunft, Berichtigung und Löschung Ihrer gespeicherten Daten (Art. 15–17 DSGVO).
-            Anfragen bitte per E-Mail an kontakt@rzz.de. Account-Löschung auf Anfrage innerhalb von 14 Werktagen.</p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-800 mb-1">7. Hosting & Serverstandort</p>
-            <p>Die Plattform wird auf Servern innerhalb der EU betrieben (Hetzner Online GmbH, Deutschland).</p>
-          </div>
-          <div>
-            <p className="font-semibold text-gray-800 mb-1">8. Änderungen</p>
-            <p>Diese Datenschutzerklärung kann bei Bedarf angepasst werden. Die aktuelle Version ist stets auf dieser Seite abrufbar.</p>
+            <p>Die Datenschutzerklärung der Hochschule Anhalt gilt auch für dieses Angebot:{' '}
+              <a href="https://www.hs-anhalt.de/datenschutz.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-gray-800">
+                www.hs-anhalt.de/datenschutz.html
+              </a>
+            </p>
           </div>
         </div>
         <div className="px-5 py-3 border-t border-gray-100 flex justify-end">
@@ -525,7 +479,6 @@ export default function Layout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
   const [showImpressum, setShowImpressum] = useState(false);
-  const [showDatenschutz, setShowDatenschutz] = useState(false);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -566,7 +519,6 @@ export default function Layout() {
       />
 
       {showImpressum && <ImpressumOverlay onClose={() => setShowImpressum(false)} />}
-      {showDatenschutz && <DatenschutzOverlay onClose={() => setShowDatenschutz(false)} />}
 
       {/* Top Bar */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-gray-200">
@@ -692,12 +644,14 @@ export default function Layout() {
             <img src="/assets/logos/logo_eu_foerderung.svg" alt="Gefördert durch die Europäische Union" className="h-10 w-auto object-contain" />
           </div>
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowDatenschutz(true)}
+            <a
+              href="https://www.hs-anhalt.de/datenschutz.html"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
             >
               Datenschutz
-            </button>
+            </a>
             <button
               onClick={() => setShowImpressum(true)}
               className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
