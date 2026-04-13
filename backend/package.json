@@ -1,0 +1,42 @@
+{
+  "name": "material-library-backendnodejs",
+  "version": "1.0.0",
+  "description": "Backend API for Material Library - managing materials, projects, products, components, and inventories",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "swagger": "node ./swagger.js",
+    "db:init": "node ./scripts/init-db.js",
+    "db:migrate": "node ./scripts/migrate.js",
+    "create-admin": "node ./scripts/create-admin.js"
+  },
+  "keywords": [
+    "material-library",
+    "inventory",
+    "gwp",
+    "sustainability"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@getbrevo/brevo": "^5.0.4",
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^11.0.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^9.0.0",
+    "web-push": "^3.6.7",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "swagger-autogen": "^2.23.7"
+  }
+}

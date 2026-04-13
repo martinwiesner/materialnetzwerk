@@ -1,0 +1,24 @@
+
+services:
+  app:
+    build: .
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+      - ./logs:/usr/src/app/logs
+      - material_data_dev:/usr/src/app/data
+      - material_uploads_dev:/usr/src/app/uploads
+    environment:
+      NODE_ENV: development
+      PORT: 8081
+      INIT_DB: "true"
+      GENERATE_SWAGGER: "true"
+    env_file:
+      - .env
+    command: ["npm", "run", "dev"]
+
+volumes:
+  material_data_dev:
+  material_uploads_dev:
