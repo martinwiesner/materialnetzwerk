@@ -683,8 +683,14 @@ export default function Layout() {
 
       {/* Footer */}
       <footer className="mx-auto max-w-[1400px] px-4 pb-6 pt-2">
-        <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
-          <span className="text-[11px] text-gray-400">© {new Date().getFullYear()} RZZ Materialien</span>
+        <div className="border-t border-gray-100 pt-4 flex items-center justify-between flex-wrap gap-3">
+          {/* Funding logos */}
+          <div className="flex items-center gap-4">
+            <a href="https://www.neuebauhaeusler.com" target="_blank" rel="noopener noreferrer">
+              <img src="/assets/logos/logo_neb.svg" alt="Neue Bauhäusler – Landesinitiative Sachsen-Anhalt" className="h-8 w-auto object-contain" />
+            </a>
+            <img src="/assets/logos/logo_eu_foerderung.svg" alt="Gefördert durch die Europäische Union" className="h-8 w-auto object-contain" />
+          </div>
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowDatenschutz(true)}
