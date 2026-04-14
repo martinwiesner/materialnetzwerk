@@ -16,8 +16,8 @@ mkdir -p "$BACKUP_DIR"
 if scp "$SERVER:$REMOTE_PATH/data/material_library.db" "$BACKUP_DIR/material_library_$TIMESTAMP.db" 2>/dev/null; then
   echo "   ✅ Backup saved: db-backups/material_library_$TIMESTAMP.db"
   # Nur die letzten 25 Backups behalten
-  ls -t "$BACKUP_DIR"/material_library_*.db 2>/dev/null | tail -n +26 | xargs rm -f 2>/dev/null
-  echo "   (ältere Backups bereinigt, max. 25 werden behalten)"
+  ls -t "$BACKUP_DIR"/material_library_*.db 2>/dev/null | tail -n +101 | xargs rm -f 2>/dev/null
+  echo "   (ältere Backups bereinigt, max. 100 werden behalten)"
 else
   echo "   ⚠️  Backup fehlgeschlagen — Deploy wird trotzdem fortgesetzt"
 fi
