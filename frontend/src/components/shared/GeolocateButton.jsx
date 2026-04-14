@@ -23,9 +23,15 @@ export default function GeolocateButton({ onLocate, className = '' }) {
           parseFloat(pos.coords.longitude.toFixed(6))
         );
       },
-      () => {
+      (err) => {
         setLoading(false);
-        setError('Standort konnte nicht ermittelt werden. Bitte Berechtigung prüfen.');
+        if (err.code === 1) {
+          setError('Berechtigung verweigert – bitte Koordinaten manuell eingeben oder Browsereinstellungen prüfen.');
+        } else if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+          setError('Geolocation benötigt HTTPS. Koordinaten bitte manuell eingeben.');
+        } else {
+          setError('Standort konnte nicht ermittelt werden. Koordinaten bitte manuell eingeben.');
+        }
       },
       { timeout: 8000 }
     );
