@@ -105,11 +105,19 @@ function buildEntities({ materials, offers, projects, actors, search }) {
     })
     .map((m) => {
       const relatedOffers = offerByMaterialId[m.id] || [];
-      const withGeo = relatedOffers.filter((o) => Number.isFinite(Number(o.latitude)) && Number.isFinite(Number(o.longitude)));
-      const realGeo = withGeo.length
-        ? { lat: Number(withGeo[0].latitude), lon: Number(withGeo[0].longitude), address: withGeo[0].address || '' }
+      const offersWithGeo = relatedOffers.filter((o) => Number.isFinite(Number(o.latitude)) && Number.isFinite(Number(o.longitude)));
+
+      // Material's own geo takes priority, then offer geo, then deterministic fallback
+      const matGeo = Number.isFinite(Number(m.latitude)) && Number.isFinite(Number(m.longitude))
+        ? { lat: Number(m.latitude), lon: Number(m.longitude), address: m.address || '' }
         : null;
-      const geo = realGeo || deterministicGeo(`material:${m.id}`);
+      const offerGeo = offersWithGeo.length
+        ? { lat: Number(offersWithGeo[0].latitude), lon: Number(offersWithGeo[0].longitude), address: offersWithGeo[0].address || '' }
+        : null;
+      const geo = matGeo || offerGeo || deterministicGeo(`material:${m.id}`);
+
+      // If material has its own location AND there's also an offer with a different location, store offer location for the dashed line
+      const offerGeoForLine = matGeo && offerGeo && (offerGeo.lat !== matGeo.lat || offerGeo.lon !== matGeo.lon) ? offerGeo : null;
 
       const totalQty = relatedOffers.reduce((s, o) => s + (Number(o.quantity) || 0), 0);
       const unit = relatedOffers.find((o) => o.unit)?.unit || '';
@@ -121,6 +129,7 @@ function buildEntities({ materials, offers, projects, actors, search }) {
         subtitle: m.category || 'Material',
         imageUrl: dbImageUrl(m.images) || getMaterialImage(m),
         location: geo,
+        offerLocation: offerGeoForLine,
         quantityLabel: totalQty ? formatQty(totalQty, unit) : null,
         available: relatedOffers.length > 0,
         raw: m,

@@ -152,6 +152,22 @@ const ensureTables = () => {
         FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE,
         UNIQUE(actor_id, entity_type, entity_id)
       );
+      CREATE TABLE IF NOT EXISTS material_actors (
+        material_id TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (material_id, actor_id),
+        FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE,
+        FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS project_actors (
+        project_id TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (project_id, actor_id),
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE
+      );
     `);
     console.log('✓ All tables verified/created.');
   } catch (err) {
@@ -337,6 +353,12 @@ const ensureColumns = () => {
 
     // projects – availability flag
     addCol('projects', 'is_available', 'is_available BOOLEAN DEFAULT 0');
+
+    // materials – location fields
+    addCol('materials', 'latitude', 'latitude REAL');
+    addCol('materials', 'longitude', 'longitude REAL');
+    addCol('materials', 'location_name', 'location_name TEXT');
+    addCol('materials', 'address', 'address TEXT');
   } catch (err) {
     console.error('Failed ensuring new columns:', err.message);
   }

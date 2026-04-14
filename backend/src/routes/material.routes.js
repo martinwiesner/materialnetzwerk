@@ -17,6 +17,8 @@ import {
   uploadMaterialFilesCtrl,
   getMaterialFiles,
   deleteMaterialFile,
+  getMaterialActors,
+  setMaterialActors,
 } from '../controllers/material.controller.js';
 import protect, { optionalAuth } from '../middleware/auth.middleware.js';
 import { uploadMaterialImages as multerMatImages, uploadMaterialFiles as multerMatFiles } from '../middleware/upload.middleware.js';
@@ -235,3 +237,7 @@ router.delete('/:id/images/:imageId', protect, (req, res) => deleteMaterialImage
 router.post('/:id/files', protect, multerMatFiles.array('files', 10), (req, res) => uploadMaterialFilesCtrl(req, res));
 router.get('/:id/files', optionalAuth, (req, res) => getMaterialFiles(req, res));
 router.delete('/:id/files/:fileId', protect, (req, res) => deleteMaterialFile(req, res));
+
+// Actor association routes
+router.get('/:id/actors', optionalAuth, (req, res) => getMaterialActors(req, res));
+router.put('/:id/actors', protect, (req, res) => setMaterialActors(req, res));

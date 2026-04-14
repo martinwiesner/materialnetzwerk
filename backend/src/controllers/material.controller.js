@@ -57,11 +57,12 @@ export const getMaterials = (req, res) => {
 export const getMaterialById = (req, res) => {
   try {
     const material = Material.findById(req.params.id);
-    
+
     if (!material) {
       return res.status(404).json({ message: 'Material not found' });
     }
 
+    material.actors = Material.getActors(req.params.id);
     res.json(material);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch material', error: error.message });
@@ -239,5 +240,27 @@ export const deleteMaterialFile = (req, res) => {
     res.json({ message: 'File deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete file', error: error.message });
+  }
+};
+
+export const getMaterialActors = (req, res) => {
+  try {
+    const actors = Material.getActors(req.params.id);
+    res.json(actors);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to get actors', error: error.message });
+  }
+};
+
+export const setMaterialActors = (req, res) => {
+  try {
+    const material = Material.findById(req.params.id);
+    if (!material) return res.status(404).json({ message: 'Material not found' });
+    if (material.created_by !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    const actorIds = Array.isArray(req.body.actor_ids) ? req.body.actor_ids : [];
+    Material.setActors(req.params.id, actorIds);
+    res.json({ actor_ids: actorIds });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to set actors', error: error.message });
   }
 };

@@ -20,6 +20,7 @@ const NEW_FIELDS = [
   'origin_source','previous_use',
   'use_indoor','use_outdoor','use_where','use_not_suitable',
   'cert_epd','cert_cradle_to_cradle','cert_fsc_pefc',
+  'latitude','longitude','location_name','address',
 ];
 
 const BOOL_FIELDS = new Set(['is_reusable','is_transferable','is_giftable','use_indoor','use_outdoor','cert_epd','cert_cradle_to_cradle','cert_fsc_pefc']);
@@ -92,6 +93,7 @@ const Material = {
       data.use_outdoor?1:0,
       data.use_where||null, data.use_not_suitable||null,
       data.cert_epd?1:0, data.cert_cradle_to_cradle?1:0, data.cert_fsc_pefc?1:0,
+      data.latitude??null, data.longitude??null, data.location_name||null, data.address||null,
     ];
     const ph = cols.map(()=>'?').join(', ');
     db.prepare(`INSERT INTO materials (${cols.join(', ')}) VALUES (${ph})`).run(...vals);
@@ -178,6 +180,25 @@ const Material = {
   deleteFile: (fileId) => {
     const db = getDB();
     return db.prepare('DELETE FROM material_files WHERE id = ?').run(fileId).changes > 0;
+  },
+
+  // Actor associations
+  getActors: (materialId) => {
+    const db = getDB();
+    return db.prepare(`
+      SELECT a.id, a.name, a.type, a.location_name
+      FROM material_actors ma JOIN actors a ON ma.actor_id = a.id
+      WHERE ma.material_id = ?
+      ORDER BY a.name ASC
+    `).all(materialId);
+  },
+
+  setActors: (materialId, actorIds) => {
+    const db = getDB();
+    db.prepare('DELETE FROM material_actors WHERE material_id = ?').run(materialId);
+    const insert = db.prepare('INSERT OR IGNORE INTO material_actors (material_id, actor_id) VALUES (?, ?)');
+    const tx = db.transaction((ids) => { for (const aid of ids) insert.run(materialId, aid); });
+    tx(actorIds || []);
   },
 };
 

@@ -20,6 +20,8 @@ import {
   uploadProjectFiles,
   getProjectFiles,
   deleteProjectFile,
+  getProjectActors,
+  setProjectActors,
 } from '../controllers/project.controller.js';
 import protect, { optionalAuth } from '../middleware/auth.middleware.js';
 import upload, { uploadProjectFiles as multerProjFiles } from '../middleware/upload.middleware.js';
@@ -351,3 +353,7 @@ export default router;
 router.post('/:id/files', protect, multerProjFiles.array('files', 10), (req, res) => uploadProjectFiles(req, res));
 router.get('/:id/files', optionalAuth, (req, res) => getProjectFiles(req, res));
 router.delete('/:id/files/:fileId', protect, (req, res) => deleteProjectFile(req, res));
+
+// Actor association routes
+router.get('/:id/actors', optionalAuth, (req, res) => getProjectActors(req, res));
+router.put('/:id/actors', protect, (req, res) => setProjectActors(req, res));

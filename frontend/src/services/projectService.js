@@ -89,4 +89,14 @@ export const projectService = {
     const response = await api.delete(`/projects/${projectId}/files/${fileId}`);
     return response.data;
   },
+
+  getActors: async (projectId) => {
+    const response = await api.get(`/projects/${projectId}/actors`);
+    return response.data;
+  },
+
+  setActors: async (projectId, actorIds) => {
+    const response = await api.put(`/projects/${projectId}/actors`, { actor_ids: actorIds });
+    return response.data;
+  },
 };

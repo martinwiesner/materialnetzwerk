@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
-import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Image as ImageIcon } from 'lucide-react';
+import { actorService } from '../../services/actorService';
+import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Image as ImageIcon, Users } from 'lucide-react';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
 import GeolocateButton from '../shared/GeolocateButton';
@@ -108,11 +109,27 @@ export default function ProjectForm({ project, onClose }) {
   const isEditing = !!project;
   const activeId = project?.id || draftId;
 
+  const [actorIds, setActorIds] = useState(['']);
+
   const { data: materialsData } = useQuery({
     queryKey: ['materials', { my_materials: true }],
     queryFn: () => materialService.getAll({ my_materials: true }),
   });
   const availableMaterials = materialsData?.data || [];
+
+  const { data: allActors = [] } = useQuery({
+    queryKey: ['actors'],
+    queryFn: () => actorService.getAll(),
+    select: (d) => (Array.isArray(d) ? d : d?.data || []),
+  });
+
+  useEffect(() => {
+    if (project?.id) {
+      projectService.getActors(project.id).then((actors) => {
+        setActorIds(actors.length > 0 ? actors.map((a) => a.id) : ['']);
+      }).catch(() => {});
+    }
+  }, [project?.id]);
 
   useEffect(() => {
     if (project) {
@@ -213,14 +230,22 @@ export default function ProjectForm({ project, onClose }) {
     e.preventDefault();
     setError('');
     const submitData = buildSubmitData();
+    const validActorIds = actorIds.filter(Boolean);
 
     if (draftId) {
-      // Draft was already created — just update it and close
+      projectService.setActors(draftId, validActorIds).catch(() => {});
       updateMutation.mutate({ id: draftId, data: submitData });
     } else if (isEditing) {
+      projectService.setActors(project.id, validActorIds).catch(() => {});
       updateMutation.mutate({ id: project.id, data: submitData });
     } else {
-      createMutation.mutate(submitData);
+      createMutation.mutate(submitData, {
+        onSuccess: (created) => {
+          if (created?.id && validActorIds.length > 0) {
+            projectService.setActors(created.id, validActorIds).catch(() => {});
+          }
+        },
+      });
     }
   };
 
@@ -587,6 +612,49 @@ export default function ProjectForm({ project, onClose }) {
                 </div>
               );
             })}
+          </div>
+
+          {/* Beteiligte Akteure */}
+          <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-gray-500" />
+              Beteiligte Akteure
+            </p>
+            {actorIds.map((actorId, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <select
+                  value={actorId}
+                  onChange={(e) => {
+                    const next = [...actorIds];
+                    next[idx] = e.target.value;
+                    setActorIds(next);
+                  }}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                >
+                  <option value="">— Akteur wählen —</option>
+                  {allActors.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}{a.type ? ` (${a.type})` : ''}</option>
+                  ))}
+                </select>
+                {actorIds.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setActorIds(actorIds.filter((_, i) => i !== idx))}
+                    className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setActorIds([...actorIds, ''])}
+              className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Weiteren Akteur hinzufügen
+            </button>
           </div>
 
           {/* Actions */}

@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { materialService } from '../../services/materialService';
+import { materialService, materialActorService } from '../../services/materialService';
+import { actorService } from '../../services/actorService';
 import { inventoryService } from '../../services/inventoryService';
-import { MapPin, X } from 'lucide-react';
+import { MapPin, X, Plus, Trash2, Users } from 'lucide-react';
 import GeolocateButton from '../shared/GeolocateButton';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
@@ -109,6 +110,12 @@ const initialFormState = {
   certifications: '',
   source_url: '',
   notes: '',
+
+  // Location
+  latitude: '',
+  longitude: '',
+  location_name: '',
+  address: '',
 };
 
 export default function MaterialForm({ material, onClose, enableOfferOnCreate = false }) {
@@ -123,6 +130,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
   const [pendingFiles, setPendingFiles] = useState([]);   // Files queued before save
   const pendingImagesRef = useRef([]);
   const pendingFilesRef = useRef([]);
+  const pendingActorIdsRef = useRef([]);
 
   // Optional: create a material offer (inventory entry) right after creating the material
   const [createOffer, setCreateOffer] = useState(false);
@@ -139,10 +147,26 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     notes: '',
   });
 
+  const [actorIds, setActorIds] = useState(['']); // list of selected actor IDs (empty string = unset slot)
+
   const { data: categories = [], isLoading: catsLoading } = useQuery({
     queryKey: ['material-categories'],
     queryFn: materialService.getCategories,
   });
+
+  const { data: allActors = [] } = useQuery({
+    queryKey: ['actors'],
+    queryFn: () => actorService.getAll(),
+    select: (d) => (Array.isArray(d) ? d : d?.data || []),
+  });
+
+  useEffect(() => {
+    if (material?.id) {
+      materialActorService.getActors(material.id).then((actors) => {
+        setActorIds(actors.length > 0 ? actors.map((a) => a.id) : ['']);
+      }).catch(() => {});
+    }
+  }, [material?.id]);
 
   useEffect(() => {
     if (material) {
@@ -214,6 +238,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         certifications: material.certifications || '',
         source_url: material.source_url || '',
         notes: material.notes || '',
+
+        latitude: material.latitude ?? '',
+        longitude: material.longitude ?? '',
+        location_name: material.location_name || '',
+        address: material.address || '',
       });
     }
   }, [material]);
@@ -241,6 +270,12 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           setPendingFiles([]);
           pendingFilesRef.current = [];
         }
+      }
+
+      // Save actor associations
+      if (created?.id && pendingActorIdsRef.current.length > 0) {
+        materialActorService.setActors(created.id, pendingActorIdsRef.current).catch(() => {});
+        pendingActorIdsRef.current = [];
       }
 
       try {
@@ -316,6 +351,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       recyclate_content: formData.recyclate_content !== '' ? parseFloat(formData.recyclate_content) : null,
       recycling_percentage: formData.recycling_percentage !== '' ? parseFloat(formData.recycling_percentage) : null,
       recycled_content: formData.recycled_content ? parseFloat(formData.recycled_content) : null,
+      latitude: formData.latitude !== '' ? parseFloat(formData.latitude) : null,
+      longitude: formData.longitude !== '' ? parseFloat(formData.longitude) : null,
 
       // normalize arrays/JSON
       similar_material_ids: JSON.stringify(similarIds),
@@ -329,7 +366,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     delete submitData.similar_material_ids_input;
     delete submitData.env_links_input;
 
+    const validActorIds = actorIds.filter(Boolean);
+    pendingActorIdsRef.current = validActorIds;
+
     if (material) {
+      materialActorService.setActors(material.id, validActorIds).catch(() => {});
       updateMutation.mutate({ id: material.id, data: submitData });
     } else {
       createMutation.mutate(submitData);
@@ -742,6 +783,119 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Location */}
+          <div className="pt-2">
+            <div className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-gray-500" />
+              Standort des Materials
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Standortname</label>
+                <input
+                  type="text"
+                  name="location_name"
+                  value={formData.location_name}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  placeholder="z.B. Lager Zeitz, Werkstatt RZZ"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  placeholder="Straße, PLZ Ort"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Breitengrad</label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="latitude"
+                    value={formData.latitude}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    placeholder="51.0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Längengrad</label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="longitude"
+                    value={formData.longitude}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    placeholder="12.0"
+                  />
+                </div>
+              </div>
+              <GeolocateButton
+                onLocate={({ latitude, longitude, address }) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    latitude: latitude ?? prev.latitude,
+                    longitude: longitude ?? prev.longitude,
+                    address: address || prev.address,
+                  }))
+                }
+              />
+            </div>
+          </div>
+
+          {/* Beteiligte Akteure */}
+          <div className="pt-2">
+            <div className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-gray-500" />
+              Beteiligte Akteure
+            </div>
+            <div className="space-y-2">
+              {actorIds.map((actorId, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <select
+                    value={actorId}
+                    onChange={(e) => {
+                      const next = [...actorIds];
+                      next[idx] = e.target.value;
+                      setActorIds(next);
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                  >
+                    <option value="">— Akteur wählen —</option>
+                    {allActors.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}{a.type ? ` (${a.type})` : ''}</option>
+                    ))}
+                  </select>
+                  {actorIds.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setActorIds(actorIds.filter((_, i) => i !== idx))}
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setActorIds([...actorIds, ''])}
+                className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Weiteren Akteur hinzufügen
+              </button>
             </div>
           </div>
 

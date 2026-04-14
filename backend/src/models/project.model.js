@@ -33,6 +33,12 @@ const Project = {
     `).all(id);
     project.total_gwp_value = (project.materials||[]).reduce((s,r)=>s+Number(r.quantity||0)*Number(r.gwp_value||0),0);
     project.total_gwp_unit = 'kg CO2e';
+    project.actors = db.prepare(`
+      SELECT a.id, a.name, a.type, a.location_name
+      FROM project_actors pa JOIN actors a ON pa.actor_id = a.id
+      WHERE pa.project_id = ?
+      ORDER BY a.name ASC
+    `).all(id);
     return project;
   },
 
@@ -203,6 +209,25 @@ const Project = {
   removeMaterial: (projectId, materialId) => {
     const db = getDB();
     return db.prepare('DELETE FROM project_materials WHERE project_id = ? AND material_id = ?').run(projectId, materialId).changes > 0;
+  },
+
+  // Actor associations
+  getActors: (projectId) => {
+    const db = getDB();
+    return db.prepare(`
+      SELECT a.id, a.name, a.type, a.location_name
+      FROM project_actors pa JOIN actors a ON pa.actor_id = a.id
+      WHERE pa.project_id = ?
+      ORDER BY a.name ASC
+    `).all(projectId);
+  },
+
+  setActors: (projectId, actorIds) => {
+    const db = getDB();
+    db.prepare('DELETE FROM project_actors WHERE project_id = ?').run(projectId);
+    const insert = db.prepare('INSERT OR IGNORE INTO project_actors (project_id, actor_id) VALUES (?, ?)');
+    const tx = db.transaction((ids) => { for (const aid of ids) insert.run(projectId, aid); });
+    tx(actorIds || []);
   },
 };
 

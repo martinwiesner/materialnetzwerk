@@ -70,3 +70,15 @@ export const materialImageService = {
     return response.data;
   },
 };
+
+export const materialActorService = {
+  getActors: async (materialId) => {
+    const response = await api.get(`/materials/${materialId}/actors`);
+    return response.data;
+  },
+
+  setActors: async (materialId, actorIds) => {
+    const response = await api.put(`/materials/${materialId}/actors`, { actor_ids: actorIds });
+    return response.data;
+  },
+};

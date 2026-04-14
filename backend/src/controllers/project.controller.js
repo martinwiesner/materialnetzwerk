@@ -322,3 +322,25 @@ export const deleteProjectFile = (req, res) => {
     res.status(500).json({ message: 'Failed to delete file', error: error.message });
   }
 };
+
+export const getProjectActors = (req, res) => {
+  try {
+    const actors = Project.getActors(req.params.id);
+    res.json(actors);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to get actors', error: error.message });
+  }
+};
+
+export const setProjectActors = (req, res) => {
+  try {
+    const project = Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+    if (project.owner_id !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    const actorIds = Array.isArray(req.body.actor_ids) ? req.body.actor_ids : [];
+    Project.setActors(req.params.id, actorIds);
+    res.json({ actor_ids: actorIds });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to set actors', error: error.message });
+  }
+};
