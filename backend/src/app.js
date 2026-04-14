@@ -8,7 +8,6 @@ import logger from './utils/logger.js';
 
 // Routes
 import authRoutes from './routes/auth.routes.js';
-import { sendNewMessageEmail } from './services/email.service.js';
 import materialRoutes from './routes/material.routes.js';
 import projectRoutes from './routes/project.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
@@ -124,6 +123,7 @@ app.get('/api/test-email', async (req, res) => {
   if (!toEmail) return res.status(400).json({ message: 'Pass ?to=your@email.de' });
   if (!process.env.BREVO_API_KEY) return res.status(500).json({ message: 'BREVO_API_KEY not set in .env' });
   try {
+    const { sendNewMessageEmail } = await import('./services/email.service.js');
     await sendNewMessageEmail({
       toEmail,
       toName: 'Test',

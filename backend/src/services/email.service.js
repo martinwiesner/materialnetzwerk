@@ -4,14 +4,20 @@
  * Set BREVO_API_KEY in .env to enable. If missing, emails are silently skipped.
  */
 
-import * as Brevo from '@getbrevo/brevo';
-
 let client = null;
 
-function getClient() {
+async function getClient() {
   if (client) return client;
   const key = process.env.BREVO_API_KEY;
   if (!key) return null;
+
+  let Brevo;
+  try {
+    Brevo = await import('@getbrevo/brevo');
+  } catch {
+    console.warn('[Brevo] Package @getbrevo/brevo not installed — emails disabled. Run: npm install');
+    return null;
+  }
 
   const apiInstance = new Brevo.TransactionalEmailsApi();
   apiInstance.authentications['api-key'].apiKey = key;
@@ -31,8 +37,8 @@ function getClient() {
  * @param {string} opts.appUrl       - base URL of the app (e.g. https://materialnetzwerk.de)
  */
 export async function sendNewMessageEmail({ toEmail, toName, senderName, subject, preview, appUrl }) {
-  const api = getClient();
-  if (!api) return; // BREVO_API_KEY not set — skip silently
+  const api = await getClient();
+  if (!api) return; // BREVO_API_KEY not set or package missing — skip silently
 
   const fromEmail = process.env.BREVO_FROM_EMAIL || 'no-reply@materialnetzwerk.de';
   const fromName  = process.env.BREVO_FROM_NAME  || 'Materialnetzwerk';
@@ -95,11 +101,12 @@ export async function sendNewMessageEmail({ toEmail, toName, senderName, subject
 </body>
 </html>`;
 
-  const sendSmtpEmail = new Brevo.SendSmtpEmail();
-  sendSmtpEmail.sender     = { name: fromName, email: fromEmail };
-  sendSmtpEmail.to         = [{ email: toEmail, name: toName }];
-  sendSmtpEmail.subject    = emailSubject;
-  sendSmtpEmail.htmlContent = htmlContent;
+  const sendSmtpEmail = {
+    sender:      { name: fromName, email: fromEmail },
+    to:          [{ email: toEmail, name: toName }],
+    subject:     emailSubject,
+    htmlContent,
+  };
 
   try {
     await api.sendTransacEmail(sendSmtpEmail);
