@@ -25,12 +25,14 @@ const Actor = {
     if (filters.type) { query += ' AND a.type = ?'; params.push(filters.type); }
     query += ' ORDER BY a.created_at DESC';
     const rows = db.prepare(query).all(...params);
-    const imgQ = db.prepare('SELECT * FROM actor_images WHERE actor_id = ? ORDER BY sort_order ASC, created_at ASC');
+    const imgQ  = db.prepare('SELECT * FROM actor_images WHERE actor_id = ? ORDER BY sort_order ASC, created_at ASC');
     const linkQ = db.prepare('SELECT * FROM actor_links WHERE actor_id = ? ORDER BY created_at ASC');
+    const matQ  = db.prepare("SELECT material_id as entity_id, 'material' as entity_type FROM material_actors WHERE actor_id = ?");
+    const projQ = db.prepare("SELECT project_id as entity_id, 'project' as entity_type FROM project_actors WHERE actor_id = ?");
     return rows.map(r => ({
       ...r,
       images: imgQ.all(r.id),
-      links: linkQ.all(r.id),
+      links: [...linkQ.all(r.id), ...matQ.all(r.id), ...projQ.all(r.id)],
     }));
   },
 
@@ -42,7 +44,10 @@ const Actor = {
     `).get(id);
     if (!actor) return null;
     actor.images = db.prepare('SELECT * FROM actor_images WHERE actor_id = ? ORDER BY sort_order ASC, created_at ASC').all(id);
-    actor.links = db.prepare('SELECT * FROM actor_links WHERE actor_id = ? ORDER BY created_at ASC').all(id);
+    const legacyLinks = db.prepare('SELECT * FROM actor_links WHERE actor_id = ? ORDER BY created_at ASC').all(id);
+    const matLinks  = db.prepare("SELECT material_id as entity_id, 'material' as entity_type FROM material_actors WHERE actor_id = ?").all(id);
+    const projLinks = db.prepare("SELECT project_id as entity_id, 'project' as entity_type FROM project_actors WHERE actor_id = ?").all(id);
+    actor.links = [...legacyLinks, ...matLinks, ...projLinks];
     return actor;
   },
 

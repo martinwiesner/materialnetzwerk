@@ -842,13 +842,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 </div>
               </div>
               <GeolocateButton
-                onLocate={({ latitude, longitude, address }) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    latitude: latitude ?? prev.latitude,
-                    longitude: longitude ?? prev.longitude,
-                    address: address || prev.address,
-                  }))
+                onLocate={(lat, lon) =>
+                  setFormData((prev) => ({ ...prev, latitude: lat, longitude: lon }))
                 }
               />
             </div>
