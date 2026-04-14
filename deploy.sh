@@ -5,8 +5,22 @@
 SERVER="root@91.99.228.92"
 REMOTE_PATH="/opt/material-library"
 COMMIT_MSG="${1:-deploy: $(date '+%Y-%m-%d %H:%M')}"
+BACKUP_DIR="$(dirname "$0")/db-backups"
+TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
 
 echo "🚀 Deploying to $SERVER..."
+
+# 0. Produktionsdatenbank lokal sichern (VOR allem anderen)
+echo "💾 Backing up production database..."
+mkdir -p "$BACKUP_DIR"
+if scp "$SERVER:$REMOTE_PATH/data/material_library.db" "$BACKUP_DIR/material_library_$TIMESTAMP.db" 2>/dev/null; then
+  echo "   ✅ Backup saved: db-backups/material_library_$TIMESTAMP.db"
+  # Nur die letzten 25 Backups behalten
+  ls -t "$BACKUP_DIR"/material_library_*.db 2>/dev/null | tail -n +26 | xargs rm -f 2>/dev/null
+  echo "   (ältere Backups bereinigt, max. 25 werden behalten)"
+else
+  echo "   ⚠️  Backup fehlgeschlagen — Deploy wird trotzdem fortgesetzt"
+fi
 
 # 1. Git commit (ohne .env)
 if git rev-parse --git-dir > /dev/null 2>&1; then
@@ -28,6 +42,8 @@ rsync -avz --progress \
   --exclude 'backend/data' \
   --exclude 'backend/logs' \
   --exclude 'backend/uploads' \
+  --exclude 'data' \
+  --exclude 'db-backups' \
   --exclude 'certbot' \
   --exclude '.DS_Store' \
   . $SERVER:$REMOTE_PATH/

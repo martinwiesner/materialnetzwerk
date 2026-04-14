@@ -21,6 +21,7 @@ import {
   Bell,
   BellOff,
   Inbox,
+  ClipboardList,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
@@ -30,6 +31,7 @@ import { usePush } from '../hooks/usePush';
 import AuthOverlay from './auth/AuthOverlay';
 import ToastContainer from './shared/ToastContainer';
 import IncomingRequestsPanel from './requests/IncomingRequestsPanel';
+import MyRequestsPanel from './requests/MyRequestsPanel';
 import { messageService } from '../services/messageService';
 import { materialRequestService } from '../services/materialRequestService';
 import { authService } from '../services/authService';
@@ -156,7 +158,7 @@ function ImpressumOverlay({ onClose }) {
 
 // ── Account Drawer ────────────────────────────────────────────────────────────
 
-function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, pendingRequestCount, onShowRequests }) {
+function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, pendingRequestCount, onShowRequests, onShowMyRequests }) {
   const [tab, setTab] = useState('profile');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ first_name: '', last_name: '' });
@@ -365,6 +367,13 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                     Meine Akteure
                   </Link>
                   <button
+                    onClick={() => { onClose(); onShowMyRequests(); }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <ClipboardList className="w-4 h-4 text-primary-500" />
+                    Meine Anfragen
+                  </button>
+                  <button
                     onClick={() => { onClose(); onShowRequests(); }}
                     className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
@@ -497,6 +506,7 @@ export default function Layout() {
   const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
   const [showImpressum, setShowImpressum] = useState(false);
   const [showIncomingRequests, setShowIncomingRequests] = useState(false);
+  const [showMyRequests, setShowMyRequests] = useState(false);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -544,10 +554,12 @@ export default function Layout() {
         token={token}
         pendingRequestCount={pendingRequestCount}
         onShowRequests={() => setShowIncomingRequests(true)}
+        onShowMyRequests={() => setShowMyRequests(true)}
       />
 
       {showImpressum && <ImpressumOverlay onClose={() => setShowImpressum(false)} />}
       {showIncomingRequests && <IncomingRequestsPanel onClose={() => setShowIncomingRequests(false)} />}
+      {showMyRequests && <MyRequestsPanel onClose={() => setShowMyRequests(false)} />}
 
       {/* Top Bar */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-gray-200">

@@ -4,6 +4,7 @@ frontend/dist/
 backend/data/
 backend/uploads/
 backend/logs/
+db-backups/
 **/.env
 *.sqlite
 *.db
