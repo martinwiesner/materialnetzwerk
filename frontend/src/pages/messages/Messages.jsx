@@ -177,7 +177,6 @@ export default function Messages() {
   // Conversation View
   if (selectedConversation) {
     return (
-      <>
       <div className="flex flex-col h-[calc(100vh-8rem)]">
         <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -262,6 +261,12 @@ export default function Messages() {
             </button>
           </div>
         </form>
+      {requestsPanelInventoryId && (
+        <IncomingRequestsPanel
+          initialInventoryId={requestsPanelInventoryId}
+          onClose={() => setRequestsPanelInventoryId(null)}
+        />
+      )}
       </div>
     );
   }
@@ -379,13 +384,6 @@ export default function Messages() {
           </div>
         </div>
       </div>
-      {requestsPanelInventoryId && (
-        <IncomingRequestsPanel
-          initialInventoryId={requestsPanelInventoryId}
-          onClose={() => setRequestsPanelInventoryId(null)}
-        />
-      )}
-      </>
     );
   }
 
