@@ -144,18 +144,6 @@ export default function ExploreMap({
       .filter(Boolean);
   }, [connections]);
 
-  // Permanent material–offer lines: shown when a material has its own location AND an offer location
-  const matOfferLines = useMemo(() => {
-    return (entities || [])
-      .filter((e) => e.type === 'material' && e.offerLocation)
-      .map((e) => {
-        const a = [Number(e.location.lat), Number(e.location.lon)];
-        const b = [Number(e.offerLocation.lat), Number(e.offerLocation.lon)];
-        if (![a[0], a[1], b[0], b[1]].every(Number.isFinite)) return null;
-        return { id: `mat-offer-line:${e.id}`, positions: [a, b] };
-      })
-      .filter(Boolean);
-  }, [entities]);
 
   return (
     <MapContainer
@@ -189,37 +177,6 @@ export default function ExploreMap({
         );
       })}
 
-      {/* Permanent material–offer location lines (blue dashed) */}
-      {matOfferLines.map((l) => (
-        <Polyline
-          key={l.id}
-          positions={l.positions}
-          pathOptions={{ color: '#0033FF', weight: 1.5, dashArray: '6 6', opacity: 0.6 }}
-        />
-      ))}
-
-      {/* Secondary offer-location markers for materials with two locations */}
-      {(entities || [])
-        .filter((e) => e.type === 'material' && e.offerLocation)
-        .map((e) => {
-          const pos = [Number(e.offerLocation.lat), Number(e.offerLocation.lon)];
-          return (
-            <Marker
-              key={`offer-pin:${e.id}`}
-              position={pos}
-              icon={createGradientMarker('offer', false)}
-              eventHandlers={{ click: () => onSelect?.(e) }}
-            >
-              <Popup>
-                <div style={{ minWidth: 180 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, marginBottom: 2 }}>Angebot-Standort</div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{e.title}</div>
-                  {e.offerLocation.address ? <div style={{ fontSize: 12, opacity: 0.65, marginTop: 2 }}>{e.offerLocation.address}</div> : null}
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
 
       {/* Entity markers */}
       {points.map(({ e, pos }) => {

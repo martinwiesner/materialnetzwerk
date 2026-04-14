@@ -12,10 +12,18 @@ import GeoMap from '../../components/maps/GeoMap';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import RzzDecoration from '../../components/ui/RzzDecoration';
+import { MEDIA_BASE } from '../../services/api';
 
 function getMaterialImage(material) {
+  // 1. Real DB image takes priority
+  const first = material?.images?.[0];
+  if (first?.file_path) {
+    const base = (MEDIA_BASE || '').replace(/\/$/, '');
+    const p = first.file_path.replace(/^\./, '');
+    return `${base}${p.startsWith('/') ? p : '/' + p}`;
+  }
+  // 2. Static name-based fallback
   const name = (material?.name || '').toLowerCase();
-  // Extend this mapping anytime you add real photos
   if (name.includes('weizenspreu') && name.includes('los')) return '/assets/materials/weizenspreu-lose.png';
   if (name.includes('rundst') || name.includes('rundstäb') || name.includes('rundstaeb')) return '/assets/materials/rundstab.jpg';
   return null;
@@ -419,7 +427,9 @@ export default function Materials() {
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-full h-44 bg-gray-100" />
+                  <div className="w-full h-44 bg-gray-100 flex items-center justify-center">
+                    <Package2 className="w-10 h-10 text-gray-300" />
+                  </div>
                 )}
 
                 {/* Top meta row */}

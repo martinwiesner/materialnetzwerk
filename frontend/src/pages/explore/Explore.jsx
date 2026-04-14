@@ -213,7 +213,8 @@ function buildEntities({ materials, offers, projects, actors, search }) {
       };
     });
 
-  return [...actorEntities, ...offerEntities, ...projectEntities, ...materialEntities];
+  // Order: materials first, then projects, then actors, offers last (usually overlapping with materials)
+  return [...materialEntities, ...projectEntities, ...actorEntities, ...offerEntities];
 }
 
 /**
@@ -284,7 +285,17 @@ function getConnectionsForSelection(selected, allEntities) {
     const matGeo = selected.location;
     if (!matId || !matGeo) return [];
 
-    // material → offers
+    // material own-location → offer location (when both differ)
+    if (selected.offerLocation) {
+      lines.push({
+        id: `conn:m${matId}:offerloc`,
+        type: 'material-offer',
+        from: { lat: matGeo.lat, lon: matGeo.lon },
+        to: { lat: selected.offerLocation.lat, lon: selected.offerLocation.lon },
+      });
+    }
+
+    // material → offers (entities)
     for (const e of allEntities) {
       if (e.type === 'offer' && e.raw?.material_id === matId && e.location) {
         lines.push({
