@@ -386,8 +386,9 @@ export default function Projects() {
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {typeof project.total_gwp_value === 'number' && project.total_gwp_value > 0 && (
-                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                              GWP: {project.total_gwp_value.toFixed(3)} {project.total_gwp_unit || 'kg CO2e'}
+                            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-800">
+                              <Leaf className="w-3 h-3 text-green-600" />
+                              GWP {project.total_gwp_value.toFixed(3)} {project.total_gwp_unit || 'kg CO₂e'}
                             </span>
                           )}
                           {project.location_name && (

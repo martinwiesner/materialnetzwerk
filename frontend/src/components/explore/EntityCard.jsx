@@ -1,4 +1,4 @@
-import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users } from 'lucide-react';
+import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users, Send } from 'lucide-react';
 import clsx from 'clsx';
 
 function badgeForType(type) {
@@ -8,7 +8,7 @@ function badgeForType(type) {
   return { label: 'Projekt', className: 'bg-project-50 text-project-800 border-project-200', icon: FolderOpen };
 }
 
-export default function EntityCard({ entity, active = false, onSelect, onOpenDetails }) {
+export default function EntityCard({ entity, active = false, onSelect, onOpenDetails, onRequest }) {
   const badge = badgeForType(entity.type);
   const Icon = badge.icon;
 
@@ -70,16 +70,25 @@ export default function EntityCard({ entity, active = false, onSelect, onOpenDet
             <MapPin className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">{metaLeft || '—'}</span>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenDetails?.();
-            }}
-            className="text-sm font-medium text-primary-600 hover:text-primary-700"
-          >
-            View details
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {onRequest && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRequest(); }}
+                className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 border border-gray-200 hover:border-gray-400 bg-white px-2.5 py-1 rounded-lg transition-colors"
+              >
+                <Send className="w-3 h-3" />
+                Anfragen
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpenDetails?.(); }}
+              className="text-sm font-medium text-primary-600 hover:text-primary-700"
+            >
+              Details
+            </button>
+          </div>
         </div>
       </div>
     </div>

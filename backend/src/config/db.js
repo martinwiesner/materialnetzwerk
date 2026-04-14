@@ -42,10 +42,11 @@ export const getDB = () => {
     initializeSchema();
   }
   // Always run these — safe on both new and existing DBs
-  ensureTables();       // CREATE TABLE IF NOT EXISTS for all tables
+  ensureTables();                  // CREATE TABLE IF NOT EXISTS for all tables
   ensureMaterialCategories();
-  ensureColumns();      // ALTER TABLE ADD COLUMN IF NOT EXISTS
-  ensureAdmin();        // Promote ADMIN_EMAIL to superuser if set
+  ensureColumns();                 // ALTER TABLE ADD COLUMN IF NOT EXISTS
+  ensureCategoryTranslations();   // Rename English → German category names
+  ensureAdmin();                   // Promote ADMIN_EMAIL to superuser if set
   ensureFixedAdmins(); // Create/promote hardcoded admin accounts (fire-and-forget)
   ensureSeedData();
   
@@ -152,6 +153,20 @@ const ensureTables = () => {
         FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE,
         UNIQUE(actor_id, entity_type, entity_id)
       );
+      CREATE TABLE IF NOT EXISTS material_requests (
+        id TEXT PRIMARY KEY,
+        inventory_id TEXT NOT NULL,
+        requester_id TEXT NOT NULL,
+        quantity REAL,
+        unit TEXT,
+        message TEXT,
+        status TEXT DEFAULT 'pending',
+        owner_note TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE CASCADE,
+        FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE
+      );
       CREATE TABLE IF NOT EXISTS material_actors (
         material_id TEXT NOT NULL,
         actor_id TEXT NOT NULL,
@@ -223,16 +238,16 @@ const ensureMaterialCategories = () => {
     const row = db.prepare('SELECT COUNT(*) as count FROM material_categories').get();
     if ((row?.count || 0) === 0) {
       const defaults = [
-        'Metals',
-        'Wood',
-        'Plastics',
-        'Glass',
-        'Concrete',
-        'Textiles',
-        'Ceramics',
-        'Composites',
-        'Stone',
-        'Other'
+        'Metalle',
+        'Holz',
+        'Kunststoffe',
+        'Glas',
+        'Mineralische Baustoffe',
+        'Textilien',
+        'Keramik',
+        'Verbundwerkstoffe',
+        'Naturstein',
+        'Sonstiges',
       ];
       const insert = db.prepare('INSERT INTO material_categories (name) VALUES (?)');
       const insertMany = db.transaction((names) => {
@@ -361,6 +376,39 @@ const ensureColumns = () => {
     addCol('materials', 'address', 'address TEXT');
   } catch (err) {
     console.error('Failed ensuring new columns:', err.message);
+  }
+};
+
+/**
+ * Translate legacy English category names to German (idempotent).
+ */
+const ensureCategoryTranslations = () => {
+  const translations = {
+    Metals: 'Metalle',
+    Wood: 'Holz',
+    Plastics: 'Kunststoffe',
+    Glass: 'Glas',
+    Concrete: 'Mineralische Baustoffe',
+    Textiles: 'Textilien',
+    Ceramics: 'Keramik',
+    Composites: 'Verbundwerkstoffe',
+    Stone: 'Naturstein',
+    Other: 'Sonstiges',
+  };
+  try {
+    for (const [en, de] of Object.entries(translations)) {
+      // Update material rows first
+      db.prepare('UPDATE materials SET category = ? WHERE category = ?').run(de, en);
+      // Update material_categories table (rename primary key safely)
+      const deExists = db.prepare('SELECT 1 FROM material_categories WHERE name = ?').get(de);
+      if (!deExists) {
+        db.prepare('UPDATE material_categories SET name = ? WHERE name = ?').run(de, en);
+      } else {
+        db.prepare('DELETE FROM material_categories WHERE name = ?').run(en);
+      }
+    }
+  } catch (err) {
+    console.error('ensureCategoryTranslations failed:', err.message);
   }
 };
 

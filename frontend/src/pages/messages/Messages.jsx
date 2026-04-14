@@ -3,8 +3,9 @@ import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { messageService } from '../../services/messageService';
-import { Mail, Send, CheckCheck, Trash2, ArrowLeft, X } from 'lucide-react';
+import { Mail, Send, CheckCheck, Trash2, ArrowLeft, X, Inbox } from 'lucide-react';
 import clsx from 'clsx';
+import IncomingRequestsPanel from '../../components/requests/IncomingRequestsPanel';
 
 export default function Messages() {
   const queryClient = useQueryClient();
@@ -22,6 +23,7 @@ export default function Messages() {
   };
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [isComposing, setIsComposing] = useState(false);
+  const [requestsPanelInventoryId, setRequestsPanelInventoryId] = useState(null);
   const [composeData, setComposeData] = useState({ receiver_id: '', subject: '', content: '', inventory_id: '' });
   const [replyContent, setReplyContent] = useState('');
   const messagesEndRef = useRef(null);
@@ -217,14 +219,18 @@ export default function Messages() {
                           {message.subject}
                         </p>
                       )}
-                      {message.material_name && (
-                        <div className={clsx('mb-2 p-2 rounded text-sm', isFromMe ? 'bg-primary-600' : 'bg-gray-200')}>
-                          <strong>Regarding:</strong> {message.material_name} ({message.inventory_quantity} units)
-                        </div>
+                      {message.inventory_id && !isFromMe && (
+                        <button
+                          onClick={() => setRequestsPanelInventoryId(message.inventory_id)}
+                          className="mb-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <Inbox className="w-3.5 h-3.5" />
+                          Anfrage verwalten
+                        </button>
                       )}
                       <p className="whitespace-pre-wrap">{message.content}</p>
                       <p className={clsx('text-xs mt-2', isFromMe ? 'text-primary-100' : 'text-gray-500')}>
-                        {new Date(message.created_at).toLocaleString()}
+                        {new Date(message.created_at).toLocaleString('de-DE')}
                       </p>
                     </div>
                   </div>
@@ -377,6 +383,7 @@ export default function Messages() {
 
   // List View
   return (
+    <>
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
@@ -470,5 +477,13 @@ export default function Messages() {
         </div>
       )}
     </div>
+
+      {requestsPanelInventoryId && (
+        <IncomingRequestsPanel
+          initialInventoryId={requestsPanelInventoryId}
+          onClose={() => setRequestsPanelInventoryId(null)}
+        />
+      )}
+    </>
   );
 }

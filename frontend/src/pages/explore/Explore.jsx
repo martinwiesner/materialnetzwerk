@@ -17,6 +17,7 @@ import MaterialForm from '../../components/materials/MaterialForm';
 import InventoryForm from '../../components/inventory/InventoryForm';
 import ProjectForm from '../../components/projects/ProjectForm';
 import InventoryDetailModal from '../../components/inventory/InventoryDetailModal';
+import MaterialRequestModal from '../../components/requests/MaterialRequestModal';
 import ActorDetailOverlay from '../../pages/actors/ActorDetailOverlay';
 import ActorForm from '../../components/actors/ActorForm';
 
@@ -132,6 +133,7 @@ function buildEntities({ materials, offers, projects, actors, search }) {
         offerLocation: offerGeoForLine,
         quantityLabel: totalQty ? formatQty(totalQty, unit) : null,
         available: relatedOffers.length > 0,
+        offerRaw: relatedOffers[0] || null,
         raw: m,
       };
     });
@@ -376,7 +378,7 @@ function getConnectionsForSelection(selected, allEntities) {
 export default function Explore() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, token } = useAuthStore();
+  const { isAuthenticated, token, user } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
 
   const requireAuth = () => {
@@ -399,6 +401,7 @@ export default function Explore() {
   const [selected, setSelected] = useState(null);
   const [offerDetailId, setOfferDetailId] = useState(null);
   const [actorDetail, setActorDetail] = useState(null);
+  const [requestItem, setRequestItem] = useState(null); // raw inventory item for MaterialRequestModal
 
   // Create flows
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -686,6 +689,17 @@ export default function Explore() {
                       if (e.type === 'offer') setOfferDetailId(e.raw?.id);
                       if (e.type === 'actor') setActorDetail(e.raw);
                     }}
+                    onRequest={
+                      e.type === 'material' && e.offerRaw
+                        ? () => {
+                            if (!isAuthenticated) {
+                              openAuth({ tab: 'login', reason: 'Bitte melde dich an, um Material anzufragen.' });
+                            } else if (!user || e.offerRaw?.owner_id !== user.id) {
+                              setRequestItem(e.offerRaw);
+                            }
+                          }
+                        : undefined
+                    }
                   />
                 ))}
               </div>
@@ -707,6 +721,12 @@ export default function Explore() {
         <InventoryDetailModal
           inventoryId={offerDetailId}
           onClose={() => setOfferDetailId(null)}
+        />
+      )}
+      {requestItem && (
+        <MaterialRequestModal
+          item={requestItem}
+          onClose={() => setRequestItem(null)}
         />
       )}
       {actorDetail && (

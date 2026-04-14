@@ -1,7 +1,12 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X, MapPin, Package, User, Calendar, Truck, Tag, MessageSquare, Download, ExternalLink } from 'lucide-react';
+import { X, MapPin, Package, User, Calendar, Truck, Tag, MessageSquare, Download, ExternalLink, Send, Inbox } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { MEDIA_BASE } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthOverlayStore } from '../../store/authOverlayStore';
+import MaterialRequestModal from '../requests/MaterialRequestModal';
+import IncomingRequestsPanel from '../requests/IncomingRequestsPanel';
 
 const API_BASE = MEDIA_BASE;
 
@@ -53,11 +58,26 @@ function InfoRow({ label, value, className = '' }) {
 }
 
 export default function InventoryDetailModal({ inventoryId, onClose, onContact }) {
+  const { user, isAuthenticated } = useAuthStore();
+  const openAuth = useAuthOverlayStore((s) => s.open);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showIncomingPanel, setShowIncomingPanel] = useState(false);
+
   const { data: item, isLoading } = useQuery({
     queryKey: ['inventory-detail', inventoryId],
     queryFn: () => inventoryService.getById(inventoryId),
     enabled: Boolean(inventoryId),
   });
+
+  const isOwner = isAuthenticated && item && user && item.owner_id === user.id;
+
+  function handleRequestClick() {
+    if (!isAuthenticated) {
+      openAuth({ tab: 'login', reason: 'Bitte melde dich an, um Material anzufragen.' });
+    } else {
+      setShowRequestModal(true);
+    }
+  }
 
   const imageUrl = (img) => {
     if (!img?.file_path) return null;
@@ -237,25 +257,55 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
 
             {/* Owner / Contact */}
             <Section title="Ansprechpartner">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <User className="w-4 h-4 text-gray-400" />
                   {item.owner_first_name || item.owner_email?.split('@')[0] || 'Unbekannt'}
                 </div>
-                {onContact && (
-                  <button
-                    onClick={() => onContact(item)}
-                    className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    Kontakt aufnehmen
-                  </button>
-                )}
+                <div className="flex gap-2 flex-wrap">
+                  {onContact && (
+                    <button
+                      onClick={() => onContact(item)}
+                      className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Kontakt aufnehmen
+                    </button>
+                  )}
+                  {isOwner ? (
+                    <button
+                      onClick={() => setShowIncomingPanel(true)}
+                      className="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
+                    >
+                      <Inbox className="w-4 h-4" />
+                      Eingehende Anfragen
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleRequestClick}
+                      className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Send className="w-4 h-4" />
+                      Material anfragen
+                    </button>
+                  )}
+                </div>
               </div>
             </Section>
           </div>
         )}
       </div>
+
+      {showRequestModal && item && (
+        <MaterialRequestModal
+          item={item}
+          onClose={() => setShowRequestModal(false)}
+        />
+      )}
+
+      {showIncomingPanel && (
+        <IncomingRequestsPanel onClose={() => setShowIncomingPanel(false)} />
+      )}
     </div>
   );
 }

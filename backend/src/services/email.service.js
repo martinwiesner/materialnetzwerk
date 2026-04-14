@@ -103,8 +103,10 @@ export async function sendNewMessageEmail({ toEmail, toName, senderName, subject
 
   try {
     await api.sendTransacEmail(sendSmtpEmail);
+    console.log(`[Brevo] Email sent to ${toEmail}`);
   } catch (err) {
     // Log but never crash the main request
-    console.error('Brevo email error:', err?.response?.body || err.message);
+    const detail = err?.response?.body || err?.response?.text || err.message;
+    console.error('[Brevo] Email error:', typeof detail === 'object' ? JSON.stringify(detail) : detail);
   }
 }

@@ -24,7 +24,10 @@ const Inventory = {
   findById: (id) => {
     const db = getDB();
     const row = db.prepare(`
-      SELECT i.*, m.name as material_name, m.category, m.gwp_value
+      SELECT i.*, m.name as material_name, m.category, m.gwp_value,
+        COALESCE((SELECT SUM(r.quantity) FROM material_requests r WHERE r.inventory_id = i.id AND r.status IN ('accepted','reserved') AND r.quantity IS NOT NULL),0) as allocated_quantity,
+        COALESCE((SELECT SUM(r.quantity) FROM material_requests r WHERE r.inventory_id = i.id AND r.status = 'reserved'  AND r.quantity IS NOT NULL),0) as reserved_quantity,
+        COALESCE((SELECT SUM(r.quantity) FROM material_requests r WHERE r.inventory_id = i.id AND r.status = 'completed' AND r.quantity IS NOT NULL),0) as completed_quantity
       FROM inventory i
       JOIN materials m ON i.material_id = m.id
       WHERE i.id = ?
@@ -60,7 +63,10 @@ const Inventory = {
     const db = getDB();
     let query = `
       SELECT i.*, m.name as material_name, m.category, m.gwp_value,
-             u.id as owner_id, u.email as owner_email, u.first_name as owner_first_name, u.last_name as owner_last_name
+             u.id as owner_id, u.email as owner_email, u.first_name as owner_first_name, u.last_name as owner_last_name,
+        COALESCE((SELECT SUM(r.quantity) FROM material_requests r WHERE r.inventory_id = i.id AND r.status IN ('accepted','reserved') AND r.quantity IS NOT NULL),0) as allocated_quantity,
+        COALESCE((SELECT SUM(r.quantity) FROM material_requests r WHERE r.inventory_id = i.id AND r.status = 'reserved'  AND r.quantity IS NOT NULL),0) as reserved_quantity,
+        COALESCE((SELECT SUM(r.quantity) FROM material_requests r WHERE r.inventory_id = i.id AND r.status = 'completed' AND r.quantity IS NOT NULL),0) as completed_quantity
       FROM inventory i
       JOIN materials m ON i.material_id = m.id
       JOIN users u ON i.user_id = u.id

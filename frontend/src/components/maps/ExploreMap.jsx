@@ -116,6 +116,45 @@ const CONNECTION_STYLES = {
 
 const TYPE_LABELS = { material: 'Material', offer: 'Materialangebot', project: 'Projekt', actor: 'Akteur' };
 
+function MapLegend() {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        bottom: 24,
+        left: 12,
+        zIndex: 1000,
+        background: 'rgba(255,255,255,0.93)',
+        borderRadius: 10,
+        padding: '8px 12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.13)',
+        fontSize: 12,
+        lineHeight: '1.6',
+        pointerEvents: 'none',
+        border: '1px solid rgba(0,0,0,0.08)',
+      }}
+    >
+      {[
+        { color: '#0033FF', label: 'Material / Angebot' },
+        { color: '#639530', label: 'Projekt' },
+        { color: '#FF3B36', label: 'Akteur' },
+      ].map(({ color, label }) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+          <span style={{
+            display: 'inline-block',
+            width: 12, height: 12,
+            borderRadius: '50%',
+            background: color,
+            flexShrink: 0,
+            boxShadow: `0 0 0 2px ${color}33`,
+          }} />
+          <span style={{ color: '#374151', fontWeight: 500 }}>{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ExploreMap({
   entities = [],
   selected = null,
@@ -146,6 +185,8 @@ export default function ExploreMap({
 
 
   return (
+    <div className="relative h-full w-full">
+    <MapLegend />
     <MapContainer
       center={DEFAULT_CENTER}
       zoom={DEFAULT_ZOOM}
@@ -233,5 +274,6 @@ export default function ExploreMap({
         );
       })}
     </MapContainer>
+    </div>
   );
 }

@@ -23,6 +23,7 @@
 :root {
   line-height: 1.5;
   font-weight: 400;
+  color-scheme: light; /* Force light-mode form controls — prevents OS dark-mode bleeding into inputs */
 }
 
 html, body {

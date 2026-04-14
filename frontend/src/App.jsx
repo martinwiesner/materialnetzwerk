@@ -49,10 +49,17 @@ function PublicRoute({ children }) {
 function AuthRefresh() {
   const { token, updateUser, logout } = useAuthStore();
   useEffect(() => {
-    if (!token) return;
+    const loader = document.getElementById('app-loader');
+    if (!token) {
+      if (loader) loader.classList.add('hidden');
+      return;
+    }
     authService.getMe()
       .then(updateUser)
-      .catch(() => logout());
+      .catch(() => logout())
+      .finally(() => {
+        if (loader) loader.classList.add('hidden');
+      });
   }, [token, updateUser, logout]);
   return null;
 }

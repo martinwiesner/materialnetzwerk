@@ -8,6 +8,7 @@ import logger from './utils/logger.js';
 
 // Routes
 import authRoutes from './routes/auth.routes.js';
+import { sendNewMessageEmail } from './services/email.service.js';
 import materialRoutes from './routes/material.routes.js';
 import projectRoutes from './routes/project.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
@@ -15,6 +16,7 @@ import relationshipRoutes from './routes/relationship.routes.js';
 import messageRoutes from './routes/message.routes.js';
 import actorRoutes from './routes/actor.routes.js';
 import pushRoutes from './routes/push.routes.js';
+import materialRequestRoutes from './routes/materialRequest.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -95,6 +97,7 @@ app.use('/api/messages',
 
 app.use('/api/actors', actorRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/requests', materialRequestRoutes);
 
 // Swagger UI
 const swaggerPath = join(__dirname, '../swagger-output.json');
@@ -113,6 +116,26 @@ if (existsSync(swaggerPath)) {
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Brevo test (temporary diagnostic — remove after confirming mail works)
+app.get('/api/test-email', async (req, res) => {
+  const toEmail = req.query.to;
+  if (!toEmail) return res.status(400).json({ message: 'Pass ?to=your@email.de' });
+  if (!process.env.BREVO_API_KEY) return res.status(500).json({ message: 'BREVO_API_KEY not set in .env' });
+  try {
+    await sendNewMessageEmail({
+      toEmail,
+      toName: 'Test',
+      senderName: 'Testsender',
+      subject: 'Brevo Test',
+      preview: 'Das ist eine Testmail vom Materialnetzwerk.',
+      appUrl: process.env.APP_URL || 'http://localhost:8081',
+    });
+    res.json({ ok: true, from: process.env.BREVO_FROM_EMAIL, to: toEmail });
+  } catch (err) {
+    res.status(500).json({ message: err.message, detail: err?.response?.body });
+  }
 });
 
 // Root endpoint

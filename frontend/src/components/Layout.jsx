@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Bell,
   BellOff,
+  Inbox,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
@@ -28,7 +29,9 @@ import { useToast } from '../store/toastStore';
 import { usePush } from '../hooks/usePush';
 import AuthOverlay from './auth/AuthOverlay';
 import ToastContainer from './shared/ToastContainer';
+import IncomingRequestsPanel from './requests/IncomingRequestsPanel';
 import { messageService } from '../services/messageService';
+import { materialRequestService } from '../services/materialRequestService';
 import { authService } from '../services/authService';
 
 const navigation = [
@@ -153,7 +156,7 @@ function ImpressumOverlay({ onClose }) {
 
 // ── Account Drawer ────────────────────────────────────────────────────────────
 
-function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token }) {
+function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, pendingRequestCount, onShowRequests }) {
   const [tab, setTab] = useState('profile');
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ first_name: '', last_name: '' });
@@ -361,6 +364,20 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token }
                     <Users className="w-4 h-4 text-actor-600" />
                     Meine Akteure
                   </Link>
+                  <button
+                    onClick={() => { onClose(); onShowRequests(); }}
+                    className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Inbox className="w-4 h-4 text-orange-500" />
+                      Eingehende Anfragen
+                    </span>
+                    {pendingRequestCount > 0 && (
+                      <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                        {pendingRequestCount}
+                      </span>
+                    )}
+                  </button>
                 </div>
 
                 {/* Push toggle */}
@@ -479,6 +496,7 @@ export default function Layout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
   const [showImpressum, setShowImpressum] = useState(false);
+  const [showIncomingRequests, setShowIncomingRequests] = useState(false);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -490,6 +508,14 @@ export default function Layout() {
     refetchInterval: 30000,
     enabled: Boolean(isAuthenticated && token),
   });
+
+  const { data: incomingRequests = [] } = useQuery({
+    queryKey: ['incoming-requests'],
+    queryFn: materialRequestService.getIncoming,
+    refetchInterval: 60000,
+    enabled: Boolean(isAuthenticated && token),
+  });
+  const pendingRequestCount = incomingRequests.filter(r => r.status === 'pending').length;
 
   const displayName = useMemo(() => {
     if (isAuthenticated && token) {
@@ -516,9 +542,12 @@ export default function Layout() {
         onLogout={handleLogout}
         isAuthenticated={isAuthenticated}
         token={token}
+        pendingRequestCount={pendingRequestCount}
+        onShowRequests={() => setShowIncomingRequests(true)}
       />
 
       {showImpressum && <ImpressumOverlay onClose={() => setShowImpressum(false)} />}
+      {showIncomingRequests && <IncomingRequestsPanel onClose={() => setShowIncomingRequests(false)} />}
 
       {/* Top Bar */}
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur border-b border-gray-200">
@@ -585,7 +614,12 @@ export default function Layout() {
                 <User className="w-4 h-4" />
                 <span className="hidden sm:inline">{isAuthenticated && token ? 'Account' : 'Login'}</span>
                 <ChevronRight className="w-4 h-4 opacity-80" />
-                {unreadCount?.count > 0 && isAuthenticated && (
+                {pendingRequestCount > 0 && isAuthenticated && (
+                  <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold border-2 border-gray-900">
+                    {pendingRequestCount}
+                  </span>
+                )}
+                {pendingRequestCount === 0 && unreadCount?.count > 0 && isAuthenticated && (
                   <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-actor-500 text-white text-[10px] font-bold border-2 border-gray-900">
                     {unreadCount.count}
                   </span>
