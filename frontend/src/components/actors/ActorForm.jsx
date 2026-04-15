@@ -33,8 +33,8 @@ const EMPTY = {
   phone: '',
   location_name: '',
   address: '',
-  lat: '',
-  lon: '',
+  latitude: '',
+  longitude: '',
 };
 
 export default function ActorForm({ actor, onClose }) {
@@ -53,8 +53,8 @@ export default function ActorForm({ actor, onClose }) {
     phone: actor.phone || '',
     location_name: actor.location_name || '',
     address: actor.address || '',
-    lat: actor.lat ?? '',
-    lon: actor.lon ?? '',
+    latitude: actor.latitude ?? '',
+    longitude: actor.longitude ?? '',
   } : EMPTY);
 
   const [images, setImages] = useState(actor?.images || []);
@@ -126,8 +126,8 @@ export default function ActorForm({ actor, onClose }) {
     if (!form.name.trim()) { setError('Name ist erforderlich.'); return; }
     const payload = {
       ...form,
-      lat: form.lat !== '' ? parseFloat(form.lat) : null,
-      lon: form.lon !== '' ? parseFloat(form.lon) : null,
+      latitude: form.latitude !== '' ? parseFloat(form.latitude) : null,
+      longitude: form.longitude !== '' ? parseFloat(form.longitude) : null,
     };
     saveMutation.mutate(payload);
   };
@@ -282,22 +282,22 @@ export default function ActorForm({ actor, onClose }) {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-sm font-medium text-gray-700">Koordinaten</label>
-              <GeolocateButton onLocate={(lat, lon) => setForm(f => ({ ...f, lat, lon }))} />
+              <GeolocateButton onLocate={(lat, lon) => setForm(f => ({ ...f, latitude: lat, longitude: lon }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <input
                 type="number"
                 step="any"
-                value={form.lat}
-                onChange={set('lat')}
+                value={form.latitude}
+                onChange={set('latitude')}
                 placeholder="Breitengrad (lat)"
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
               />
               <input
                 type="number"
                 step="any"
-                value={form.lon}
-                onChange={set('lon')}
+                value={form.longitude}
+                onChange={set('longitude')}
                 placeholder="Längengrad (lon)"
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
               />

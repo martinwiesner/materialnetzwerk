@@ -26,11 +26,11 @@ export default function GeolocateButton({ onLocate, className = '' }) {
       (err) => {
         setLoading(false);
         if (err.code === 1) {
-          setError('Berechtigung verweigert – bitte Koordinaten manuell eingeben oder Browsereinstellungen prüfen.');
-        } else if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-          setError('Geolocation benötigt HTTPS. Koordinaten bitte manuell eingeben.');
+          setError('Standortzugriff blockiert. Bitte in der Browserzeile auf das Schloss-Symbol klicken → Standort → Zulassen → Seite neu laden.');
+        } else if (err.code === 3) {
+          setError('Zeitüberschreitung – Standort konnte nicht ermittelt werden. Bitte manuell eingeben.');
         } else {
-          setError('Standort konnte nicht ermittelt werden. Koordinaten bitte manuell eingeben.');
+          setError('Standort konnte nicht ermittelt werden. Bitte Koordinaten manuell eingeben.');
         }
       },
       { timeout: 8000 }
