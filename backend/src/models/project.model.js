@@ -98,7 +98,7 @@ const Project = {
     db.prepare(`INSERT INTO projects (id, name, description, content,
       circular_principles, principles_sufficiency, principles_consistency, principles_efficiency, general_sustainability_principles,
       location_name, latitude, longitude, address,
-      time_effort, tools, steps, references,
+      time_effort, tools, steps, "references",
       status, is_public, is_available, owner_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, data.name, data.description||null, data.content||null,
@@ -125,7 +125,7 @@ const Project = {
     const fields = [], values = [];
     for (const f of allowed) {
       if (updates[f] === undefined) continue;
-      fields.push(`${f} = ?`);
+      fields.push(`"${f}" = ?`);
       if (boolFields.has(f)) values.push(updates[f]?1:0);
       else if (jsonFields.has(f)) values.push(updates[f] ? JSON.stringify(updates[f]) : null);
       else values.push(updates[f]);
