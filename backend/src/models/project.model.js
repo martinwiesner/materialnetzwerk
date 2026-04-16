@@ -98,14 +98,15 @@ const Project = {
     db.prepare(`INSERT INTO projects (id, name, description, content,
       circular_principles, principles_sufficiency, principles_consistency, principles_efficiency, general_sustainability_principles,
       location_name, latitude, longitude, address,
-      time_effort, tools, steps,
+      time_effort, tools, steps, references,
       status, is_public, is_available, owner_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, data.name, data.description||null, data.content||null,
         data.circular_principles||null, data.principles_sufficiency||null, data.principles_consistency||null, data.principles_efficiency||null, data.general_sustainability_principles||null,
         data.location_name||null, data.latitude??null, data.longitude??null, data.address||null,
         data.time_effort||null, data.tools||null,
         data.steps ? JSON.stringify(data.steps) : null,
+        data.references ? JSON.stringify(data.references) : null,
         data.status||'draft', data.is_public?1:0, data.is_available?1:0, data.owner_id);
     return Project.findById(id);
   },
@@ -116,10 +117,10 @@ const Project = {
       'name','description','content',
       'circular_principles','principles_sufficiency','principles_consistency','principles_efficiency','general_sustainability_principles',
       'location_name','latitude','longitude','address',
-      'time_effort','tools','steps',
+      'time_effort','tools','steps','references',
       'status','is_public','is_available',
     ];
-    const jsonFields = new Set(['steps']);
+    const jsonFields = new Set(['steps','references']);
     const boolFields = new Set(['is_public','is_available']);
     const fields = [], values = [];
     for (const f of allowed) {
@@ -172,12 +173,20 @@ const Project = {
   },
 
   /**
-   * Update step metadata on an image.
+   * Update step metadata and/or credit on an image (partial update — only provided fields are changed).
    */
-  updateImageMeta: (imageId, { step_index, step_caption }) => {
+  updateImageMeta: (imageId, updates) => {
     const db = getDB();
-    db.prepare('UPDATE project_images SET step_index = ?, step_caption = ? WHERE id = ?')
-      .run(step_index ?? null, step_caption ?? null, imageId);
+    const allowed = ['step_index', 'step_caption', 'credit'];
+    const fields = [], values = [];
+    for (const f of allowed) {
+      if (!(f in updates)) continue;
+      fields.push(`${f} = ?`);
+      values.push(updates[f] ?? null);
+    }
+    if (fields.length === 0) return;
+    values.push(imageId);
+    db.prepare(`UPDATE project_images SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   },
 
   // Files

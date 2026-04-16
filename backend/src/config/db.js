@@ -234,27 +234,26 @@ const ensureMaterialCategories = () => {
       );
     `);
 
-    // Seed defaults if empty
-    const row = db.prepare('SELECT COUNT(*) as count FROM material_categories').get();
-    if ((row?.count || 0) === 0) {
-      const defaults = [
-        'Metalle',
-        'Holz',
-        'Kunststoffe',
-        'Glas',
-        'Mineralische Baustoffe',
-        'Textilien',
-        'Keramik',
-        'Verbundwerkstoffe',
-        'Naturstein',
-        'Sonstiges',
-      ];
-      const insert = db.prepare('INSERT INTO material_categories (name) VALUES (?)');
-      const insertMany = db.transaction((names) => {
-        for (const n of names) insert.run(n);
-      });
-      insertMany(defaults);
-      console.log('Seeded default material categories');
+    // Ensure all required categories exist (idempotent — adds missing ones)
+    const allCategories = [
+      'Metalle',
+      'Holz',
+      'Kunststoffe',
+      'Glas',
+      'Mineralische Baustoffe',
+      'Textilien',
+      'Keramik',
+      'Verbundwerkstoffe',
+      'Naturstein',
+      'Landwirtschaftliche Reststoffe',
+      'Sonstiges',
+    ];
+    const existing = new Set(
+      db.prepare('SELECT name FROM material_categories').all().map(r => r.name)
+    );
+    const insert = db.prepare('INSERT INTO material_categories (name) VALUES (?)');
+    for (const name of allCategories) {
+      if (!existing.has(name)) insert.run(name);
     }
   } catch (err) {
     console.error('Failed ensuring material_categories:', err.message);
@@ -368,6 +367,10 @@ const ensureColumns = () => {
 
     // projects – availability flag
     addCol('projects', 'is_available', 'is_available BOOLEAN DEFAULT 0');
+    // projects – references / bibliography
+    addCol('projects', 'references', 'references TEXT');
+    // project_images – image credit
+    addCol('project_images', 'credit', 'credit TEXT');
 
     // materials – location fields
     addCol('materials', 'latitude', 'latitude REAL');

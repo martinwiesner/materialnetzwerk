@@ -23,18 +23,8 @@ function safeJsonParse(value, fallback) {
 }
 
 const PRINCIPLES = {
-  sufficiency: ['Suffizienz', 'Kollaborativer Konsum', 'Verhaltensänderndes Design'],
-  consistency: ['Nachwachsende Rohstoffe', 'Recycelt', 'Recyclinggerecht', 'Reparierbar', 'Kompostierbar'],
-  efficiency: [
-    'Schadstofffrei',
-    'Materialeffizient',
-    'Energieeffizient',
-    'Langlebiges Design',
-    'Logistikgerechtes Design',
-    'Naturraumerhaltend',
-    'Fair produziert',
-    'Wasserschonend',
-  ],
+  consistency: ['Nachwachsende Rohstoffe', 'Recycelte Rohstoffe', 'Recyclinggerecht', 'Kompostierbar'],
+  efficiency: ['Schadstofffrei', 'Naturraumerhaltend', 'Faire Materialgewinnung', 'Regional'],
 };
 
 function toggleInArray(arr, value) {
@@ -681,79 +671,44 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="text-sm font-semibold text-gray-900 mb-3">Checkboxen / Tags</div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <div className="text-xs font-semibold text-gray-700 mb-2">Suffizienz</div>
-                      <div className="flex flex-wrap gap-3">
-                        {PRINCIPLES.sufficiency.map((p) => (
-                          <label key={p} className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={(formData.principles_sufficiency || []).includes(p)}
-                              onChange={() =>
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  principles_sufficiency: toggleInArray(prev.principles_sufficiency, p),
-                                }))
-                              }
-                              className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-                            />
-                            {p}
-                          </label>
-                        ))}
-                      </div>
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="text-sm font-semibold text-gray-900 mb-3">Ökodesign-Prinzipien</div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-xs font-semibold text-gray-700 mb-2">Konsistenz</div>
+                    <div className="flex flex-wrap gap-3">
+                      {PRINCIPLES.consistency.map((p) => (
+                        <label key={p} className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(formData.principles_consistency || []).includes(p)}
+                            onChange={() => setFormData((prev) => ({ ...prev, principles_consistency: toggleInArray(prev.principles_consistency, p) }))}
+                            className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+                          />
+                          {p}
+                        </label>
+                      ))}
                     </div>
-
-                    <div>
-                      <div className="text-xs font-semibold text-gray-700 mb-2">Konsistenz</div>
-                      <div className="flex flex-wrap gap-3">
-                        {PRINCIPLES.consistency.map((p) => (
-                          <label key={p} className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={(formData.principles_consistency || []).includes(p)}
-                              onChange={() =>
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  principles_consistency: toggleInArray(prev.principles_consistency, p),
-                                }))
-                              }
-                              className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-                            />
-                            {p}
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs font-semibold text-gray-700 mb-2">Effizienz</div>
-                      <div className="flex flex-wrap gap-3">
-                        {PRINCIPLES.efficiency.map((p) => (
-                          <label key={p} className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={(formData.principles_efficiency || []).includes(p)}
-                              onChange={() =>
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  principles_efficiency: toggleInArray(prev.principles_efficiency, p),
-                                }))
-                              }
-                              className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-                            />
-                            {p}
-                          </label>
-                        ))}
-                      </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-gray-700 mb-2">Effizienz</div>
+                    <div className="flex flex-wrap gap-3">
+                      {PRINCIPLES.efficiency.map((p) => (
+                        <label key={p} className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(formData.principles_efficiency || []).includes(p)}
+                            onChange={() => setFormData((prev) => ({ ...prev, principles_efficiency: toggleInArray(prev.principles_efficiency, p) }))}
+                            className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+                          />
+                          {p}
+                        </label>
+                      ))}
                     </div>
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
 

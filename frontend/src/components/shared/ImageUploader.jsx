@@ -21,6 +21,7 @@ export default function ImageUploader({
   onDelete,
   onSetCover,
   onSetStep,
+  onSetCredit,
   stepCount = 0,
   apiBase = MEDIA_BASE,
   label = 'Bilder',
@@ -59,11 +60,11 @@ export default function ImageUploader({
           {sorted.map((img) => {
             const isCover = img.id === coverId;
             return (
+              <div key={img.id} className="flex flex-col">
               <div
-                key={img.id}
-                className={`relative group rounded-xl overflow-hidden border-2 bg-gray-50 transition-all ${
+                className={`relative group rounded-t-xl overflow-hidden border-2 bg-gray-50 transition-all ${
                   isCover ? 'border-primary-400 shadow-md' : 'border-gray-200'
-                }`}
+                } ${onSetCredit ? 'rounded-b-none border-b-0' : 'rounded-b-xl'}`}
               >
                 {/* Image preview */}
                 <img
@@ -122,6 +123,19 @@ export default function ImageUploader({
                     </select>
                   </div>
                 )}
+              </div>
+              {onSetCredit && (
+                <input
+                  type="text"
+                  placeholder="© Bildnachweis (optional)"
+                  defaultValue={img.credit || ''}
+                  onBlur={(e) => {
+                    const val = e.target.value;
+                    if (val !== (img.credit || '')) onSetCredit(img.id, val);
+                  }}
+                  className="w-full text-[11px] px-2 py-1 border-2 border-t-0 border-gray-200 rounded-b-xl focus:outline-none focus:ring-1 focus:ring-primary-300 bg-white text-gray-500 placeholder-gray-300"
+                />
+              )}
               </div>
             );
           })}

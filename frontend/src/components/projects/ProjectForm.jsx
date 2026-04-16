@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
-import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Image as ImageIcon, Users } from 'lucide-react';
+import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Image as ImageIcon, Users, ChevronUp, ChevronDown, BookOpen } from 'lucide-react';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
 import GeolocateButton from '../shared/GeolocateButton';
@@ -64,6 +64,7 @@ const emptyForm = {
   time_effort: '',
   tools: '',
   steps: [],
+  references: [],
 };
 
 function StepImageUpload({ stepIndex, onUpload, ensureDraft }) {
@@ -161,6 +162,7 @@ export default function ProjectForm({ project, onClose }) {
         time_effort: project.time_effort || '',
         tools: project.tools || '',
         steps: Array.isArray(steps) ? steps : [],
+        references: safeJsonParse(project.references, []),
       });
     }
   }, [project]);
@@ -194,6 +196,7 @@ export default function ProjectForm({ project, onClose }) {
     principles_efficiency: JSON.stringify(formData.principles_efficiency || []),
     general_sustainability_principles: JSON.stringify(formData.general_sustainability_principles || []),
     steps: formData.steps?.length ? formData.steps : null,
+    references: formData.references?.length ? formData.references : null,
   });
 
   // ── Save / update ─────────────────────────────────────────────────────────
@@ -317,6 +320,29 @@ export default function ProjectForm({ project, onClose }) {
     setLocalFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
+  const handleSetCredit = async (imageId, credit) => {
+    if (!activeId) return;
+    await projectService.updateImage(activeId, imageId, { credit });
+    setLocalImages(prev => prev.map(img => img.id === imageId ? { ...img, credit } : img));
+  };
+
+  const moveStep = (idx, dir) => {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= formData.steps.length) return;
+    const oldStep = idx + 1;   // 1-based step_index
+    const newStep = newIdx + 1;
+    setFormData(f => {
+      const steps = [...f.steps];
+      [steps[idx], steps[newIdx]] = [steps[newIdx], steps[idx]];
+      return { ...f, steps };
+    });
+    setLocalImages(imgs => imgs.map(img => {
+      if (img.step_index === oldStep) return { ...img, step_index: newStep };
+      if (img.step_index === newStep) return { ...img, step_index: oldStep };
+      return img;
+    }));
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   const draftCreated = !!draftId && !isEditing;
 
@@ -378,6 +404,7 @@ export default function ProjectForm({ project, onClose }) {
               onDelete={handleImageDelete}
               onSetCover={handleSetCover}
               onSetStep={handleSetStep}
+              onSetCredit={handleSetCredit}
               stepCount={formData.steps.length}
               apiBase={API_BASE}
               label="Bilder (Cover + Anleitungsbilder)"
@@ -562,6 +589,16 @@ export default function ProjectForm({ project, onClose }) {
                 <div key={i} className="bg-white rounded-lg border border-gray-200 p-3 space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">Schritt {stepIndex}</span>
+                    <div className="flex items-center gap-0.5 ml-1">
+                      <button type="button" onClick={() => moveStep(i, -1)} disabled={i === 0}
+                        className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Nach oben">
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button type="button" onClick={() => moveStep(i, 1)} disabled={i === formData.steps.length - 1}
+                        className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Nach unten">
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     <button type="button"
                       onClick={() => {
                         // also remove images assigned to this step
@@ -612,6 +649,43 @@ export default function ProjectForm({ project, onClose }) {
                 </div>
               );
             })}
+          </div>
+
+          {/* References */}
+          <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-gray-500" />
+                Quellen &amp; Referenzen
+              </p>
+              <button type="button"
+                onClick={() => setFormData(f => ({ ...f, references: [...(f.references || []), ''] }))}
+                className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5" /> Quelle hinzufügen
+              </button>
+            </div>
+            {(!formData.references || formData.references.length === 0) ? (
+              <p className="text-xs text-gray-400 italic">Noch keine Quellen. Wissenschaftliche Literatur, URLs oder sonstige Referenzen.</p>
+            ) : (
+              <div className="space-y-2">
+                {formData.references.map((ref, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={ref}
+                      onChange={e => setFormData(f => ({ ...f, references: f.references.map((r, j) => j === i ? e.target.value : r) }))}
+                      placeholder={`Quelle ${i + 1} (z.B. Autor, Titel, Jahr, URL)`}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+                    />
+                    <button type="button"
+                      onClick={() => setFormData(f => ({ ...f, references: f.references.filter((_, j) => j !== i) }))}
+                      className="p-1.5 text-gray-400 hover:text-red-500 rounded">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Beteiligte Akteure */}
