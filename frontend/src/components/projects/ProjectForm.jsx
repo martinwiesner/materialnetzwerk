@@ -112,10 +112,10 @@ export default function ProjectForm({ project, onClose }) {
   const [actorIds, setActorIds] = useState(['']);
 
   const { data: materialsData } = useQuery({
-    queryKey: ['materials', { my_materials: true }],
-    queryFn: () => materialService.getAll({ my_materials: true }),
+    queryKey: ['materials'],
+    queryFn: () => materialService.getAll(),
   });
-  const availableMaterials = materialsData?.data || [];
+  const availableMaterials = Array.isArray(materialsData) ? materialsData : (materialsData?.data || []);
 
   const { data: allActors = [] } = useQuery({
     queryKey: ['actors'],
