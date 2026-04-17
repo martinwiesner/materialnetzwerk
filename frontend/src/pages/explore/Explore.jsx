@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus, Network, Package, Store, FolderOpen, X, Map as MapIcon, LayoutList, Users } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -380,6 +380,18 @@ export default function Explore() {
   const navigate = useNavigate();
   const { isAuthenticated, token, user } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
+  const queryClient = useQueryClient();
+
+  const deleteActorMutation = useMutation({
+    mutationFn: (id) => actorService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['actors'] });
+      setActorDetail(null);
+    },
+  });
+  const handleDeleteActorFromExplore = (id) => {
+    if (window.confirm('Akteur wirklich löschen?')) deleteActorMutation.mutate(id);
+  };
 
   const requireAuth = () => {
     if (isAuthenticated && token) return true;
@@ -732,10 +744,10 @@ export default function Explore() {
       {actorDetail && (
         <ActorDetailOverlay
           actor={actorDetail}
-          isOwner={false}
+          isOwner={isAuthenticated && (actorDetail.owner_id === user?.id || user?.is_admin)}
           onClose={() => setActorDetail(null)}
           onEdit={() => {}}
-          onDelete={() => {}}
+          onDelete={handleDeleteActorFromExplore}
         />
       )}
     </div>

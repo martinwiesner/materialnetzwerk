@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { materialService, materialActorService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { inventoryService } from '../../services/inventoryService';
-import { MapPin, X, Plus, Trash2, Users } from 'lucide-react';
+import { MapPin, X, Plus, Trash2, Users, Tag, Package, Upload } from 'lucide-react';
 import GeolocateButton from '../shared/GeolocateButton';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
@@ -122,6 +122,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
   const pendingFilesRef = useRef([]);
   const pendingActorIdsRef = useRef([]);
 
+  // Images queued for upload in offer-only mode (uploaded after offer is created)
+  const [offerPendingImages, setOfferPendingImages] = useState([]);
+  const offerPendingImagesRef = useRef([]);
+
   // Optional: create a material offer (inventory entry) right after creating the material
   const [createOffer, setCreateOffer] = useState(false);
   const [offerData, setOfferData] = useState({
@@ -139,6 +143,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
   const [actorIds, setActorIds] = useState(['']); // list of selected actor IDs (empty string = unset slot)
 
+  // Mode toggle: 'material' = full material creation, 'offer-only' = just create an inventory offer
+  const [mode, setMode] = useState('material');
+  const [offerMaterialId, setOfferMaterialId] = useState('');
+
   const { data: categories = [], isLoading: catsLoading } = useQuery({
     queryKey: ['material-categories'],
     queryFn: materialService.getCategories,
@@ -148,6 +156,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     queryKey: ['actors'],
     queryFn: () => actorService.getAll(),
     select: (d) => (Array.isArray(d) ? d : d?.data || []),
+  });
+
+  const { data: allMaterials = [] } = useQuery({
+    queryKey: ['materials'],
+    queryFn: () => materialService.getAll(),
+    select: (d) => Array.isArray(d) ? d : (d?.data || []),
+    enabled: !material, // only needed in create mode
   });
 
   useEffect(() => {
@@ -316,9 +331,49 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     },
   });
 
+  const offerOnlyMutation = useMutation({
+    mutationFn: () => inventoryService.create({
+      material_id: offerMaterialId,
+      quantity: offerData.quantity ? parseFloat(offerData.quantity) : 0,
+      unit: offerData.unit,
+      location_name: offerData.location_name,
+      address: offerData.address,
+      latitude: offerData.latitude ? parseFloat(offerData.latitude) : null,
+      longitude: offerData.longitude ? parseFloat(offerData.longitude) : null,
+      is_available: Boolean(offerData.is_available),
+      available_for_transfer: Boolean(offerData.available_for_transfer),
+      available_for_gift: Boolean(offerData.available_for_gift),
+      notes: offerData.notes,
+    }),
+    onSuccess: async (created) => {
+      if (created?.id && offerPendingImagesRef.current.length > 0) {
+        try {
+          await inventoryService.uploadImages(created.id, offerPendingImagesRef.current);
+          offerPendingImagesRef.current = [];
+          setOfferPendingImages([]);
+        } catch { /* non-critical */ }
+      }
+      queryClient.invalidateQueries({ queryKey: ['inventory'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-inventory'], exact: false });
+      toast.success('Angebot erfolgreich erstellt.');
+      onClose();
+    },
+    onError: (err) => {
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Angebot konnte nicht erstellt werden.';
+      setError(msg);
+      toast.error(msg);
+    },
+  });
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+
+    if (mode === 'offer-only') {
+      if (!offerMaterialId) { setError('Bitte ein Material auswählen.'); return; }
+      offerOnlyMutation.mutate();
+      return;
+    }
 
     const similarIds = (formData.similar_material_ids_input || '')
       .split(/[\n,]/g)
@@ -383,14 +438,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     });
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = createMutation.isPending || updateMutation.isPending || offerOnlyMutation.isPending;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
-            {material ? 'Edit Material' : 'Add New Material'}
+            {material ? 'Material bearbeiten' : mode === 'offer-only' ? 'Neues Angebot' : 'Neues Material'}
           </h2>
           <button
             onClick={onClose}
@@ -406,6 +461,213 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               {error}
             </div>
           )}
+
+          {/* Mode toggle — only when creating (not editing) */}
+          {!material && (
+            <div className="flex p-1 bg-gray-100 rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setMode('material')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium rounded-lg transition-all ${
+                  mode === 'material'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" />
+                Material anlegen
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('offer-only')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium rounded-lg transition-all ${
+                  mode === 'offer-only'
+                    ? 'bg-white text-orange-600 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Tag className="w-3.5 h-3.5" />
+                Nur Angebot
+              </button>
+            </div>
+          )}
+
+          {mode === 'offer-only' ? (
+            /* ── Offer-only mode ─────────────────────────────────────────── */
+            <div className="space-y-4">
+              <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                Es wird kein neues Material angelegt. Wähle ein bestehendes Material und trage die Verfügbarkeit ein.
+              </p>
+
+              {/* Material selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Material *</label>
+                <select
+                  value={offerMaterialId}
+                  onChange={e => setOfferMaterialId(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                >
+                  <option value="">— Material auswählen —</option>
+                  {allMaterials
+                    .slice()
+                    .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name))
+                    .map(m => (
+                      <option key={m.id} value={m.id}>{m.name}{m.category ? ` (${m.category})` : ''}</option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              {/* Quantity + Unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Menge *</label>
+                  <input type="number" step="0.01" name="quantity" value={offerData.quantity}
+                    onChange={handleOfferChange} required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Einheit *</label>
+                  <select name="unit" value={offerData.unit} onChange={handleOfferChange} required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="m">m</option>
+                    <option value="m2">m²</option>
+                    <option value="m3">m³</option>
+                    <option value="Stück">Stück</option>
+                    <option value="unit">unit</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <MapPin className="w-3.5 h-3.5 inline mr-1" />Standortname
+                </label>
+                <input type="text" name="location_name" value={offerData.location_name}
+                  onChange={handleOfferChange} placeholder="z.B. Lager Zeitz"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                <input type="text" name="address" value={offerData.address}
+                  onChange={handleOfferChange} placeholder="Straße, PLZ, Ort"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+              <div>
+                <GeolocateButton
+                  onLocate={(lat, lon) => setOfferData(d => ({ ...d, latitude: lat, longitude: lon }))}
+                  className="mb-2"
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Breitengrad</label>
+                    <input type="number" step="0.000001" name="latitude" value={offerData.latitude}
+                      onChange={handleOfferChange} placeholder="z.B. 51.05"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Längengrad</label>
+                    <input type="number" step="0.000001" name="longitude" value={offerData.longitude}
+                      onChange={handleOfferChange} placeholder="z.B. 12.13"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Availability flags */}
+              <div className="grid grid-cols-3 gap-3">
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="checkbox" name="is_available" checked={offerData.is_available}
+                    onChange={handleOfferChange} className="w-4 h-4 text-orange-500 border-gray-300 rounded" />
+                  Sichtbar
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="checkbox" name="available_for_transfer" checked={offerData.available_for_transfer}
+                    onChange={handleOfferChange} className="w-4 h-4 text-primary-500 border-gray-300 rounded" />
+                  Transfer
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                  <input type="checkbox" name="available_for_gift" checked={offerData.available_for_gift}
+                    onChange={handleOfferChange} className="w-4 h-4 text-primary-500 border-gray-300 rounded" />
+                  Schenkung
+                </label>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+                <textarea name="notes" value={offerData.notes} onChange={handleOfferChange} rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
+              </div>
+
+              {/* Image section */}
+              {(() => {
+                const mat = allMaterials.find(m => m.id === offerMaterialId);
+                const coverPath = mat?.images?.[0]?.file_path;
+                const coverUrl = coverPath ? `${API_BASE}${coverPath.replace(/^\./, '')}` : null;
+                return (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-gray-700">Abbildung</label>
+
+                    {/* Standard: material cover image with disclaimer */}
+                    {coverUrl && offerPendingImages.length === 0 && (
+                      <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                        <img src={coverUrl} alt={mat.name} className="w-full h-36 object-cover opacity-90" />
+                        <span className="absolute bottom-2 left-2 text-[10px] text-white bg-black/50 px-2 py-0.5 rounded-full">
+                          Standardbild · Abbildung kann abweichen
+                        </span>
+                      </div>
+                    )}
+                    {!coverUrl && offerPendingImages.length === 0 && (
+                      <p className="text-xs text-gray-400 italic">Kein Standardbild verfügbar – du kannst ein eigenes Bild hochladen.</p>
+                    )}
+
+                    {/* Queued custom images */}
+                    {offerPendingImages.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {offerPendingImages.map((file, i) => (
+                          <div key={i} className="relative rounded-lg overflow-hidden border border-dashed border-primary-300 bg-primary-50">
+                            <img src={URL.createObjectURL(file)} className="w-full h-20 object-cover opacity-90" alt={file.name} />
+                            <button type="button"
+                              onClick={() => {
+                                const updated = offerPendingImages.filter((_, j) => j !== i);
+                                offerPendingImagesRef.current = updated;
+                                setOfferPendingImages(updated);
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center leading-none">
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Upload trigger */}
+                    <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-primary-600 hover:text-primary-700 border border-dashed border-primary-300 rounded-lg px-3 py-1.5 bg-primary-50 hover:bg-primary-100 transition-colors">
+                      <Upload className="w-3 h-3" />
+                      {offerPendingImages.length > 0 ? 'Weitere Bilder hinzufügen' : 'Eigene Bilder hochladen (ersetzt Standardbild)'}
+                      <input type="file" multiple accept="image/*" className="hidden"
+                        onChange={e => {
+                          const files = Array.from(e.target.files || []);
+                          if (!files.length) return;
+                          const updated = [...offerPendingImagesRef.current, ...files];
+                          offerPendingImagesRef.current = updated;
+                          setOfferPendingImages(updated);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            /* ── Material mode (existing form) ───────────────────────────── */
+            <>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1338,6 +1600,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               ✓ Material gespeichert – du kannst jetzt Bilder und Dateien hinzufügen oder schließen.
             </p>
           )}
+            </>
+          )}
 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button type="button" onClick={onClose}
@@ -1346,7 +1610,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             </button>
             <button type="submit" disabled={isPending}
               className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50">
-              {isPending ? 'Saving...' : material ? 'Update Material' : 'Create Material'}
+              {isPending
+                ? 'Speichern…'
+                : material
+                  ? 'Material speichern'
+                  : mode === 'offer-only'
+                    ? 'Angebot erstellen'
+                    : 'Material anlegen'}
             </button>
           </div>
         </form>

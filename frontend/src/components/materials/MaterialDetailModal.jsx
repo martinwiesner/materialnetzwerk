@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2 } from 'lucide-react';
+import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2 } from 'lucide-react';
 import { OwnerLine } from '../shared/ContactButton';
 
 function safeJsonParse(value, fallback) {
@@ -46,7 +46,7 @@ function TagGroup({ title, items }) {
   );
 }
 
-export default function MaterialDetailModal({ material, onClose, onEdit, canEdit = false }) {
+export default function MaterialDetailModal({ material, onClose, onEdit, onDelete, canEdit = false }) {
   const similarIds = useMemo(() => {
     const parsed = safeJsonParse(material?.similar_material_ids, []);
     return Array.isArray(parsed) ? parsed : [];
@@ -121,6 +121,17 @@ export default function MaterialDetailModal({ material, onClose, onEdit, canEdit
                 title="Material bearbeiten"
               >
                 <Edit2 className="w-5 h-5" />
+              </button>
+            )}
+            {canEdit && onDelete && (
+              <button
+                onClick={() => { if (window.confirm('Material wirklich löschen?')) onDelete(); }}
+                className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50"
+                aria-label="Löschen"
+                type="button"
+                title="Material löschen"
+              >
+                <Trash2 className="w-5 h-5" />
               </button>
             )}
             <button

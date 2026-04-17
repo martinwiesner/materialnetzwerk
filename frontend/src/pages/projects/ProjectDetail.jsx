@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import ProjectForm from '../../components/projects/ProjectForm';
 import { MEDIA_BASE } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 const API_BASE = MEDIA_BASE;
 
 function safeJsonParse(value, fallback) {
@@ -41,6 +42,7 @@ export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user, isAuthenticated } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
 
   const { data: project, isLoading, error } = useQuery({
@@ -112,22 +114,24 @@ export default function ProjectDetail() {
           <ArrowLeft className="w-4 h-4" />
           Zurück zur Übersicht
         </Link>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-            Bearbeiten
-          </button>
-          <button
-            onClick={handleDelete}
-            className="inline-flex items-center gap-2 px-3 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-            Löschen
-          </button>
-        </div>
+        {isAuthenticated && (project.owner_id === user?.id || user?.is_admin) && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowForm(true)}
+              className="inline-flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <Edit2 className="w-4 h-4" />
+              Bearbeiten
+            </button>
+            <button
+              onClick={handleDelete}
+              className="inline-flex items-center gap-2 px-3 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Löschen
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Article */}

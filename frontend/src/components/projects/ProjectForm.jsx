@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
-import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Image as ImageIcon, Users, ChevronUp, ChevronDown, BookOpen } from 'lucide-react';
+import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Image as ImageIcon, Users, ChevronUp, ChevronDown, BookOpen, Tag, Package } from 'lucide-react';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
 import GeolocateButton from '../shared/GeolocateButton';
@@ -111,6 +111,16 @@ export default function ProjectForm({ project, onClose }) {
   const activeId = project?.id || draftId;
 
   const [actorIds, setActorIds] = useState(['']);
+
+  // Mode: 'project' = full project, 'offer-only' = lightweight availability entry
+  const [mode, setMode] = useState('project');
+
+  // Sync is_available when switching to offer-only
+  useEffect(() => {
+    if (mode === 'offer-only') {
+      setFormData(f => ({ ...f, is_available: true, is_public: true, status: 'active' }));
+    }
+  }, [mode]);
 
   const { data: materialsData } = useQuery({
     queryKey: ['materials'],
@@ -353,7 +363,13 @@ export default function ProjectForm({ project, onClose }) {
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary-500" />
             <h2 className="text-lg font-semibold text-gray-900">
-              {isEditing ? 'Artikel bearbeiten' : draftCreated ? 'Artikel (Entwurf)' : 'Neuer Artikel'}
+              {isEditing
+                ? 'Artikel bearbeiten'
+                : draftCreated
+                  ? 'Artikel (Entwurf)'
+                  : mode === 'offer-only'
+                    ? 'Neues Angebot'
+                    : 'Neuer Artikel'}
             </h2>
             {autoSaving && <span className="text-xs text-gray-400 animate-pulse">Entwurf wird gespeichert…</span>}
           </div>
@@ -364,6 +380,26 @@ export default function ProjectForm({ project, onClose }) {
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
+
+          {/* Mode toggle — only when creating (not editing) */}
+          {!isEditing && (
+            <div className="flex p-1 bg-gray-100 rounded-xl gap-1">
+              <button type="button" onClick={() => setMode('project')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium rounded-lg transition-all ${
+                  mode === 'project' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}>
+                <Package className="w-3.5 h-3.5" />
+                Projekt anlegen
+              </button>
+              <button type="button" onClick={() => setMode('offer-only')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium rounded-lg transition-all ${
+                  mode === 'offer-only' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}>
+                <Tag className="w-3.5 h-3.5" />
+                Nur Angebot
+              </button>
+            </div>
+          )}
 
           {draftCreated && (
             <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-lg text-sm">
@@ -389,12 +425,14 @@ export default function ProjectForm({ project, onClose }) {
           </div>
 
           {/* Content */}
+          {mode === 'project' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Inhalt</label>
             <textarea name="content" value={formData.content} onChange={handleChange} rows={8}
               placeholder="Beschreibe dein Projekt – verwendete Materialien, Prozess, Ergebnis…"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none font-mono text-sm" />
           </div>
+          )}
 
           {/* Images — available immediately */}
           <div className="border-t pt-4">
@@ -403,15 +441,16 @@ export default function ProjectForm({ project, onClose }) {
               onUpload={handleImageUpload}
               onDelete={handleImageDelete}
               onSetCover={handleSetCover}
-              onSetStep={handleSetStep}
+              onSetStep={mode === 'project' ? handleSetStep : undefined}
               onSetCredit={handleSetCredit}
-              stepCount={formData.steps.length}
+              stepCount={mode === 'project' ? formData.steps.length : 0}
               apiBase={API_BASE}
-              label="Bilder (Cover + Anleitungsbilder)"
+              label={mode === 'offer-only' ? 'Bilder (optional)' : 'Bilder (Cover + Anleitungsbilder)'}
             />
           </div>
 
           {/* Files */}
+          {mode === 'project' && (
           <FileUploader
             files={localFiles}
             onUpload={handleFileUpload}
@@ -419,9 +458,10 @@ export default function ProjectForm({ project, onClose }) {
             apiBase={API_BASE}
             label="Fertigungsdaten (DXF, STEP, STL, PDF, …)"
           />
+          )}
 
           {/* Sustainability principles */}
-          <div className="border-t pt-4">
+          {mode === 'project' && (<div className="border-t pt-4">
             <div className="text-sm font-semibold text-gray-900 mb-3">Nachhaltigkeit &amp; Kreislaufprinzipien</div>
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
               {[
@@ -447,7 +487,7 @@ export default function ProjectForm({ project, onClose }) {
                 </div>
               ))}
             </div>
-          </div>
+          </div>)}
 
           {/* Location */}
           <div className="border-t pt-4">
@@ -477,7 +517,7 @@ export default function ProjectForm({ project, onClose }) {
           </div>
 
           {/* Materials */}
-          <div className="border-t pt-4">
+          {mode === 'project' && (<div className="border-t pt-4">
             <div className="flex items-center justify-between mb-3">
               <label className="block text-sm font-medium text-gray-700">Materialien &amp; Mengen</label>
               <button type="button" onClick={addMaterial}
@@ -515,7 +555,7 @@ export default function ProjectForm({ project, onClose }) {
                 ))}
               </div>
             )}
-          </div>
+          </div>)}
 
           {/* Status + Visibility */}
           <div className="grid grid-cols-2 gap-4">
@@ -553,7 +593,7 @@ export default function ProjectForm({ project, onClose }) {
           </div>
 
           {/* Execution */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-3">
+          {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-3">
             <p className="text-sm font-semibold text-gray-800">🛠️ Ausführung</p>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Zeitaufwand</label>
@@ -569,10 +609,10 @@ export default function ProjectForm({ project, onClose }) {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
                 placeholder="z.B. Säge, Bohrmaschine" />
             </div>
-          </div>
+          </div>)}
 
           {/* Steps */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-3">
+          {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-800">📋 Schritt-für-Schritt-Anleitung</p>
               <button type="button"
@@ -649,10 +689,10 @@ export default function ProjectForm({ project, onClose }) {
                 </div>
               );
             })}
-          </div>
+          </div>)}
 
           {/* References */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+          {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                 <BookOpen className="w-4 h-4 text-gray-500" />
@@ -686,10 +726,10 @@ export default function ProjectForm({ project, onClose }) {
                 ))}
               </div>
             )}
-          </div>
+          </div>)}
 
           {/* Beteiligte Akteure */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+          {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-2">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
               <Users className="w-4 h-4 text-gray-500" />
               Beteiligte Akteure
@@ -729,7 +769,7 @@ export default function ProjectForm({ project, onClose }) {
               <Plus className="w-4 h-4" />
               Weiteren Akteur hinzufügen
             </button>
-          </div>
+          </div>)}
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t">
@@ -739,7 +779,7 @@ export default function ProjectForm({ project, onClose }) {
             </button>
             <button type="submit" disabled={isPending}
               className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50">
-              {isPending ? 'Speichern…' : draftCreated || isEditing ? 'Aktualisieren' : 'Erstellen'}
+              {isPending ? 'Speichern…' : draftCreated || isEditing ? 'Aktualisieren' : mode === 'offer-only' ? 'Angebot erstellen' : 'Erstellen'}
             </button>
           </div>
         </form>

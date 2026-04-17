@@ -80,29 +80,37 @@ const MARKER_COLORS = {
   project:  { fill: '#639530', stroke: '#639530' },
 };
 
-function createGradientMarker(type, active) {
+// Orange availability badge color (matches bg-orange-500 on cards)
+const AVAIL_COLOR = '#F97316';
+
+function createGradientMarker(type, active, available = false) {
   const { fill, stroke } = MARKER_COLORS[type] || MARKER_COLORS.material;
   const r = active ? 11 : 8;
   const sw = active ? 3 : 2;
-  const size = (r + sw) * 2;
-  const cx = size / 2;
+  const size = (r + sw) * 2 + (available ? 4 : 0); // extra room for badge
+  const cx = (r + sw) + (available ? 2 : 0);
+  const cy = cx;
   const gradId = `g${fill.replace('#', '')}${active ? 'a' : ''}`;
-  // Encode the SVG as a data URI to avoid HTML entity issues in DivIcon
+  // Small orange dot badge at top-right corner when available
+  const badge = available
+    ? `<circle cx="${cx + r - 1}" cy="${cy - r + 1}" r="3.5" fill="${AVAIL_COLOR}" stroke="white" stroke-width="1.2"/>`
+    : '';
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
     `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">`,
     `<stop offset="0%" stop-color="${fill}" stop-opacity="1"/>`,
     `<stop offset="100%" stop-color="${fill}" stop-opacity="0.55"/>`,
     `</linearGradient></defs>`,
-    `<circle cx="${cx}" cy="${cx}" r="${r}" fill="url(#${gradId})" stroke="${stroke}" stroke-width="${sw}"/>`,
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${gradId})" stroke="${stroke}" stroke-width="${sw}"/>`,
+    badge,
     `</svg>`,
   ].join('');
   return L.divIcon({
     html: svg,
     className: '',
     iconSize: [size, size],
-    iconAnchor: [cx, cx],
-    popupAnchor: [0, -(cx + 4)],
+    iconAnchor: [cx, cy],
+    popupAnchor: [0, -(cy + 4)],
   });
 }
 
@@ -115,6 +123,31 @@ const CONNECTION_STYLES = {
 };
 
 const TYPE_LABELS = { material: 'Material', offer: 'Materialangebot', project: 'Projekt', actor: 'Akteur' };
+
+function LegendDot({ color, available }) {
+  return (
+    <span style={{ position: 'relative', display: 'inline-block', width: 16, height: 16, flexShrink: 0 }}>
+      <span style={{
+        position: 'absolute', top: 2, left: 2,
+        width: 12, height: 12,
+        borderRadius: '50%',
+        background: color,
+        boxShadow: `0 0 0 2px ${color}33`,
+        display: 'block',
+      }} />
+      {available && (
+        <span style={{
+          position: 'absolute', top: 0, right: 0,
+          width: 7, height: 7,
+          borderRadius: '50%',
+          background: AVAIL_COLOR,
+          border: '1.2px solid white',
+          display: 'block',
+        }} />
+      )}
+    </span>
+  );
+}
 
 function MapLegend() {
   return (
@@ -135,20 +168,15 @@ function MapLegend() {
       }}
     >
       {[
-        { color: '#0033FF', label: 'Material / Angebot' },
-        { color: '#639530', label: 'Projekt' },
-        { color: '#FF3B36', label: 'Akteur' },
-      ].map(({ color, label }) => (
+        { color: '#0033FF', label: 'Material', available: false },
+        { color: '#0033FF', label: 'Material verfügbar', available: true },
+        { color: '#639530', label: 'Projekt', available: false },
+        { color: '#639530', label: 'Projekt verfügbar', available: true },
+        { color: '#FF3B36', label: 'Akteur', available: false },
+      ].map(({ color, label, available }) => (
         <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
-          <span style={{
-            display: 'inline-block',
-            width: 12, height: 12,
-            borderRadius: '50%',
-            background: color,
-            flexShrink: 0,
-            boxShadow: `0 0 0 2px ${color}33`,
-          }} />
-          <span style={{ color: '#374151', fontWeight: 500 }}>{label}</span>
+          <LegendDot color={color} available={available} />
+          <span style={{ color: '#374151', fontWeight: available ? 600 : 500 }}>{label}</span>
         </div>
       ))}
     </div>
@@ -226,7 +254,7 @@ export default function ExploreMap({
           <Marker
             key={e.id}
             position={pos}
-            icon={createGradientMarker(e.type, active)}
+            icon={createGradientMarker(e.type, active, e.available)}
             eventHandlers={{ click: () => onSelect?.(e) }}
           >
             <Popup>

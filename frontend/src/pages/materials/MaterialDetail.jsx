@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../services/materialService';
 import MaterialDetailModal from '../../components/materials/MaterialDetailModal';
 import MaterialForm from '../../components/materials/MaterialForm';
@@ -12,6 +12,14 @@ export default function MaterialDetail() {
   const { user, isAuthenticated } = useAuthStore();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: () => materialService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['materials'] });
+      navigate('/materials');
+    },
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['materials', { id }],
@@ -46,6 +54,7 @@ export default function MaterialDetail() {
         onClose={() => navigate(-1)}
         canEdit={canEdit}
         onEdit={() => setEditing(true)}
+        onDelete={canEdit ? () => deleteMutation.mutate() : undefined}
       />
       {editing && (
         <MaterialForm
