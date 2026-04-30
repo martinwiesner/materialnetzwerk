@@ -22,15 +22,19 @@ import {
   BellOff,
   Inbox,
   ClipboardList,
+  FlaskConical,
+  BookOpen,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
 import { useAuthOverlayStore } from '../store/authOverlayStore';
+import { useGuidelinesStore } from '../store/guidelinesStore';
 import { useToast } from '../store/toastStore';
 import { usePush } from '../hooks/usePush';
 import AuthOverlay from './auth/AuthOverlay';
 import ToastContainer from './shared/ToastContainer';
 import CoachMarks from './onboarding/CoachMarks';
+import GuidelinesOverlay from './shared/GuidelinesOverlay';
 import IncomingRequestsPanel from './requests/IncomingRequestsPanel';
 import MyRequestsPanel from './requests/MyRequestsPanel';
 import { messageService } from '../services/messageService';
@@ -48,14 +52,24 @@ const navigation = [
 // ── Logo ──────────────────────────────────────────────────────────────────────
 
 function Logo() {
+  const openGuidelines = useGuidelinesStore((s) => s.open);
   return (
     <Link to="/" className="flex items-center gap-2" data-onboarding="logo">
       <div className="bg-primary-700 p-2 rounded-xl">
         <RefreshCw className="w-5 h-5 text-white" />
       </div>
       <div className="leading-tight">
-        <div className="font-display font-extrabold text-[16.2px] text-gray-900 tracking-tight">
-          RZZ Materialien
+        <div className="flex items-center gap-1.5">
+          <span className="font-display font-extrabold text-[16.2px] text-gray-900 tracking-tight">
+            RZZ Materialien
+          </span>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openGuidelines(); }}
+            title="Beta-Version — Spielregeln ansehen"
+            className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 transition-colors"
+          >
+            Beta
+          </button>
         </div>
         <div className="text-[11px] text-gray-500">Materialien • Projekte • Akteure</div>
       </div>
@@ -502,12 +516,20 @@ export default function Layout() {
   const queryClient = useQueryClient();
   const { user, logout, isAuthenticated, token } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
+  const { isOpen: guidelinesOpen, open: openGuidelines, close: closeGuidelines } = useGuidelinesStore();
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
   const [showImpressum, setShowImpressum] = useState(false);
   const [showIncomingRequests, setShowIncomingRequests] = useState(false);
   const [showMyRequests, setShowMyRequests] = useState(false);
+  const [betaBannerDismissed, setBetaBannerDismissed] = useState(() => {
+    try { return localStorage.getItem('rzz_beta_banner_dismissed') === 'true'; } catch { return false; }
+  });
+  const dismissBetaBanner = () => {
+    setBetaBannerDismissed(true);
+    try { localStorage.setItem('rzz_beta_banner_dismissed', 'true'); } catch {}
+  };
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -546,6 +568,27 @@ export default function Layout() {
       <AuthOverlay />
       <ToastContainer />
       <CoachMarks />
+      {guidelinesOpen && <GuidelinesOverlay onClose={closeGuidelines} />}
+
+      {/* Beta banner — shown once until dismissed */}
+      {!betaBannerDismissed && (
+        <div className="bg-amber-50 border-b border-amber-200 text-center py-1.5 px-4 text-xs text-amber-800 flex items-center justify-center gap-2 relative">
+          <FlaskConical className="w-3 h-3 flex-shrink-0" />
+          <span>
+            Diese Plattform befindet sich in der <strong>Beta-Phase</strong>.{' '}
+            <button onClick={openGuidelines} className="underline hover:text-amber-900 transition-colors">
+              Spielregeln &amp; Richtlinien ansehen
+            </button>
+          </span>
+          <button
+            onClick={dismissBetaBanner}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-400 hover:text-amber-600 transition-colors p-0.5 rounded"
+            aria-label="Hinweis schließen"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       <AccountDrawer
         open={accountDrawerOpen}
@@ -689,13 +732,20 @@ export default function Layout() {
         <div className="border-t border-gray-100 pt-4 flex items-center justify-between flex-wrap gap-3">
           {/* Funding logos */}
           <div className="flex items-center gap-4">
-            <img src="/assets/logos/logo_rzz.svg" alt="Reallabor ZEKIWA Zeitz" className="h-10 w-auto max-w-[160px] object-contain flex-shrink-0" style={{ minWidth: 80 }} />
+            <img src="/assets/logos/logo_rzz.svg" alt="Reallabor ZEKIWA Zeitz" className="w-auto object-contain flex-shrink-0" style={{ height: 32, maxWidth: 120 }} />
             <a href="https://www.neuebauhaeusler.com" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
               <img src="/assets/logos/logo_neb.svg" alt="Neue Bauhäusler – Landesinitiative Sachsen-Anhalt" className="h-10 w-auto max-w-[140px] object-contain" style={{ minWidth: 80 }} />
             </a>
             <img src="/assets/logos/logo_eu_foerderung.svg" alt="Gefördert durch die Europäische Union" className="h-10 w-auto max-w-[200px] object-contain flex-shrink-0" style={{ minWidth: 120 }} />
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={openGuidelines}
+              className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <BookOpen className="w-3 h-3" />
+              Spielregeln
+            </button>
             <a
               href="https://www.hs-anhalt.de/datenschutz.html"
               target="_blank"

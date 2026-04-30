@@ -22,6 +22,16 @@ const STEPS = [
     skipOnMobile: false,
   },
   {
+    id: 'guidelines',
+    selector: '[data-onboarding="guidelines-button"]',
+    tag: 'SPIELREGELN', tagColor: '#d97706',
+    title: 'Was kann eingetragen werden?',
+    text: 'Hier findest du die Spielregeln: Welche Materialien, Projekte und Akteure in die Datenbank gehören — und was nicht. Die Plattform ist aktuell eine Beta-Version und lebt von deiner Beteiligung!',
+    detail: 'Die Materialdatenbank sammelt vor allem Bau- und Werkstoffe im Kontext von Kreislaufwirtschaft, dazu passende Projekte und beteiligte Akteure. Ohne Login kannst du alles ansehen — zum Eintragen oder Anfragen brauchst du einen kostenlosen Account.',
+    requiresPage: '/',
+    skipOnMobile: false,
+  },
+  {
     id: 'explore-map',
     selector: '[data-onboarding="explore-map"]',
     tag: 'NETZWERK', tagColor: '#0033FF',

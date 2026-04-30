@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Network, Package, Store, FolderOpen, X, Map as MapIcon, LayoutList, Users } from 'lucide-react';
+import { Search, Plus, Network, Package, Store, FolderOpen, X, Map as MapIcon, LayoutList, Users, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 import { materialService } from '../../services/materialService';
@@ -10,6 +10,7 @@ import { projectService } from '../../services/projectService';
 import { actorService } from '../../services/actorService';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
+import { useGuidelinesStore } from '../../store/guidelinesStore';
 
 import ExploreMap from '../../components/maps/ExploreMap';
 import EntityCard from '../../components/explore/EntityCard';
@@ -380,6 +381,7 @@ export default function Explore() {
   const navigate = useNavigate();
   const { isAuthenticated, token, user } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
+  const openGuidelines = useGuidelinesStore((s) => s.open);
   const queryClient = useQueryClient();
 
   const deleteActorMutation = useMutation({
@@ -499,12 +501,21 @@ export default function Explore() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="inline-flex items-center gap-2">
             <Network className="w-4 h-4 text-gray-700" />
             <h1 className="text-xl font-bold text-gray-900">Netzwerk</h1>
           </div>
-          <span className="text-sm text-gray-500">Die regionale Plattform, auf der Materialien, Projekte und Beteiligte zusammenfinden.</span>
+          <span className="text-sm text-gray-500 hidden sm:inline">Die regionale Plattform, auf der Materialien, Projekte und Beteiligte zusammenfinden.</span>
+          <button
+            data-onboarding="guidelines-button"
+            onClick={openGuidelines}
+            className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-gray-50 flex-shrink-0"
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Spielregeln</span>
+            <span className="sm:hidden">Info</span>
+          </button>
         </div>
 
         <div className="relative">
@@ -553,6 +564,15 @@ export default function Explore() {
                 <Users className="w-4 h-4" />
                 Akteur
               </button>
+              <div className="border-t border-gray-100">
+                <button
+                  onClick={() => { setCreateMenuOpen(false); openGuidelines(); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Was darf ich eintragen?
+                </button>
+              </div>
             </div>
           )}
         </div>
