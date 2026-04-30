@@ -51,7 +51,7 @@ Wichtige Variablen:
 
 ## Produktion
 
-- **URL:** http://materialien.reallabor-zekiwa-zeitz.de
+- **URL:** https://materialien.reallabor-zekiwa-zeitz.de
 - **Server:** Hetzner CX22, Ubuntu 24.04
 - **Daten:** `/opt/material-library/data/` (DB + Uploads — nicht im Git)
 
