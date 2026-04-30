@@ -689,6 +689,7 @@ export default function Layout() {
         <div className="border-t border-gray-100 pt-4 flex items-center justify-between flex-wrap gap-3">
           {/* Funding logos */}
           <div className="flex items-center gap-4">
+            <img src="/assets/logos/logo_rzz.svg" alt="Reallabor ZEKIWA Zeitz" className="h-10 w-auto max-w-[160px] object-contain flex-shrink-0" style={{ minWidth: 80 }} />
             <a href="https://www.neuebauhaeusler.com" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
               <img src="/assets/logos/logo_neb.svg" alt="Neue Bauhäusler – Landesinitiative Sachsen-Anhalt" className="h-10 w-auto max-w-[140px] object-contain" style={{ minWidth: 80 }} />
             </a>

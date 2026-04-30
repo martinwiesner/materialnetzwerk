@@ -15,11 +15,27 @@ echo "💾 Backing up production database..."
 mkdir -p "$BACKUP_DIR"
 if scp "$SERVER:$REMOTE_PATH/data/material_library.db" "$BACKUP_DIR/material_library_$TIMESTAMP.db" 2>/dev/null; then
   echo "   ✅ Backup saved: db-backups/material_library_$TIMESTAMP.db"
-  # Nur die letzten 25 Backups behalten
+  # Nur die letzten 100 Backups behalten
   ls -t "$BACKUP_DIR"/material_library_*.db 2>/dev/null | tail -n +101 | xargs rm -f 2>/dev/null
   echo "   (ältere Backups bereinigt, max. 100 werden behalten)"
 else
   echo "   ⚠️  Backup fehlgeschlagen — Deploy wird trotzdem fortgesetzt"
+fi
+
+# 0b. Hochgeladene Dateien inkrementell sichern (rsync + Hard-Links)
+echo "🖼️  Backing up uploaded files..."
+UPLOADS_BACKUP_DIR="$(dirname "$0")/uploads-backups"
+mkdir -p "$UPLOADS_BACKUP_DIR"
+LATEST_LINK="$UPLOADS_BACKUP_DIR/latest"
+NEW_UPLOADS_BACKUP="$UPLOADS_BACKUP_DIR/uploads_$TIMESTAMP"
+if rsync -az --link-dest="$LATEST_LINK" "$SERVER:$REMOTE_PATH/backend/uploads/" "$NEW_UPLOADS_BACKUP/" 2>/dev/null; then
+  rm -f "$LATEST_LINK" && ln -sf "$NEW_UPLOADS_BACKUP" "$LATEST_LINK"
+  echo "   ✅ Uploads backed up: uploads-backups/uploads_$TIMESTAMP"
+  # Nur die letzten 25 Snapshots behalten
+  ls -dt "$UPLOADS_BACKUP_DIR"/uploads_* 2>/dev/null | tail -n +26 | xargs rm -rf 2>/dev/null
+  echo "   (ältere Uploads-Backups bereinigt, max. 25 werden behalten)"
+else
+  echo "   ⚠️  Uploads-Backup fehlgeschlagen — Deploy wird trotzdem fortgesetzt"
 fi
 
 # 1. Git commit (ohne .env)

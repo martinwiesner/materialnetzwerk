@@ -5,6 +5,7 @@ backend/data/
 backend/uploads/
 backend/logs/
 db-backups/
+uploads-backups/
 **/.env
 *.sqlite
 *.db
