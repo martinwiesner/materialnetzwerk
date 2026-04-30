@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Package, FolderOpen, Users, Eye, FlaskConical, ChevronDown, ChevronUp, BookOpen, LogIn, ExternalLink } from 'lucide-react';
 import { useGuidelinesStore } from '../../store/guidelinesStore';
+import { useAgbStore } from '../../store/agbStore';
 import { useAuthStore } from '../../store/authStore';
 
 // ── Collapsible section ───────────────────────────────────────────────────────
@@ -68,6 +69,7 @@ function SubHeading({ children }) {
 
 export default function GuidelinesOverlay({ onClose }) {
   const { isAuthenticated } = useAuthStore();
+  const openAgb = useAgbStore((s) => s.open);
   const openCreate = () => {
     onClose();
     window.dispatchEvent(new CustomEvent('rzz:openCreateMenu'));
@@ -288,9 +290,12 @@ export default function GuidelinesOverlay({ onClose }) {
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-3 flex-shrink-0">
-          <p className="text-[11px] text-gray-400 hidden sm:block">
-            Jederzeit über den Link im Footer erneut aufrufen.
-          </p>
+          <button
+            onClick={() => { onClose(); openAgb(); }}
+            className="text-[11px] text-gray-400 hover:text-gray-600 underline transition-colors hidden sm:block"
+          >
+            Nutzungsbedingungen &amp; AGB
+          </button>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {isAuthenticated && (
               <button

@@ -29,12 +29,14 @@ import {
 import { useAuthStore } from '../store/authStore';
 import { useAuthOverlayStore } from '../store/authOverlayStore';
 import { useGuidelinesStore } from '../store/guidelinesStore';
+import { useAgbStore } from '../store/agbStore';
 import { useToast } from '../store/toastStore';
 import { usePush } from '../hooks/usePush';
 import AuthOverlay from './auth/AuthOverlay';
 import ToastContainer from './shared/ToastContainer';
 import CoachMarks from './onboarding/CoachMarks';
 import GuidelinesOverlay from './shared/GuidelinesOverlay';
+import AGBOverlay from './shared/AGBOverlay';
 import IncomingRequestsPanel from './requests/IncomingRequestsPanel';
 import MyRequestsPanel from './requests/MyRequestsPanel';
 import { messageService } from '../services/messageService';
@@ -517,6 +519,7 @@ export default function Layout() {
   const { user, logout, isAuthenticated, token } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
   const { isOpen: guidelinesOpen, open: openGuidelines, close: closeGuidelines } = useGuidelinesStore();
+  const openAgb = useAgbStore((s) => s.open);
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
@@ -569,6 +572,7 @@ export default function Layout() {
       <ToastContainer />
       <CoachMarks />
       {guidelinesOpen && <GuidelinesOverlay onClose={closeGuidelines} />}
+      <AGBOverlay />
 
       {/* Beta banner — shown once until dismissed */}
       {!betaBannerDismissed && (
@@ -760,6 +764,12 @@ export default function Layout() {
             >
               Datenschutz
             </a>
+            <button
+              onClick={openAgb}
+              className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              AGB
+            </button>
             <button
               onClick={() => setShowImpressum(true)}
               className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"

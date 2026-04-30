@@ -506,7 +506,7 @@ export default function Explore() {
             <Globe className="w-4 h-4 text-gray-700" />
             <h1 className="text-xl font-bold text-gray-900">Entdecken</h1>
           </div>
-          <span className="text-sm text-gray-500 hidden sm:inline">
+          <span className="text-sm text-gray-500">
             Die regionale Plattform des{' '}
             <a
               href="https://www.reallabor-zekiwa-zeitz.de"
