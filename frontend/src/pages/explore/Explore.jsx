@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Globe, Package, Store, FolderOpen, X, Map as MapIcon, LayoutList, Users, BookOpen } from 'lucide-react';
+import { Search, Plus, Globe, Package, FolderOpen, X, Map as MapIcon, LayoutList, Users, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 import { materialService } from '../../services/materialService';
@@ -90,7 +90,7 @@ function deterministicGeo(seed) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildEntities({ materials, offers, projects, actors, search }) {
+function buildEntities({ materials, offers, projects, actors, gesuche, search }) {
   const q = normalizeStr(search);
 
   const offerByMaterialId = (offers || []).reduce((acc, o) => {
@@ -216,8 +216,34 @@ function buildEntities({ materials, offers, projects, actors, search }) {
       };
     });
 
-  // Order: materials first, then projects, then actors, offers last (usually overlapping with materials)
-  return [...materialEntities, ...projectEntities, ...actorEntities, ...offerEntities];
+  const gesuchEntities = (gesuche || [])
+    .filter((g) => {
+      if (!q) return true;
+      return (
+        normalizeStr(g?.material_name).includes(q) ||
+        normalizeStr(g?.notes).includes(q) ||
+        normalizeStr(g?.location_name).includes(q)
+      );
+    })
+    .map((g) => {
+      const realGeo = Number.isFinite(Number(g.latitude)) && Number.isFinite(Number(g.longitude))
+        ? { lat: Number(g.latitude), lon: Number(g.longitude), address: g.address || '' }
+        : null;
+      const geo = realGeo || deterministicGeo(`gesuch:${g.id}`);
+      return {
+        id: `gesuch:${g.id}`,
+        type: 'gesuch',
+        title: g.material_name || 'Materialgesuch',
+        subtitle: g.location_name || 'Gesuch',
+        imageUrl: dbImageUrl(g.images) || getOfferImage(g),
+        location: geo,
+        quantityLabel: g.quantity ? formatQty(g.quantity, g.unit || g.material_unit) : null,
+        raw: g,
+      };
+    });
+
+  // Order: materials first, then projects, then actors, gesuche, offers last (usually overlapping with materials)
+  return [...materialEntities, ...projectEntities, ...actorEntities, ...gesuchEntities, ...offerEntities];
 }
 
 /**
@@ -410,6 +436,7 @@ export default function Explore() {
   const [showOffers, setShowOffers] = useState(true);
   const [showProjects, setShowProjects] = useState(true);
   const [showActors, setShowActors] = useState(true);
+  const [showGesuche, setShowGesuche] = useState(true);
   const [filterAvailable, setFilterAvailable] = useState(false);
 
   const [selected, setSelected] = useState(null);
@@ -455,6 +482,11 @@ export default function Explore() {
     queryFn: () => actorService.getAll(),
   });
 
+  const gesucheQuery = useQuery({
+    queryKey: ['gesuche', { explore: true }],
+    queryFn: () => inventoryService.getGesuche(),
+  });
+
   // Helpers to deal with inconsistent response shapes (some endpoints return arrays, others {data: []})
   const unwrapList = (resp) => (Array.isArray(resp) ? resp : resp?.data || []);
 
@@ -471,8 +503,9 @@ export default function Explore() {
 
   const projects = unwrapList(projectsQuery.data);
   const actors = unwrapList(actorsQuery.data);
+  const gesuche = unwrapList(gesucheQuery.data);
 
-  const entities = useMemo(() => buildEntities({ materials, offers, projects, actors, search }), [materials, offers, projects, actors, search]);
+  const entities = useMemo(() => buildEntities({ materials, offers, projects, actors, gesuche, search }), [materials, offers, projects, actors, gesuche, search]);
 
   const filteredEntities = useMemo(() => {
     return entities.filter((e) => {
@@ -480,10 +513,11 @@ export default function Explore() {
       if (e.type === 'material' && !showMaterials) return false;
       if (e.type === 'project' && !showProjects) return false;
       if (e.type === 'actor' && !showActors) return false;
+      if (e.type === 'gesuch' && !showGesuche) return false;
       if (filterAvailable && !e.available) return false;
       return true;
     });
-  }, [entities, showMaterials, showOffers, showProjects, showActors, filterAvailable]);
+  }, [entities, showMaterials, showOffers, showProjects, showActors, showGesuche, filterAvailable]);
 
   // All entities now always have a location (real or deterministic fake), so pass all filtered ones to the map
   const mapEntities = filteredEntities;
@@ -496,7 +530,8 @@ export default function Explore() {
     myOffersQuery.isLoading ||
     availableOffersQuery.isLoading ||
     projectsQuery.isLoading ||
-    actorsQuery.isLoading;
+    actorsQuery.isLoading ||
+    gesucheQuery.isLoading;
 
   return (
     <div className="space-y-4">
@@ -554,20 +589,7 @@ export default function Explore() {
               >
                 <Package className="w-4 h-4" />
                 Material
-                <span className="ml-auto text-xs text-gray-400">(+ optional Angebot)</span>
-              </button>
-              <button
-                onClick={() => {
-                  if (!requireAuth()) return;
-                  setCreateMenuOpen(false);
-                  setMaterialFormInitialMode('gesuch');
-                  setShowMaterialForm(true);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50"
-              >
-                <Store className="w-4 h-4 text-purple-500" />
-                <span>Materialgesuch</span>
-                <span className="ml-auto text-xs text-purple-400">gesucht</span>
+                <span className="ml-auto text-xs text-gray-400">(+ Angebot o. Gesuch)</span>
               </button>
               <button
                 onClick={() => {
@@ -657,6 +679,15 @@ export default function Explore() {
               Akteure
             </button>
             <button
+              onClick={() => setShowGesuche((v) => !v)}
+              className="px-3 py-2 rounded-full text-sm font-medium border transition-all"
+              style={showGesuche
+                ? { background: 'linear-gradient(to bottom, #7C3AED, rgba(124,58,237,0.72))', borderColor: '#7C3AED', color: '#fff' }
+                : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
+            >
+              Gesuche
+            </button>
+            <button
               onClick={() => setFilterAvailable((v) => !v)}
               className={clsx(
                 'px-3 py-2 rounded-full text-sm font-medium border transition-colors',
@@ -714,6 +745,7 @@ export default function Explore() {
                   if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
                   if (e.type === 'offer') setOfferDetailId(e.raw?.id);
                   if (e.type === 'actor') setActorDetail(e.raw);
+                  if (e.type === 'gesuch' && e.raw?.material_id) navigate(`/materials/${e.raw.material_id}`);
                 }}
               />
             </div>
@@ -748,6 +780,7 @@ export default function Explore() {
                       if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
                       if (e.type === 'offer') setOfferDetailId(e.raw?.id);
                       if (e.type === 'actor') setActorDetail(e.raw);
+                      if (e.type === 'gesuch' && e.raw?.material_id) navigate(`/materials/${e.raw.material_id}`);
                     }}
                     onRequest={
                       e.type === 'material' && e.offerRaw

@@ -152,6 +152,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     unit: 'kg',
     notes: '',
     location_name: '',
+    latitude: '',
+    longitude: '',
   });
 
   const { data: categories = [], isLoading: catsLoading } = useQuery({
@@ -378,6 +380,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       quantity: gesuchData.quantity ? parseFloat(gesuchData.quantity) : 0,
       unit: gesuchData.unit,
       location_name: gesuchData.location_name,
+      latitude: gesuchData.latitude ? parseFloat(gesuchData.latitude) : null,
+      longitude: gesuchData.longitude ? parseFloat(gesuchData.longitude) : null,
       notes: gesuchData.notes,
       is_available: true,
       entry_type: 'gesuch',
@@ -602,6 +606,28 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   onChange={e => setGesuchData(d => ({ ...d, location_name: e.target.value }))}
                   placeholder="z.B. Zeitz, Saalekreis"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
+              </div>
+              <div>
+                <GeolocateButton
+                  onLocate={(lat, lon) => setGesuchData(d => ({ ...d, latitude: lat, longitude: lon }))}
+                  className="mb-2"
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Breitengrad</label>
+                    <input type="number" step="0.000001" value={gesuchData.latitude || ''}
+                      onChange={e => setGesuchData(d => ({ ...d, latitude: e.target.value }))}
+                      placeholder="z.B. 51.05"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Längengrad</label>
+                    <input type="number" step="0.000001" value={gesuchData.longitude || ''}
+                      onChange={e => setGesuchData(d => ({ ...d, longitude: e.target.value }))}
+                      placeholder="z.B. 12.13"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
+                  </div>
+                </div>
               </div>
 
               {/* Notes */}

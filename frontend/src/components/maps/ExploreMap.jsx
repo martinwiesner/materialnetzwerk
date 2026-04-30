@@ -78,6 +78,7 @@ const MARKER_COLORS = {
   offer:    { fill: '#0033FF', stroke: '#0033FF' },
   actor:    { fill: '#FF3B36', stroke: '#FF3B36' },
   project:  { fill: '#639530', stroke: '#639530' },
+  gesuch:   { fill: '#7C3AED', stroke: '#7C3AED' },
 };
 
 // Orange availability badge color (matches bg-orange-500 on cards)
@@ -169,10 +170,10 @@ function MapLegend() {
     >
       {[
         { color: '#0033FF', label: 'Material', available: false },
-        { color: '#0033FF', label: 'Material verfügbar', available: true },
         { color: '#639530', label: 'Projekt', available: false },
-        { color: '#639530', label: 'Projekt verfügbar', available: true },
         { color: '#FF3B36', label: 'Akteur', available: false },
+        { color: '#0033FF', label: 'Verfügbares Angebot', available: true },
+        { color: '#7C3AED', label: 'Gesuch', available: false },
       ].map(({ color, label, available }) => (
         <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
           <LegendDot color={color} available={available} />

@@ -1,10 +1,11 @@
-import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users, Send } from 'lucide-react';
+import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users, Send, BookMarked } from 'lucide-react';
 import clsx from 'clsx';
 
 function badgeForType(type) {
   if (type === 'material') return { label: 'Material', className: 'bg-primary-50 text-primary-800 border-primary-200', icon: Leaf };
   if (type === 'offer') return { label: 'Materialangebot', className: 'bg-primary-50 text-primary-800 border-primary-200', icon: Store };
   if (type === 'actor') return { label: 'Akteur', className: 'bg-actor-50 text-actor-700 border-actor-200', icon: Users };
+  if (type === 'gesuch') return { label: 'Materialgesuch', className: 'bg-purple-50 text-purple-800 border-purple-200', icon: BookMarked };
   return { label: 'Projekt', className: 'bg-project-50 text-project-800 border-project-200', icon: FolderOpen };
 }
 
