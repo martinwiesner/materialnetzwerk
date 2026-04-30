@@ -232,6 +232,13 @@ export default function CoachMarks() {
     };
   }, [isActive, currentStep, searching]);
 
+  // ── External restart trigger (from footer button) ─────────────────────────
+  useEffect(() => {
+    const handler = () => restart();
+    window.addEventListener('rzz:restartOnboarding', handler);
+    return () => window.removeEventListener('rzz:restartOnboarding', handler);
+  }, [restart]);
+
   // ── Keyboard navigation ───────────────────────────────────────────────────
   useEffect(() => {
     if (!isActive) return;

@@ -572,20 +572,20 @@ export default function Layout() {
 
       {/* Beta banner — shown once until dismissed */}
       {!betaBannerDismissed && (
-        <div className="bg-amber-50 border-b border-amber-200 text-center py-1.5 px-4 text-xs text-amber-800 flex items-center justify-center gap-2 relative">
-          <FlaskConical className="w-3 h-3 flex-shrink-0" />
+        <div className="bg-gray-50 border-b border-gray-200 text-center py-1 px-4 text-[11px] text-gray-400 flex items-center justify-center gap-1.5 relative">
+          <FlaskConical className="w-2.5 h-2.5 flex-shrink-0" />
           <span>
-            Diese Plattform befindet sich in der <strong>Beta-Phase</strong>.{' '}
-            <button onClick={openGuidelines} className="underline hover:text-amber-900 transition-colors">
-              Spielregeln &amp; Richtlinien ansehen
+            Beta-Version —{' '}
+            <button onClick={openGuidelines} className="underline hover:text-gray-600 transition-colors">
+              Was kann eingetragen werden?
             </button>
           </span>
           <button
             onClick={dismissBetaBanner}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-400 hover:text-amber-600 transition-colors p-0.5 rounded"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors p-0.5 rounded"
             aria-label="Hinweis schließen"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-3 h-3" />
           </button>
         </div>
       )}
@@ -732,13 +732,19 @@ export default function Layout() {
         <div className="border-t border-gray-100 pt-4 flex items-center justify-between flex-wrap gap-3">
           {/* Funding logos */}
           <div className="flex items-center gap-4">
-            <img src="/assets/logos/logo_rzz.svg" alt="Reallabor ZEKIWA Zeitz" className="w-auto object-contain flex-shrink-0" style={{ height: 32, maxWidth: 120 }} />
+            <img src="/assets/logos/logo_rzz.svg" alt="Reallabor ZEKIWA Zeitz" className="w-auto object-contain flex-shrink-0" style={{ height: 22, maxWidth: 84 }} />
             <a href="https://www.neuebauhaeusler.com" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
               <img src="/assets/logos/logo_neb.svg" alt="Neue Bauhäusler – Landesinitiative Sachsen-Anhalt" className="h-10 w-auto max-w-[140px] object-contain" style={{ minWidth: 80 }} />
             </a>
             <img src="/assets/logos/logo_eu_foerderung.svg" alt="Gefördert durch die Europäische Union" className="h-10 w-auto max-w-[200px] object-contain flex-shrink-0" style={{ minWidth: 120 }} />
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent('rzz:restartOnboarding'))}
+              className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Einführung
+            </button>
             <button
               onClick={openGuidelines}
               className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"

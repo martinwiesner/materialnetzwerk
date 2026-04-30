@@ -100,7 +100,7 @@ export default function GuidelinesOverlay({ onClose }) {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-gray-900">Spielregeln &amp; Richtlinien</h2>
+                <h2 className="text-base font-bold text-gray-900">Spielregeln &amp; Mitmachen</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200">
                   Beta
                 </span>
