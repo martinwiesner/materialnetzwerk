@@ -11,6 +11,11 @@ export const inventoryService = {
     return response.data;
   },
 
+  getGesuche: async (params = {}) => {
+    const response = await api.get('/inventory/gesuche', { params });
+    return response.data;
+  },
+
   getTransfers: async () => {
     const response = await api.get('/inventory/transfers');
     return response.data;

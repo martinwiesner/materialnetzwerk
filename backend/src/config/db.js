@@ -364,6 +364,7 @@ const ensureColumns = () => {
     addCol('inventory', 'logistics_options', 'logistics_options TEXT');
     addCol('inventory', 'transport_costs', 'transport_costs TEXT');
     addCol('inventory', 'condition', 'condition TEXT');
+    addCol('inventory', 'entry_type', "entry_type TEXT DEFAULT 'angebot'");
 
     // projects – availability flag
     addCol('projects', 'is_available', 'is_available BOOLEAN DEFAULT 0');

@@ -52,6 +52,24 @@ export const getAvailableInventory = (req, res) => {
 };
 
 /**
+ * Get Materialgesuche (wanted/search requests)
+ * @param {Object} req
+ * @param {Object} res
+ */
+export const getGesuche = (req, res) => {
+  try {
+    const { category, search } = req.query;
+    const filters = {};
+    if (category) filters.category = category;
+    if (search) filters.search = search;
+    const gesuche = Inventory.findGesuche(filters);
+    res.json(gesuche);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch Gesuche', error: error.message });
+  }
+};
+
+/**
  * Get inventory entry by ID
  * @param {Object} req
  * @param {Object} res

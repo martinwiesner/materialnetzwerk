@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../services/materialService';
 import { inventoryService } from '../../services/inventoryService';
-import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked } from 'lucide-react';
 import { useToast } from '../../store/toastStore';
 import MaterialForm from '../../components/materials/MaterialForm';
 import clsx from 'clsx';
@@ -60,6 +60,7 @@ export default function Materials() {
   const [category, setCategory] = useState('');
   const [filterAvailable, setFilterAvailable] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [formInitialMode, setFormInitialMode] = useState(undefined);
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
   const [showGuide, setShowGuide] = useState(false);
@@ -78,6 +79,11 @@ export default function Materials() {
     queryKey: ['inventory'],
     queryFn: () => inventoryService.getAll(),
     enabled: Boolean(isAuthenticated && token),
+  });
+
+  const { data: gesucheData } = useQuery({
+    queryKey: ['gesuche'],
+    queryFn: () => inventoryService.getGesuche(),
   });
 
   const toast = useToast();
@@ -107,6 +113,7 @@ export default function Materials() {
   const handleFormClose = () => {
     setShowForm(false);
     setEditingMaterial(null);
+    setFormInitialMode(undefined);
   };
 
   const allMaterials = materialsData?.data || [];
@@ -128,6 +135,14 @@ export default function Materials() {
     }
     acc[matId].quantity += Number.isNaN(qty) ? 0 : qty;
     // If unit differs between entries, we keep the first one (can be improved later)
+    return acc;
+  }, {});
+
+  const gesuche = Array.isArray(gesucheData) ? gesucheData : (gesucheData?.data || []);
+  const gesuchByMaterial = (gesuche || []).reduce((acc, item) => {
+    const matId = item.material_id;
+    if (!matId) return acc;
+    acc[matId] = (acc[matId] || 0) + 1;
     return acc;
   }, {});
 
@@ -270,15 +285,22 @@ export default function Materials() {
           </div>
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => { if (!requireAuth()) return; setShowForm(true); }}
+              onClick={() => { if (!requireAuth()) return; setFormInitialMode('material'); setShowForm(true); }}
               className="inline-flex items-center gap-2 bg-white text-primary-700 hover:bg-primary-50 px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm"
             >
               <Plus className="w-5 h-5" />
               Material dokumentieren
             </button>
             <button
-              onClick={() => setShowGuide(true)}
+              onClick={() => { if (!requireAuth()) return; setFormInitialMode('gesuch'); setShowForm(true); }}
               className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white px-5 py-3 rounded-xl font-medium text-base transition-colors"
+            >
+              <BookMarked className="w-5 h-5" />
+              Gesuch eintragen
+            </button>
+            <button
+              onClick={() => setShowGuide(true)}
+              className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white/70 px-4 py-3 rounded-xl font-medium text-base transition-colors"
             >
               <Info className="w-5 h-5" />
               Was ist erlaubt?
@@ -448,6 +470,12 @@ export default function Materials() {
                         verfügbar
                       </div>
                     )}
+                    {gesuchByMaterial[material.id] > 0 && (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600/90 text-white text-xs font-medium shadow-sm">
+                        <BookMarked className="w-3.5 h-3.5" />
+                        gesucht
+                      </div>
+                    )}
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-sm text-gray-700 shadow-sm">
                       <Package2 className="w-4 h-4" />
                       <span>
@@ -530,6 +558,7 @@ export default function Materials() {
           material={editingMaterial}
           onClose={handleFormClose}
           enableOfferOnCreate={true}
+          initialMode={formInitialMode}
         />
       )}
     </div>

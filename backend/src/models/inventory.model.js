@@ -71,6 +71,7 @@ const Inventory = {
       JOIN materials m ON i.material_id = m.id
       JOIN users u ON i.user_id = u.id
       WHERE i.user_id != ? AND i.is_available = 1 AND i.quantity > 0
+        AND (i.entry_type = 'angebot' OR i.entry_type IS NULL)
     `;
     const params = [excludeUserId];
     if (filters.transfer_only) { query += ' AND i.available_for_transfer = 1'; }
@@ -78,6 +79,31 @@ const Inventory = {
     if (filters.category) { query += ' AND m.category = ?'; params.push(filters.category); }
     if (filters.search) {
       query += ' AND (m.name LIKE ? OR m.description LIKE ? OR i.location_name LIKE ? OR i.address LIKE ?)';
+      const s = `%${filters.search}%`;
+      params.push(s, s, s, s);
+    }
+    query += ' ORDER BY i.created_at DESC';
+    const rows = db.prepare(query).all(...params);
+    return rows.map(r => ({
+      ...r,
+      images: db.prepare('SELECT * FROM inventory_images WHERE inventory_id = ? ORDER BY sort_order ASC').all(r.id),
+    }));
+  },
+
+  findGesuche: (filters = {}) => {
+    const db = getDB();
+    let query = `
+      SELECT i.*, m.name as material_name, m.category, m.gwp_value,
+             u.id as owner_id, u.email as owner_email, u.first_name as owner_first_name, u.last_name as owner_last_name
+      FROM inventory i
+      JOIN materials m ON i.material_id = m.id
+      JOIN users u ON i.user_id = u.id
+      WHERE i.entry_type = 'gesuch' AND i.is_available = 1
+    `;
+    const params = [];
+    if (filters.category) { query += ' AND m.category = ?'; params.push(filters.category); }
+    if (filters.search) {
+      query += ' AND (m.name LIKE ? OR m.description LIKE ? OR i.notes LIKE ? OR i.location_name LIKE ?)';
       const s = `%${filters.search}%`;
       params.push(s, s, s, s);
     }
@@ -99,6 +125,7 @@ const Inventory = {
       'location_name','latitude','longitude','address',
       'is_available','availability_mode','external_url','season_from','season_to',
       'swap_possible','swap_against','available_for_transfer','available_for_gift','notes',
+      'entry_type',
       ...NEW_FIELDS,
     ];
     const vals = [
@@ -111,6 +138,7 @@ const Inventory = {
       data.swap_possible ? 1 : 0, data.swap_against || null,
       data.available_for_transfer ? 1 : 0, data.available_for_gift ? 1 : 0,
       data.notes || null,
+      data.entry_type || 'angebot',
       // new fields
       data.min_order_quantity ?? null,
       data.available_from_date || null,
@@ -140,6 +168,7 @@ const Inventory = {
       'quantity','unit','location_name','latitude','longitude','address',
       'is_available','availability_mode','external_url','season_from','season_to',
       'swap_possible','swap_against','available_for_transfer','available_for_gift','notes',
+      'entry_type',
       ...NEW_FIELDS,
     ];
     const boolFields = new Set(['is_available','available_for_transfer','available_for_gift','swap_possible',

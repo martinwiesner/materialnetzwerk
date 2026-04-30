@@ -420,6 +420,7 @@ export default function Explore() {
   // Create flows
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [showMaterialForm, setShowMaterialForm] = useState(false);
+  const [materialFormInitialMode, setMaterialFormInitialMode] = useState(undefined);
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [showProjectForm, setShowProjectForm] = useState(false);
   const [showActorForm, setShowActorForm] = useState(false);
@@ -546,6 +547,7 @@ export default function Explore() {
                 onClick={() => {
                   if (!requireAuth()) return;
                   setCreateMenuOpen(false);
+                  setMaterialFormInitialMode(undefined);
                   setShowMaterialForm(true);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50"
@@ -553,6 +555,19 @@ export default function Explore() {
                 <Package className="w-4 h-4" />
                 Material
                 <span className="ml-auto text-xs text-gray-400">(+ optional Angebot)</span>
+              </button>
+              <button
+                onClick={() => {
+                  if (!requireAuth()) return;
+                  setCreateMenuOpen(false);
+                  setMaterialFormInitialMode('gesuch');
+                  setShowMaterialForm(true);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50"
+              >
+                <Store className="w-4 h-4 text-purple-500" />
+                <span>Materialgesuch</span>
+                <span className="ml-auto text-xs text-purple-400">gesucht</span>
               </button>
               <button
                 onClick={() => {
@@ -755,8 +770,9 @@ export default function Explore() {
 
       {showMaterialForm && (
         <MaterialForm
-          onClose={() => setShowMaterialForm(false)}
+          onClose={() => { setShowMaterialForm(false); setMaterialFormInitialMode(undefined); }}
           enableOfferOnCreate
+          initialMode={materialFormInitialMode}
         />
       )}
       {showOfferForm && <InventoryForm onClose={() => setShowOfferForm(false)} />}

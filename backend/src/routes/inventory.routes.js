@@ -7,6 +7,7 @@ import express from 'express';
 import {
   getInventory,
   getAvailableInventory,
+  getGesuche,
   getInventoryById,
   createInventory,
   updateInventory,
@@ -67,6 +68,8 @@ router.get('/', protect,
   */
   (req, res) => getInventory(req, res)
 );
+
+router.get('/gesuche', optionalAuth, (req, res) => getGesuche(req, res));
 
 router.get('/available', optionalAuth,
   /*
