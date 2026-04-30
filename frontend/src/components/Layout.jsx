@@ -30,6 +30,7 @@ import { useToast } from '../store/toastStore';
 import { usePush } from '../hooks/usePush';
 import AuthOverlay from './auth/AuthOverlay';
 import ToastContainer from './shared/ToastContainer';
+import CoachMarks from './onboarding/CoachMarks';
 import IncomingRequestsPanel from './requests/IncomingRequestsPanel';
 import MyRequestsPanel from './requests/MyRequestsPanel';
 import { messageService } from '../services/messageService';
@@ -48,7 +49,7 @@ const navigation = [
 
 function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2">
+    <Link to="/" className="flex items-center gap-2" data-onboarding="logo">
       <div className="bg-primary-700 p-2 rounded-xl">
         <RefreshCw className="w-5 h-5 text-white" />
       </div>
@@ -544,6 +545,7 @@ export default function Layout() {
     <div className="min-h-screen bg-gray-50">
       <AuthOverlay />
       <ToastContainer />
+      <CoachMarks />
 
       <AccountDrawer
         open={accountDrawerOpen}
@@ -572,10 +574,12 @@ export default function Layout() {
                 {navigation.map((item) => {
                   const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
                   const showBadge = item.href === '/messages' && unreadCount?.count > 0;
+                  const onboardingKey = item.href === '/materials' ? 'nav-materials' : item.href === '/messages' ? 'nav-messages' : undefined;
                   return (
                     <Link
                       key={item.name}
                       to={item.href}
+                      data-onboarding={onboardingKey}
                       className={clsx(
                         'relative inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
                         isActive ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'
@@ -611,6 +615,7 @@ export default function Layout() {
               {/* Account button */}
               <button
                 type="button"
+                data-onboarding="account-button"
                 onClick={() => {
                   if (isAuthenticated && token) {
                     setAccountDrawerOpen(true);

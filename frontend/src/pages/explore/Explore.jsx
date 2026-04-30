@@ -509,6 +509,7 @@ export default function Explore() {
 
         <div className="relative">
           <button
+            data-onboarding="create-button"
             onClick={() => setCreateMenuOpen((v) => !v)}
             className="inline-flex items-center gap-2 bg-primary-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors"
           >
@@ -558,7 +559,7 @@ export default function Explore() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div data-onboarding="explore-filters" className="bg-white rounded-xl border border-gray-200 p-4">
         <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -653,7 +654,7 @@ export default function Explore() {
       {/* Main split */}
       <div className={clsx('grid gap-4', showMap ? 'grid-cols-1 xl:grid-cols-[1.6fr_1fr]' : 'grid-cols-1')}>
         {showMap && (
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div data-onboarding="explore-map" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
             <div className="h-[70vh] min-h-[520px]">
               <ExploreMap
                 entities={mapEntities}
@@ -672,7 +673,7 @@ export default function Explore() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div data-onboarding="entity-list" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <div>
               <div className="font-semibold text-gray-900">Deine Umgebung</div>
