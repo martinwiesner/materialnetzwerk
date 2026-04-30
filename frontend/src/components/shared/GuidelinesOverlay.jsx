@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Package, FolderOpen, Users, Eye, FlaskConical, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { X, Package, FolderOpen, Users, Eye, FlaskConical, ChevronDown, ChevronUp, BookOpen, LogIn, ExternalLink } from 'lucide-react';
 import { useGuidelinesStore } from '../../store/guidelinesStore';
 import { useAuthStore } from '../../store/authStore';
 
@@ -33,8 +33,6 @@ function Section({ icon: Icon, title, color, children, defaultOpen = false }) {
     </div>
   );
 }
-
-// ── Yes/No lists ──────────────────────────────────────────────────────────────
 
 function YesList({ items }) {
   return (
@@ -72,7 +70,6 @@ export default function GuidelinesOverlay({ onClose }) {
   const { isAuthenticated } = useAuthStore();
   const openCreate = () => {
     onClose();
-    // Trigger create menu on Explore page via a custom event so Layout doesn't need to know
     window.dispatchEvent(new CustomEvent('rzz:openCreateMenu'));
   };
 
@@ -100,13 +97,13 @@ export default function GuidelinesOverlay({ onClose }) {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-gray-900">Spielregeln &amp; Mitmachen</h2>
+                <h2 className="text-base font-bold text-gray-900">Info &amp; Spielregeln</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200">
                   Beta
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
-                Was kann eingetragen werden — und was nicht?
+                Was ist diese Plattform — und was kann ich eintragen?
               </p>
             </div>
           </div>
@@ -122,17 +119,61 @@ export default function GuidelinesOverlay({ onClose }) {
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
 
-          {/* Einleitung */}
+          {/* ── Was ist die Plattform? ── */}
           <div className="bg-gray-50 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed space-y-2">
             <p>
-              Die RZZ Materialdatenbank ist Teil des Reallabors ZEKIWA Zeitz und dient dem Aufbau einer regionalen Kreislaufwirtschaft. Ziel ist es, Materialkreisläufe in der Region Zeitz sichtbar zu machen und Akteure miteinander zu vernetzen.
+              Ein digitales Werkzeug des{' '}
+              <a
+                href="https://www.reallabor-zekiwa-zeitz.de"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-gray-800 inline-flex items-center gap-0.5"
+              >
+                Reallabors ZEKIWA Zeitz
+                <ExternalLink className="w-3 h-3" />
+              </a>.{' '}
+              Die Plattform vernetzt Materialien, Projekte und Akteure der Region und macht
+              Stoffkreisläufe sichtbar — für eine funktionierende Kreislaufwirtschaft auf
+              dem Gelände der ehemaligen Kinderwagenfabrik in Zeitz.
             </p>
             <p>
-              Die Plattform befindet sich aktuell in der <strong className="text-gray-800">Beta-Phase</strong>. Funktionen können sich ändern, es kann zu kleineren Fehlern kommen — und wir freuen uns über jedes Feedback. Gemeinsam machen wir die Datenbank besser!
+              Plattform befindet sich in der <strong className="text-gray-800">Beta-Phase</strong> — Funktionen
+              können sich ändern, und wir freuen uns über jedes Feedback!
             </p>
           </div>
 
-          {/* Materialien */}
+          {/* ── Drei Entity-Typen als Mini-Cards ── */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="flex flex-col items-start gap-1.5 bg-blue-50 rounded-xl p-3 border border-blue-100">
+              <Package className="w-4 h-4 text-blue-600" />
+              <p className="font-semibold text-blue-900 text-[12px]">Materialien</p>
+              <p className="text-blue-700 text-[11px] leading-snug">Baustoffe, Rezyklate, nachwachsende Rohstoffe</p>
+            </div>
+            <div className="flex flex-col items-start gap-1.5 bg-green-50 rounded-xl p-3 border border-green-100">
+              <FolderOpen className="w-4 h-4 text-green-700" />
+              <p className="font-semibold text-green-900 text-[12px]">Projekte</p>
+              <p className="text-green-700 text-[11px] leading-snug">Bau-, Gestaltungs- und Forschungs&shy;vorhaben</p>
+            </div>
+            <div className="flex flex-col items-start gap-1.5 bg-red-50 rounded-xl p-3 border border-red-100">
+              <Users className="w-4 h-4 text-red-600" />
+              <p className="font-semibold text-red-900 text-[12px]">Akteure</p>
+              <p className="text-red-700 text-[11px] leading-snug">Hersteller, Werkstätten, Initiativen</p>
+            </div>
+          </div>
+
+          {/* ── Login-Hinweis ── */}
+          <div className="flex items-start gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+            <LogIn className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-gray-500 leading-relaxed">
+              <strong className="text-gray-700">Kein Account nötig</strong> um alles anzusehen.
+              Zum Eintragen, Anfragen und Nachrichten senden ist ein kostenloser Account erforderlich —
+              Registrierung dauert nur wenige Sekunden.
+            </p>
+          </div>
+
+          {/* ── Spielregeln: einklappbare Abschnitte ── */}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 pt-1">Spielregeln — Was gehört wohin?</p>
+
           <Section icon={Package} title="Materialien" color="#0033FF" defaultOpen>
             <SubHeading>Was gehört hierher</SubHeading>
             <YesList items={[
@@ -144,7 +185,6 @@ export default function GuidelinesOverlay({ onClose }) {
               'Materialien mit <strong>regionalem Bezug</strong> — besonders willkommen, aber keine Pflicht',
               '<strong>Restmaterialien und Überschüsse</strong>, die weiterverwendet werden könnten',
             ]} />
-
             <SubHeading>Was gehört NICHT hierher</SubHeading>
             <NoList items={[
               'Fertige Konsumprodukte (Möbel, Elektrogeräte, Kleidung)',
@@ -152,7 +192,6 @@ export default function GuidelinesOverlay({ onClose }) {
               'Reine Verkaufsanzeigen / kommerzielle Werbung',
               'Gefahrstoffe oder Materialien, deren Weitergabe rechtlich unzulässig ist',
             ]} />
-
             <SubHeading>Hinweise zur Qualität</SubHeading>
             <YesList items={[
               'Möglichst aussagekräftiger Name und Beschreibung',
@@ -163,7 +202,6 @@ export default function GuidelinesOverlay({ onClose }) {
             ]} />
           </Section>
 
-          {/* Projekte */}
           <Section icon={FolderOpen} title="Projekte" color="#639530">
             <SubHeading>Was gehört hierher</SubHeading>
             <YesList items={[
@@ -173,13 +211,11 @@ export default function GuidelinesOverlay({ onClose }) {
               '<strong>Laufende und geplante Vorhaben</strong> — Projekte müssen nicht abgeschlossen sein',
               'Projekte können als <strong>Entwurf</strong> gespeichert werden (nur für dich sichtbar)',
             ]} />
-
             <SubHeading>Was gehört NICHT hierher</SubHeading>
             <NoList items={[
               'Reine Stellenanzeigen oder Jobangebote',
               'Projekte ohne Materialbezug (reine Software-Projekte, Events ohne Baubezug)',
             ]} />
-
             <SubHeading>Besonders wertvoll</SubHeading>
             <YesList items={[
               'Verknüpfung mit Materialien aus der Datenbank',
@@ -189,7 +225,6 @@ export default function GuidelinesOverlay({ onClose }) {
             ]} />
           </Section>
 
-          {/* Akteure */}
           <Section icon={Users} title="Akteure" color="#FF3B36">
             <SubHeading>Was gehört hierher</SubHeading>
             <YesList items={[
@@ -202,7 +237,6 @@ export default function GuidelinesOverlay({ onClose }) {
               '<strong>Unternehmen</strong> aus Bau / Gestaltung mit zirkulärem Ansatz',
               'Fokus liegt auf der Region — überregionale Akteure mit Bezug willkommen',
             ]} />
-
             <SubHeading>Was gehört NICHT hierher</SubHeading>
             <NoList items={[
               'Privatpersonen als Einzelpersonen (es geht um Organisationen und Initiativen)',
@@ -211,7 +245,6 @@ export default function GuidelinesOverlay({ onClose }) {
             ]} />
           </Section>
 
-          {/* Sichtbarkeit */}
           <Section icon={Eye} title="Was kann ich ohne Login sehen?" color="#6366f1">
             <div className="grid sm:grid-cols-2 gap-3 mt-1">
               <div>
@@ -232,12 +265,8 @@ export default function GuidelinesOverlay({ onClose }) {
                 ]} />
               </div>
             </div>
-            <p className="text-[11px] text-gray-400 mt-3">
-              Registrierung: E-Mail und Passwort genügen — dauert nur wenige Sekunden.
-            </p>
           </Section>
 
-          {/* Beta */}
           <Section icon={FlaskConical} title="Beta-Version — Work in Progress" color="#d97706">
             <div className="text-xs text-gray-600 leading-relaxed space-y-2">
               <p>Diese Plattform befindet sich in aktiver Entwicklung im Rahmen des Reallabors ZEKIWA Zeitz.</p>
@@ -246,9 +275,6 @@ export default function GuidelinesOverlay({ onClose }) {
                 '<strong>Bugs und Fehler</strong> können auftreten — bitte hab Verständnis',
                 '<strong>Dein Feedback ist Gold wert</strong> — schreib uns gerne direkt',
               ]} />
-              <p className="mt-2">
-                Die Materialdatenbank ist ein Gemeinschaftsprojekt. Je mehr Menschen mitmachen, desto wertvoller wird das Netzwerk für alle.
-              </p>
               <p className="mt-2 text-gray-500">
                 Kontakt / Feedback:{' '}
                 <a href="mailto:martin.wiesner@hs-anhalt.de" className="underline hover:text-gray-700 transition-colors">
@@ -263,7 +289,7 @@ export default function GuidelinesOverlay({ onClose }) {
         {/* Footer */}
         <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between gap-3 flex-shrink-0">
           <p className="text-[11px] text-gray-400 hidden sm:block">
-            Spielregeln jederzeit über den Link im Footer erneut aufrufen.
+            Jederzeit über den Link im Footer erneut aufrufen.
           </p>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {isAuthenticated && (

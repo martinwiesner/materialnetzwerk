@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Network, Package, Store, FolderOpen, X, Map as MapIcon, LayoutList, Users, BookOpen } from 'lucide-react';
+import { Search, Plus, Globe, Package, Store, FolderOpen, X, Map as MapIcon, LayoutList, Users, BookOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 import { materialService } from '../../services/materialService';
@@ -503,17 +503,29 @@ export default function Explore() {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="inline-flex items-center gap-2">
-            <Network className="w-4 h-4 text-gray-700" />
-            <h1 className="text-xl font-bold text-gray-900">Netzwerk</h1>
+            <Globe className="w-4 h-4 text-gray-700" />
+            <h1 className="text-xl font-bold text-gray-900">Entdecken</h1>
           </div>
-          <span className="text-sm text-gray-500 hidden sm:inline">Die regionale Plattform, auf der Materialien, Projekte und Beteiligte zusammenfinden.</span>
+          <span className="text-sm text-gray-500 hidden sm:inline">
+            Die regionale Plattform des{' '}
+            <a
+              href="https://www.reallabor-zekiwa-zeitz.de"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors"
+            >
+              RZZ
+              <svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+            , auf der Materialien, Projekte und Beteiligte zusammenfinden.
+          </span>
           <button
             data-onboarding="guidelines-button"
             onClick={openGuidelines}
             className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-gray-50 flex-shrink-0"
           >
             <BookOpen className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Spielregeln</span>
+            <span className="hidden sm:inline">Info &amp; Spielregeln</span>
             <span className="sm:hidden">Info</span>
           </button>
         </div>

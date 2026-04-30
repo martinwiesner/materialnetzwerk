@@ -10,7 +10,7 @@ import {
   Mail,
   Menu,
   Package,
-  Network,
+  Globe,
   User,
   Users,
   X,
@@ -42,7 +42,7 @@ import { materialRequestService } from '../services/materialRequestService';
 import { authService } from '../services/authService';
 
 const navigation = [
-  { name: 'Netzwerk', href: '/', icon: Network },
+  { name: 'Entdecken', href: '/', icon: Globe },
   { name: 'Projekte', href: '/projects', icon: FolderOpen },
   { name: 'Materialien', href: '/materials', icon: Package },
   { name: 'Akteure', href: '/actors', icon: Users },
@@ -750,7 +750,7 @@ export default function Layout() {
               className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
             >
               <BookOpen className="w-3 h-3" />
-              Spielregeln
+              Info &amp; Spielregeln
             </button>
             <a
               href="https://www.hs-anhalt.de/datenschutz.html"
