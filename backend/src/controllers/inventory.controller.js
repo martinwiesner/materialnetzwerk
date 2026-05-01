@@ -7,6 +7,7 @@ import Inventory from '../models/inventory.model.js';
 import Material from '../models/material.model.js';
 import User from '../models/user.model.js';
 import UserRelationship from '../models/userRelationship.model.js';
+import Message from '../models/message.model.js';
 
 /**
  * Get user's inventory
@@ -48,6 +49,18 @@ export const getAvailableInventory = (req, res) => {
     res.json(inventory);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch available inventory', error: error.message });
+  }
+};
+
+/**
+ * Get matches (angebot ↔ gesuch for same material, different users)
+ */
+export const getMatches = (req, res) => {
+  try {
+    const matches = Inventory.findMatches();
+    res.json(matches);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch matches', error: error.message });
   }
 };
 
@@ -109,6 +122,39 @@ export const createInventory = (req, res) => {
     };
 
     const inventory = Inventory.create(inventoryData);
+
+    // Notify matching parties about new entry
+    try {
+      const sender = User.findById(req.user.id);
+      const senderName = sender?.first_name
+        ? `${sender.first_name} ${sender.last_name || ''}`.trim()
+        : sender?.email?.split('@')[0] || 'Jemand';
+
+      if (inventoryData.entry_type === 'gesuch') {
+        // Gesuch created → notify all users who have an available angebot for this material
+        const usersWithMaterial = Inventory.findUsersWithMaterial(material_id, req.user.id);
+        for (const u of usersWithMaterial) {
+          Message.create({
+            sender_id: req.user.id,
+            receiver_id: u.user_id,
+            subject: `Materialgesuch: ${material.name}`,
+            content: `Hallo,\n\n${senderName} sucht das Material „${material.name}" und hat ein Gesuch auf der Plattform eingetragen.\n\nDu hast dieses Material in deinem Bestand – das ist ein Match! Falls du helfen kannst, antworte gerne auf diese Nachricht.\n\n— Reallabor ZEKIWA Zeitz`,
+          });
+        }
+      } else {
+        // Angebot created → notify all users who have a gesuch for this material
+        const usersWithGesuch = Inventory.findGesucheForMaterial(material_id, req.user.id);
+        for (const u of usersWithGesuch) {
+          Message.create({
+            sender_id: req.user.id,
+            receiver_id: u.user_id,
+            subject: `Materialangebot: ${material.name}`,
+            content: `Hallo,\n\n${senderName} hat das Material „${material.name}" als verfügbares Angebot auf der Plattform eingetragen.\n\nDu hast ein Gesuch für genau dieses Material – das ist ein Match! Schaue dir das Angebot in der Plattform an und melde dich gerne beim Anbieter.\n\n— Reallabor ZEKIWA Zeitz`,
+          });
+        }
+      }
+    } catch (_) { /* notification failure should not block the response */ }
+
     res.status(201).json(inventory);
   } catch (error) {
     res.status(500).json({ message: 'Failed to create inventory entry', error: error.message });

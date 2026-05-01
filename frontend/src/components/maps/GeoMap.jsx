@@ -8,7 +8,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-const DEFAULT_CENTER = [51.10, 12.20]; // Central Germany-ish
+const DEFAULT_CENTER = [51.0532575, 12.1287658]; // Zeitz
 const DEFAULT_ZOOM = 7;
 
 const createDefaultIcon = () =>

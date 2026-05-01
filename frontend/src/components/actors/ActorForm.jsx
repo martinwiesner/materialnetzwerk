@@ -33,8 +33,8 @@ const EMPTY = {
   phone: '',
   location_name: '',
   address: '',
-  latitude: '',
-  longitude: '',
+  latitude: '51.0532575',
+  longitude: '12.1287658',
 };
 
 export default function ActorForm({ actor, onClose }) {

@@ -102,8 +102,8 @@ const initialFormState = {
   notes: '',
 
   // Location
-  latitude: '',
-  longitude: '',
+  latitude: '51.0532575',
+  longitude: '12.1287658',
   location_name: '',
   address: '',
 };
@@ -133,8 +133,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     unit: 'kg',
     location_name: '',
     address: '',
-    latitude: '',
-    longitude: '',
+    latitude: '51.0532575',
+    longitude: '12.1287658',
     is_available: true,
     available_for_transfer: false,
     available_for_gift: false,
@@ -147,13 +147,15 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
   const [mode, setMode] = useState(initialMode || 'material');
   const [offerMaterialId, setOfferMaterialId] = useState('');
   const [gesuchMaterialId, setGesuchMaterialId] = useState('');
+  const [gesuchMode, setGesuchMode] = useState('existing'); // 'existing' | 'new'
+  const [newMaterialData, setNewMaterialData] = useState({ name: '', category: '' });
   const [gesuchData, setGesuchData] = useState({
     quantity: '',
     unit: 'kg',
     notes: '',
     location_name: '',
-    latitude: '',
-    longitude: '',
+    latitude: '51.0532575',
+    longitude: '12.1287658',
   });
 
   const { data: categories = [], isLoading: catsLoading } = useQuery({
@@ -375,20 +377,34 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
   });
 
   const gesuchMutation = useMutation({
-    mutationFn: () => inventoryService.create({
-      material_id: gesuchMaterialId,
-      quantity: gesuchData.quantity ? parseFloat(gesuchData.quantity) : 0,
-      unit: gesuchData.unit,
-      location_name: gesuchData.location_name,
-      latitude: gesuchData.latitude ? parseFloat(gesuchData.latitude) : null,
-      longitude: gesuchData.longitude ? parseFloat(gesuchData.longitude) : null,
-      notes: gesuchData.notes,
-      is_available: true,
-      entry_type: 'gesuch',
-    }),
+    mutationFn: async () => {
+      let matId = gesuchMaterialId;
+      if (gesuchMode === 'new') {
+        const created = await materialService.create({
+          name: newMaterialData.name.trim(),
+          category: newMaterialData.category.trim(),
+        });
+        matId = created?.id || created?.data?.id;
+      }
+      return inventoryService.create({
+        material_id: matId,
+        quantity: gesuchData.quantity ? parseFloat(gesuchData.quantity) : 0,
+        unit: gesuchData.unit,
+        location_name: gesuchData.location_name,
+        latitude: gesuchData.latitude ? parseFloat(gesuchData.latitude) : null,
+        longitude: gesuchData.longitude ? parseFloat(gesuchData.longitude) : null,
+        notes: gesuchData.notes,
+        is_available: true,
+        entry_type: 'gesuch',
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['gesuche'], exact: false });
+      if (gesuchMode === 'new') {
+        queryClient.invalidateQueries({ queryKey: ['materials'], exact: false });
+        queryClient.invalidateQueries({ queryKey: ['material-categories'], exact: false });
+      }
       toast.success('Materialgesuch eingetragen.');
       onClose();
     },
@@ -404,7 +420,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     setError('');
 
     if (mode === 'gesuch') {
-      if (!gesuchMaterialId) { setError('Bitte ein Material auswählen.'); return; }
+      if (gesuchMode === 'existing' && !gesuchMaterialId) { setError('Bitte ein Material auswählen.'); return; }
+      if (gesuchMode === 'new' && !newMaterialData.name.trim()) { setError('Bitte einen Materialnamen eingeben.'); return; }
       gesuchMutation.mutate();
       return;
     }
@@ -551,25 +568,57 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 Du suchst ein bestimmtes Material? Trag ein Gesuch ein — andere Nutzer:innen können sehen, was gesucht wird.
               </p>
 
-              {/* Material selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Material *</label>
-                <select
-                  value={gesuchMaterialId}
-                  onChange={e => setGesuchMaterialId(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
-                >
-                  <option value="">— Material auswählen —</option>
-                  {allMaterials
-                    .slice()
-                    .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name))
-                    .map(m => (
-                      <option key={m.id} value={m.id}>{m.name}{m.category ? ` (${m.category})` : ''}</option>
-                    ))
-                  }
-                </select>
+              {/* Material: existing or new */}
+              <div className="flex p-1 bg-gray-100 rounded-lg gap-1">
+                <button type="button" onClick={() => setGesuchMode('existing')}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${gesuchMode === 'existing' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                  Bestehendes Material
+                </button>
+                <button type="button" onClick={() => setGesuchMode('new')}
+                  className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${gesuchMode === 'new' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                  Neues Material anlegen
+                </button>
               </div>
+
+              {gesuchMode === 'existing' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Material *</label>
+                  <select
+                    value={gesuchMaterialId}
+                    onChange={e => setGesuchMaterialId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
+                  >
+                    <option value="">— Material auswählen —</option>
+                    {allMaterials
+                      .slice()
+                      .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name))
+                      .map(m => (
+                        <option key={m.id} value={m.id}>{m.name}{m.category ? ` (${m.category})` : ''}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+              ) : (
+                <div className="space-y-3 bg-purple-50 border border-purple-100 rounded-lg p-3">
+                  <p className="text-xs text-purple-600">Ein neues Material wird mit minimalem Steckbrief angelegt und direkt als Gesuch eingetragen.</p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Materialname *</label>
+                    <input type="text" value={newMaterialData.name}
+                      onChange={e => setNewMaterialData(d => ({ ...d, name: e.target.value }))}
+                      placeholder="z.B. Ziegelbruch, Hanffaser, Altholz"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
+                    <select value={newMaterialData.category}
+                      onChange={e => setNewMaterialData(d => ({ ...d, category: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
+                      <option value="">— optional —</option>
+                      {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {/* Quantity + Unit */}
               <div className="grid grid-cols-2 gap-4">
@@ -640,7 +689,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <button
                 type="submit"
-                disabled={isPending || !gesuchMaterialId}
+                disabled={isPending || (gesuchMode === 'existing' && !gesuchMaterialId) || (gesuchMode === 'new' && !newMaterialData.name.trim())}
                 className="w-full py-2.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isPending ? 'Wird eingetragen…' : 'Gesuch eintragen'}

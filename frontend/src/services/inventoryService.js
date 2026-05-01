@@ -16,6 +16,11 @@ export const inventoryService = {
     return response.data;
   },
 
+  getMatches: async () => {
+    const response = await api.get('/inventory/matches');
+    return response.data;
+  },
+
   getTransfers: async () => {
     const response = await api.get('/inventory/transfers');
     return response.data;

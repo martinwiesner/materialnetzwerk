@@ -8,6 +8,7 @@ import {
   getInventory,
   getAvailableInventory,
   getGesuche,
+  getMatches,
   getInventoryById,
   createInventory,
   updateInventory,
@@ -70,6 +71,7 @@ router.get('/', protect,
 );
 
 router.get('/gesuche', optionalAuth, (req, res) => getGesuche(req, res));
+router.get('/matches', optionalAuth, (req, res) => getMatches(req, res));
 
 router.get('/available', optionalAuth,
   /*

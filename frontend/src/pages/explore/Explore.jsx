@@ -100,6 +100,9 @@ function buildEntities({ materials, offers, projects, actors, gesuche, search })
     return acc;
   }, {});
 
+  // Set of material IDs that have at least one gesuch
+  const gesuchMaterialIds = new Set((gesuche || []).map((g) => g.material_id).filter(Boolean));
+
   const materialEntities = (materials || [])
     .filter((m) => {
       if (!q) return true;
@@ -134,6 +137,7 @@ function buildEntities({ materials, offers, projects, actors, gesuche, search })
         offerLocation: offerGeoForLine,
         quantityLabel: totalQty ? formatQty(totalQty, unit) : null,
         available: relatedOffers.length > 0,
+        hasGesuch: gesuchMaterialIds.has(m.id),
         offerRaw: relatedOffers[0] || null,
         raw: m,
       };
@@ -238,6 +242,8 @@ function buildEntities({ materials, offers, projects, actors, gesuche, search })
         imageUrl: dbImageUrl(g.images) || getOfferImage(g),
         location: geo,
         quantityLabel: g.quantity ? formatQty(g.quantity, g.unit || g.material_unit) : null,
+        hasGesuch: true,
+        available: false,
         raw: g,
       };
     });
@@ -436,8 +442,9 @@ export default function Explore() {
   const [showOffers, setShowOffers] = useState(true);
   const [showProjects, setShowProjects] = useState(true);
   const [showActors, setShowActors] = useState(true);
-  const [showGesuche, setShowGesuche] = useState(true);
-  const [filterAvailable, setFilterAvailable] = useState(false);
+  // filterMode: 'all' | 'available' | 'gesuche'
+  const [filterMode, setFilterMode] = useState('all');
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
 
   const [selected, setSelected] = useState(null);
   const [offerDetailId, setOfferDetailId] = useState(null);
@@ -487,6 +494,12 @@ export default function Explore() {
     queryFn: () => inventoryService.getGesuche(),
   });
 
+  const matchesQuery = useQuery({
+    queryKey: ['matches', { explore: true }],
+    queryFn: () => inventoryService.getMatches(),
+    refetchOnWindowFocus: false,
+  });
+
   // Helpers to deal with inconsistent response shapes (some endpoints return arrays, others {data: []})
   const unwrapList = (resp) => (Array.isArray(resp) ? resp : resp?.data || []);
 
@@ -504,22 +517,52 @@ export default function Explore() {
   const projects = unwrapList(projectsQuery.data);
   const actors = unwrapList(actorsQuery.data);
   const gesuche = unwrapList(gesucheQuery.data);
+  const rawMatches = unwrapList(matchesQuery.data);
 
   const entities = useMemo(() => buildEntities({ materials, offers, projects, actors, gesuche, search }), [materials, offers, projects, actors, gesuche, search]);
+
+  // Match connections for selected entity (gesuch or offer) — shown on click only
+  const matchConnections = useMemo(() => {
+    if (!selected) return [];
+    const rawId = selected.raw?.id;
+    return rawMatches
+      .filter((m) => {
+        if (selected.type === 'gesuch') return m.gesuch_id === rawId;
+        if (selected.type === 'offer')  return m.offer_id  === rawId;
+        return false;
+      })
+      .filter((m) =>
+        Number.isFinite(Number(m.offer_lat)) && Number.isFinite(Number(m.offer_lon)) &&
+        Number.isFinite(Number(m.gesuch_lat)) && Number.isFinite(Number(m.gesuch_lon))
+      )
+      .map((m) => ({
+        id: `match:${m.offer_id}:${m.gesuch_id}`,
+        from: [Number(m.offer_lat), Number(m.offer_lon)],
+        to:   [Number(m.gesuch_lat), Number(m.gesuch_lon)],
+        mid:  [(Number(m.offer_lat) + Number(m.gesuch_lat)) / 2,
+               (Number(m.offer_lon) + Number(m.gesuch_lon)) / 2],
+        materialName: m.material_name,
+      }));
+  }, [selected, rawMatches]);
 
   const filteredEntities = useMemo(() => {
     return entities.filter((e) => {
       if (e.type === 'offer') return false; // replaced by "verfügbar" chip on material cards
+      // filterMode overrides type visibility
+      if (filterMode === 'gesuche') return e.type === 'gesuch';
+      if (filterMode === 'available') {
+        if (e.type === 'gesuch') return false;
+        if (!e.available) return false;
+      }
+      // type toggles (only active when filterMode === 'all')
       if (e.type === 'material' && !showMaterials) return false;
       if (e.type === 'project' && !showProjects) return false;
       if (e.type === 'actor' && !showActors) return false;
-      if (e.type === 'gesuch' && !showGesuche) return false;
-      if (filterAvailable && !e.available) return false;
+      if (e.type === 'gesuch') return true; // always show gesuche in 'all' mode
       return true;
     });
-  }, [entities, showMaterials, showOffers, showProjects, showActors, showGesuche, filterAvailable]);
+  }, [entities, showMaterials, showProjects, showActors, filterMode]);
 
-  // All entities now always have a location (real or deterministic fake), so pass all filtered ones to the map
   const mapEntities = filteredEntities;
 
   // Connections use the full unfiltered entity list so lines are drawn even when a type is hidden by filters
@@ -678,26 +721,46 @@ export default function Explore() {
             >
               Akteure
             </button>
-            <button
-              onClick={() => setShowGesuche((v) => !v)}
-              className="px-3 py-2 rounded-full text-sm font-medium border transition-all"
-              style={showGesuche
-                ? { background: 'linear-gradient(to bottom, #7C3AED, rgba(124,58,237,0.72))', borderColor: '#7C3AED', color: '#fff' }
-                : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
-            >
-              Gesuche
-            </button>
-            <button
-              onClick={() => setFilterAvailable((v) => !v)}
-              className={clsx(
-                'px-3 py-2 rounded-full text-sm font-medium border transition-colors',
-                filterAvailable
-                  ? 'bg-gray-800 border-gray-800 text-white'
-                  : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+
+            {/* Filter dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setFilterDropdownOpen((v) => !v)}
+                className={clsx(
+                  'px-3 py-2 rounded-full text-sm font-medium border transition-colors flex items-center gap-1.5',
+                  filterMode !== 'all'
+                    ? 'bg-gray-800 border-gray-800 text-white'
+                    : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                )}
+              >
+                {filterMode === 'available' ? 'Nur verfügbare' : filterMode === 'gesuche' ? 'Nur Gesuche' : 'Filter'}
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              {filterDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setFilterDropdownOpen(false)} />
+                  <div className="absolute top-full mt-1 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-52 py-1 text-sm">
+                  {[
+                    { value: 'all', label: 'Alle anzeigen' },
+                    { value: 'available', label: 'Nur verfügbare Angebote' },
+                    { value: 'gesuche', label: 'Nur Gesuche' },
+                  ].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => { setFilterMode(value); setFilterDropdownOpen(false); }}
+                      className={clsx(
+                        'w-full text-left px-4 py-2 transition-colors flex items-center gap-2',
+                        filterMode === value ? 'bg-gray-50 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'
+                      )}
+                    >
+                      <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', filterMode === value ? 'bg-gray-800' : 'bg-gray-200')} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                </>
               )}
-            >
-              Nur verfügbare
-            </button>
+            </div>
           </div>
 
           <div className="lg:ml-auto flex items-center">
@@ -739,6 +802,7 @@ export default function Explore() {
                 selected={selected}
                 onSelect={setSelected}
                 connections={connections}
+                matchConnections={matchConnections}
                 invalidateKey={`${showMaterialForm}-${showOfferForm}-${showProjectForm}-${!!offerDetailId}`}
                 onOpenDetails={(e) => {
                   if (e.type === 'material') navigate(`/materials/${e.raw?.id}`);

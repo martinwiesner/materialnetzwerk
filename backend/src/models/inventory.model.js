@@ -90,6 +90,62 @@ const Inventory = {
     }));
   },
 
+  findUsersWithMaterial: (materialId, excludeUserId) => {
+    const db = getDB();
+    return db.prepare(`
+      SELECT DISTINCT i.user_id, u.email, u.first_name, u.last_name
+      FROM inventory i
+      JOIN users u ON i.user_id = u.id
+      WHERE i.material_id = ?
+        AND i.is_available = 1
+        AND i.quantity > 0
+        AND i.user_id != ?
+        AND (i.entry_type = 'angebot' OR i.entry_type IS NULL)
+    `).all(materialId, excludeUserId);
+  },
+
+  findMatches: () => {
+    const db = getDB();
+    return db.prepare(`
+      SELECT
+        m.id   AS material_id,
+        m.name AS material_name,
+        o.id             AS offer_id,
+        o.user_id        AS offer_user_id,
+        o.latitude       AS offer_lat,
+        o.longitude      AS offer_lon,
+        o.location_name  AS offer_location_name,
+        o.quantity       AS offer_quantity,
+        o.unit           AS offer_unit,
+        g.id             AS gesuch_id,
+        g.user_id        AS gesuch_user_id,
+        g.latitude       AS gesuch_lat,
+        g.longitude      AS gesuch_lon,
+        g.location_name  AS gesuch_location_name,
+        g.quantity       AS gesuch_quantity,
+        g.unit           AS gesuch_unit
+      FROM inventory o
+      JOIN inventory g ON o.material_id = g.material_id AND o.user_id != g.user_id
+      JOIN materials  m ON o.material_id = m.id
+      WHERE (o.entry_type = 'angebot' OR o.entry_type IS NULL)
+        AND o.is_available = 1 AND o.quantity > 0
+        AND g.entry_type = 'gesuch' AND g.is_available = 1
+    `).all();
+  },
+
+  findGesucheForMaterial: (materialId, excludeUserId) => {
+    const db = getDB();
+    return db.prepare(`
+      SELECT DISTINCT i.user_id, u.email, u.first_name, u.last_name
+      FROM inventory i
+      JOIN users u ON i.user_id = u.id
+      WHERE i.material_id = ?
+        AND i.entry_type = 'gesuch'
+        AND i.is_available = 1
+        AND i.user_id != ?
+    `).all(materialId, excludeUserId);
+  },
+
   findGesuche: (filters = {}) => {
     const db = getDB();
     let query = `

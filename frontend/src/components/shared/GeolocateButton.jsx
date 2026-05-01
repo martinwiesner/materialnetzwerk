@@ -25,15 +25,20 @@ export default function GeolocateButton({ onLocate, className = '' }) {
       },
       (err) => {
         setLoading(false);
+        const isLocalIp = /^(192\.168|10\.|172\.(1[6-9]|2\d|3[01]))\.\d+\.\d+/.test(window.location.hostname);
         if (err.code === 1) {
-          setError('Standortzugriff blockiert. Bitte in der Browserzeile auf das Schloss-Symbol klicken → Standort → Zulassen → Seite neu laden.');
+          if (isLocalIp) {
+            setError('Lokal nur über http://localhost erreichbar (nicht über IP-Adresse), da Browser Geolocation sonst blockieren.');
+          } else {
+            setError('Standortzugriff blockiert. Schloss-Symbol in der Adressleiste → Standort → Zulassen → Seite neu laden.');
+          }
         } else if (err.code === 3) {
           setError('Zeitüberschreitung – Standort konnte nicht ermittelt werden. Bitte manuell eingeben.');
         } else {
           setError('Standort konnte nicht ermittelt werden. Bitte Koordinaten manuell eingeben.');
         }
       },
-      { timeout: 8000 }
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
     );
   };
 

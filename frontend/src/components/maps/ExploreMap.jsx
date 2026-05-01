@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -7,7 +7,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 // Stable initial view — MapController handles all subsequent panning
-const DEFAULT_CENTER = [51.09, 12.12];
+const DEFAULT_CENTER = [51.0532575, 12.1287658];
 const DEFAULT_ZOOM = 11;
 
 const createDefaultIcon = () =>
@@ -73,39 +73,68 @@ function toLatLng(entity) {
   return [lat, lon];
 }
 
-const MARKER_COLORS = {
-  material: { fill: '#0033FF', stroke: '#0033FF' },
-  offer:    { fill: '#0033FF', stroke: '#0033FF' },
-  actor:    { fill: '#FF3B36', stroke: '#FF3B36' },
-  project:  { fill: '#639530', stroke: '#639530' },
-  gesuch:   { fill: '#7C3AED', stroke: '#7C3AED' },
+const COLOR_MATERIAL = '#0033FF';
+const COLOR_PROJECT  = '#639530';
+const COLOR_ACTOR    = '#FF3B36';
+const AVAIL_COLOR    = '#F97316'; // orange badge
+const GESUCH_COLOR   = '#7C3AED'; // purple badge
+
+// Solid base color per type (used when no badge present)
+const BASE_COLORS = {
+  material: COLOR_MATERIAL,
+  offer:    COLOR_MATERIAL,
+  project:  COLOR_PROJECT,
+  actor:    COLOR_ACTOR,
 };
 
-// Orange availability badge color (matches bg-orange-500 on cards)
-const AVAIL_COLOR = '#F97316';
+function createGradientMarker(type, active, available = false, hasGesuch = false) {
+  const r  = active ? 11 : 8;
+  const sw = active ? 3  : 2;
+  const hasBadge = available || hasGesuch;
+  // Extra padding on all sides so badge dots don't clip outside the SVG
+  const pad = hasBadge ? 4 : 0;
+  const size = (r + sw) * 2 + pad * 2;
+  const cx = r + sw + pad;
+  const cy = r + sw + pad;
+  const a = active ? 'a' : '';
 
-function createGradientMarker(type, active, available = false) {
-  const { fill, stroke } = MARKER_COLORS[type] || MARKER_COLORS.material;
-  const r = active ? 11 : 8;
-  const sw = active ? 3 : 2;
-  const size = (r + sw) * 2 + (available ? 4 : 0); // extra room for badge
-  const cx = (r + sw) + (available ? 2 : 0);
-  const cy = cx;
-  const gradId = `g${fill.replace('#', '')}${active ? 'a' : ''}`;
-  // Small orange dot badge at top-right corner when available
-  const badge = available
+  let fillDef, strokeColor;
+  if (available && type !== 'actor') {
+    // Blue→green horizontal gradient only when an offer (available) badge is present
+    const gid = `bgg${a}`;
+    fillDef = `<defs><linearGradient id="${gid}" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="${COLOR_MATERIAL}" stop-opacity="1"/>
+      <stop offset="100%" stop-color="${COLOR_PROJECT}" stop-opacity="1"/>
+    </linearGradient></defs>`;
+    strokeColor = COLOR_MATERIAL;
+    fillDef = `${fillDef}<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${gid})" stroke="${strokeColor}" stroke-width="${sw}" stroke-opacity="0.7"/>`;
+  } else {
+    const solidColor = BASE_COLORS[type] || COLOR_MATERIAL;
+    const gid = `sg${solidColor.replace('#','')}${a}`;
+    fillDef = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${solidColor}" stop-opacity="1"/>
+      <stop offset="100%" stop-color="${solidColor}" stop-opacity="0.6"/>
+    </linearGradient></defs>`;
+    fillDef = `${fillDef}<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${gid})" stroke="${solidColor}" stroke-width="${sw}" stroke-opacity="0.7"/>`;
+  }
+
+  // Orange dot top-right when available
+  const availBadge = available
     ? `<circle cx="${cx + r - 1}" cy="${cy - r + 1}" r="3.5" fill="${AVAIL_COLOR}" stroke="white" stroke-width="1.2"/>`
     : '';
+  // Purple dot top-left when gesuch
+  const gesuchBadge = hasGesuch
+    ? `<circle cx="${cx - r + 1}" cy="${cy - r + 1}" r="3.5" fill="${GESUCH_COLOR}" stroke="white" stroke-width="1.2"/>`
+    : '';
+
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`,
-    `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">`,
-    `<stop offset="0%" stop-color="${fill}" stop-opacity="1"/>`,
-    `<stop offset="100%" stop-color="${fill}" stop-opacity="0.55"/>`,
-    `</linearGradient></defs>`,
-    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${gradId})" stroke="${stroke}" stroke-width="${sw}"/>`,
-    badge,
+    fillDef,
+    availBadge,
+    gesuchBadge,
     `</svg>`,
   ].join('');
+
   return L.divIcon({
     html: svg,
     className: '',
@@ -121,28 +150,42 @@ const CONNECTION_STYLES = {
   'project-offer':    { color: '#6b7280', weight: 1.5, dashArray: '5 7', opacity: 0.6  },
   'actor-material':   { color: '#FF3B36', weight: 2,   dashArray: '4 6', opacity: 0.8  },
   'actor-project':    { color: '#e82f2a', weight: 2,   dashArray: '4 6', opacity: 0.8  },
+  'match':            { color: '#7C3AED', weight: 2,   dashArray: '6 5', opacity: 0.8  },
 };
 
-const TYPE_LABELS = { material: 'Material', offer: 'Materialangebot', project: 'Projekt', actor: 'Akteur' };
+const TYPE_LABELS = { material: 'Material', offer: 'Materialangebot', project: 'Projekt', actor: 'Akteur', gesuch: 'Materialgesuch' };
 
-function LegendDot({ color, available }) {
+// Legend dot: solid color or gradient circle + optional badge overlays
+function LegendDot({ color = null, gradient = false, available = false, hasGesuch = false }) {
   return (
-    <span style={{ position: 'relative', display: 'inline-block', width: 16, height: 16, flexShrink: 0 }}>
+    <span style={{ position: 'relative', display: 'inline-block', width: 20, height: 20, flexShrink: 0 }}>
       <span style={{
-        position: 'absolute', top: 2, left: 2,
-        width: 12, height: 12,
+        position: 'absolute', top: 3, left: 3,
+        width: 14, height: 14,
         borderRadius: '50%',
-        background: color,
-        boxShadow: `0 0 0 2px ${color}33`,
+        background: gradient
+          ? `linear-gradient(to left, ${COLOR_MATERIAL}, ${COLOR_PROJECT})`
+          : color || COLOR_MATERIAL,
+        boxShadow: `0 0 0 2px ${(color || COLOR_MATERIAL)}33`,
         display: 'block',
       }} />
       {available && (
         <span style={{
           position: 'absolute', top: 0, right: 0,
-          width: 7, height: 7,
+          width: 8, height: 8,
           borderRadius: '50%',
           background: AVAIL_COLOR,
-          border: '1.2px solid white',
+          border: '1.5px solid white',
+          display: 'block',
+        }} />
+      )}
+      {hasGesuch && (
+        <span style={{
+          position: 'absolute', top: 0, left: 0,
+          width: 8, height: 8,
+          borderRadius: '50%',
+          background: GESUCH_COLOR,
+          border: '1.5px solid white',
           display: 'block',
         }} />
       )}
@@ -168,20 +211,46 @@ function MapLegend() {
         border: '1px solid rgba(0,0,0,0.08)',
       }}
     >
-      {[
-        { color: '#0033FF', label: 'Material', available: false },
-        { color: '#639530', label: 'Projekt', available: false },
-        { color: '#FF3B36', label: 'Akteur', available: false },
-        { color: '#0033FF', label: 'Verfügbares Angebot', available: true },
-        { color: '#7C3AED', label: 'Gesuch', available: false },
-      ].map(({ color, label, available }) => (
-        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
-          <LegendDot color={color} available={available} />
-          <span style={{ color: '#374151', fontWeight: available ? 600 : 500 }}>{label}</span>
-        </div>
-      ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+        <LegendDot color={COLOR_MATERIAL} />
+        <span style={{ color: '#374151', fontWeight: 500 }}>Material</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+        <LegendDot color={COLOR_PROJECT} />
+        <span style={{ color: '#374151', fontWeight: 500 }}>Projekt</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+        <LegendDot color={COLOR_ACTOR} />
+        <span style={{ color: '#374151', fontWeight: 500 }}>Akteur</span>
+      </div>
+      <div style={{ width: '100%', height: 1, background: 'rgba(0,0,0,0.07)', margin: '5px 0' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+        <LegendDot gradient available />
+        <span style={{ color: '#374151', fontWeight: 500 }}>+ Angebot verfügbar</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <LegendDot gradient hasGesuch />
+        <span style={{ color: '#374151', fontWeight: 500 }}>+ Gesuch vorhanden</span>
+      </div>
     </div>
   );
+}
+
+const MATCH_LINE_STYLE = { color: '#7C3AED', weight: 2, dashArray: '6 5', opacity: 0.7 };
+
+function createMatchIcon() {
+  // Lightning bolt path, centered in a 22x22 circle
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+    <circle cx="11" cy="11" r="10" fill="#7C3AED" stroke="white" stroke-width="2"/>
+    <polygon points="13,3 7,12 11,12 9,19 15,10 11,10" fill="white"/>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -14],
+  });
 }
 
 export default function ExploreMap({
@@ -189,6 +258,7 @@ export default function ExploreMap({
   selected = null,
   onSelect,
   connections = [],
+  matchConnections = [],
   onOpenDetails,
   invalidateKey,
 }) {
@@ -247,6 +317,22 @@ export default function ExploreMap({
         );
       })}
 
+      {/* Match connections: angebot ↔ gesuch for same material */}
+      {matchConnections.map((mc) => (
+        <React.Fragment key={mc.id}>
+          <Polyline positions={[mc.from, mc.to]} pathOptions={MATCH_LINE_STYLE} />
+          <Marker position={mc.mid} icon={createMatchIcon()}>
+            <Popup>
+              <div style={{ minWidth: 160 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, marginBottom: 2 }}>Match</div>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>{mc.materialName}</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>Angebot ↔ Gesuch</div>
+              </div>
+            </Popup>
+          </Marker>
+        </React.Fragment>
+      ))}
+
 
       {/* Entity markers */}
       {points.map(({ e, pos }) => {
@@ -255,7 +341,7 @@ export default function ExploreMap({
           <Marker
             key={e.id}
             position={pos}
-            icon={createGradientMarker(e.type, active, e.available)}
+            icon={createGradientMarker(e.type, active, e.available, e.hasGesuch)}
             eventHandlers={{ click: () => onSelect?.(e) }}
           >
             <Popup>
