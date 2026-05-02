@@ -579,44 +579,31 @@ export default function Explore() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="inline-flex items-center gap-2">
-            <Globe className="w-4 h-4 text-gray-700" />
-            <h1 className="text-xl font-bold text-gray-900">Entdecken</h1>
-          </div>
-          <span className="text-sm text-gray-500">
-            Die regionale Plattform des{' '}
-            <a
-              href="https://www.reallabor-zekiwa-zeitz.de"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors"
+      <div className="flex flex-col gap-2">
+        {/* Row 1: title + action button (always side by side) */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Globe className="w-4 h-4 text-gray-700 flex-shrink-0" />
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Entdecken</h1>
+            <button
+              data-onboarding="guidelines-button"
+              onClick={openGuidelines}
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2.5 py-1 transition-colors hover:bg-gray-50 flex-shrink-0"
             >
-              RZZ
-              <svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
-            , auf der Materialien, Projekte und Beteiligte zusammenfinden.
-          </span>
-          <button
-            data-onboarding="guidelines-button"
-            onClick={openGuidelines}
-            className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-gray-50 flex-shrink-0"
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Info &amp; Spielregeln</span>
-            <span className="sm:hidden">Info</span>
-          </button>
-        </div>
+              <BookOpen className="w-3.5 h-3.5" />
+              Info &amp; Spielregeln
+            </button>
+          </div>
 
-        <div className="relative">
+          <div className="relative flex-shrink-0">
           <button
             data-onboarding="create-button"
             onClick={() => setCreateMenuOpen((v) => !v)}
-            className="inline-flex items-center gap-2 bg-primary-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors"
+            className="inline-flex items-center gap-1.5 bg-primary-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Jetzt eintragen
+            <span className="hidden xs:inline">Jetzt eintragen</span>
+            <span className="xs:hidden">Eintragen</span>
           </button>
 
           {createMenuOpen && (
@@ -667,12 +654,33 @@ export default function Explore() {
               </div>
             </div>
           )}
+          </div>{/* end relative button wrapper */}
+        </div>{/* end Row 1 */}
+        {/* Row 2: description + mobile info button */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs sm:text-sm text-gray-500 leading-snug">
+            Die regionale Plattform des{' '}
+            <a href="https://www.reallabor-zekiwa-zeitz.de" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors">
+              RZZ
+              <svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+            , auf der Materialien, Projekte und Beteiligte zusammenfinden.
+          </span>
+          <button
+            data-onboarding="guidelines-button"
+            onClick={openGuidelines}
+            className="sm:hidden inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2 py-1 transition-colors hover:bg-gray-50 flex-shrink-0"
+          >
+            <BookOpen className="w-3 h-3" />
+            Info
+          </button>
         </div>
       </div>
 
       {/* Filters */}
-      <div data-onboarding="explore-filters" className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
+      <div data-onboarding="explore-filters" className="bg-white rounded-xl border border-gray-200 p-2.5 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
@@ -693,41 +701,43 @@ export default function Explore() {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            {filterMode === 'all' && (<>
             <button
               onClick={() => setShowMaterials((v) => !v)}
-              className="px-3 py-2 rounded-full text-sm font-medium border transition-all"
+              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-all"
               style={showMaterials
-                ? { background: 'linear-gradient(to bottom, #0033FF, rgba(0,51,255,0.72))', borderColor: '#0033FF', color: '#fff' }
+                ? { background: '#0033FF', borderColor: '#0033FF', color: '#fff' }
                 : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
             >
               Materialien
             </button>
             <button
               onClick={() => setShowProjects((v) => !v)}
-              className="px-3 py-2 rounded-full text-sm font-medium border transition-all"
+              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-all"
               style={showProjects
-                ? { background: 'linear-gradient(to bottom, #639530, rgba(99,149,48,0.72))', borderColor: '#639530', color: '#fff' }
+                ? { background: '#639530', borderColor: '#639530', color: '#fff' }
                 : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
             >
               Projekte
             </button>
             <button
               onClick={() => setShowActors((v) => !v)}
-              className="px-3 py-2 rounded-full text-sm font-medium border transition-all"
+              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-all"
               style={showActors
-                ? { background: 'linear-gradient(to bottom, #FF3B36, rgba(255,59,54,0.72))', borderColor: '#FF3B36', color: '#fff' }
+                ? { background: '#FF3B36', borderColor: '#FF3B36', color: '#fff' }
                 : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
             >
               Akteure
             </button>
+            </>)}
 
             {/* Filter dropdown */}
             <div className="relative">
               <button
                 onClick={() => setFilterDropdownOpen((v) => !v)}
                 className={clsx(
-                  'px-3 py-2 rounded-full text-sm font-medium border transition-colors flex items-center gap-1.5',
+                  'px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-colors flex items-center gap-1',
                   filterMode !== 'all'
                     ? 'bg-gray-800 border-gray-800 text-white'
                     : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
@@ -763,28 +773,28 @@ export default function Explore() {
             </div>
           </div>
 
-          <div className="lg:ml-auto flex items-center">
+          <div className="ml-auto flex items-center flex-shrink-0">
             <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
               <button
                 onClick={() => setShowMap(true)}
                 className={clsx(
-                  'inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors',
+                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium transition-colors',
                   showMap ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                 )}
                 title="Kartensicht"
               >
-                <MapIcon className="w-4 h-4" />
+                <MapIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 Karte
               </button>
               <button
                 onClick={() => setShowMap(false)}
                 className={clsx(
-                  'inline-flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors border-l border-gray-200',
+                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium transition-colors border-l border-gray-200',
                   !showMap ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                 )}
                 title="Kartenansicht ausblenden"
               >
-                <LayoutList className="w-4 h-4" />
+                <LayoutList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 Liste
               </button>
             </div>
@@ -795,14 +805,15 @@ export default function Explore() {
       {/* Main split */}
       <div className={clsx('grid gap-4', showMap ? 'grid-cols-1 xl:grid-cols-[1.6fr_1fr]' : 'grid-cols-1')}>
         {showMap && (
-          <div data-onboarding="explore-map" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            <div className="h-[70vh] min-h-[520px]">
+          <div data-onboarding="explore-map" className="bg-white rounded-2xl border border-gray-200 overflow-hidden isolate">
+            <div className="h-[42vh] sm:h-[55vh] xl:h-[70vh] min-h-[260px] sm:min-h-[380px] xl:min-h-[520px]">
               <ExploreMap
                 entities={mapEntities}
                 selected={selected}
                 onSelect={setSelected}
                 connections={connections}
                 matchConnections={matchConnections}
+                search={search}
                 invalidateKey={`${showMaterialForm}-${showOfferForm}-${showProjectForm}-${!!offerDetailId}`}
                 onOpenDetails={(e) => {
                   if (e.type === 'material') navigate(`/materials/${e.raw?.id}`);

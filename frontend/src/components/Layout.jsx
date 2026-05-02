@@ -62,7 +62,7 @@ function Logo() {
       </div>
       <div className="leading-tight">
         <div className="flex items-center gap-1.5">
-          <span className="font-display font-extrabold text-[16.2px] text-gray-900 tracking-tight">
+          <span className="font-display font-extrabold text-[14.5px] sm:text-[16.2px] text-gray-900 tracking-tight">
             RZZ Materialien
           </span>
           <button
@@ -73,7 +73,7 @@ function Logo() {
             Beta
           </button>
         </div>
-        <div className="text-[11px] text-gray-500">Materialien • Projekte • Akteure</div>
+        <div className="hidden sm:block text-[11px] text-gray-500">Materialien • Projekte • Akteure</div>
       </div>
     </Link>
   );

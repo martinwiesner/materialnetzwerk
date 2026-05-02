@@ -26,24 +26,42 @@ const createDefaultIcon = () =>
 // Handles:
 //  1. Fly to selected entity when selection changes
 //  2. invalidateSize after overlays close (triggered by invalidateKey prop change)
-function MapController({ selected, invalidateKey, entities }) {
+function fitToEntities(map, entities, animate = true) {
+  const validPoints = (entities || [])
+    .filter((e) => e.location && Number.isFinite(e.location.lat) && Number.isFinite(e.location.lon))
+    .map((e) => [e.location.lat, e.location.lon]);
+  if (validPoints.length === 0) return;
+  try {
+    if (validPoints.length === 1) {
+      map.flyTo(validPoints[0], 13, { animate, duration: 0.6 });
+    } else {
+      map.fitBounds(L.latLngBounds(validPoints), { padding: [40, 40], maxZoom: 14, animate, duration: 0.6 });
+    }
+  } catch (_) {}
+}
+
+function MapController({ selected, invalidateKey, entities, search }) {
   const map = useMap();
   const fittedRef = useRef(false);
+  const prevSearchRef = useRef('');
 
   // Initial fit — when entities first appear, fit the map bounds once
   useEffect(() => {
     if (fittedRef.current || !entities || entities.length === 0) return;
-    const validPoints = entities
-      .filter((e) => e.location && Number.isFinite(e.location.lat) && Number.isFinite(e.location.lon))
-      .map((e) => [e.location.lat, e.location.lon]);
-    if (validPoints.length === 0) return;
     fittedRef.current = true;
-    try {
-      const bounds = L.latLngBounds(validPoints);
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13, animate: false });
-    } catch (_) {}
+    fitToEntities(map, entities, false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entities?.length > 0]);
+
+  // Fit to search results whenever search string changes
+  useEffect(() => {
+    if (prevSearchRef.current === search) return;
+    prevSearchRef.current = search;
+    if (!search) return; // clearing search → keep current view
+    if (!entities || entities.length === 0) return;
+    const t = setTimeout(() => fitToEntities(map, entities, true), 150);
+    return () => clearTimeout(t);
+  }, [search, entities, map]);
 
   // Fly to selected entity
   useEffect(() => {
@@ -98,25 +116,8 @@ function createGradientMarker(type, active, available = false, hasGesuch = false
   const cy = r + sw + pad;
   const a = active ? 'a' : '';
 
-  let fillDef, strokeColor;
-  if (available && type !== 'actor') {
-    // Blue→green horizontal gradient only when an offer (available) badge is present
-    const gid = `bgg${a}`;
-    fillDef = `<defs><linearGradient id="${gid}" x1="1" y1="0" x2="0" y2="0">
-      <stop offset="0%" stop-color="${COLOR_MATERIAL}" stop-opacity="1"/>
-      <stop offset="100%" stop-color="${COLOR_PROJECT}" stop-opacity="1"/>
-    </linearGradient></defs>`;
-    strokeColor = COLOR_MATERIAL;
-    fillDef = `${fillDef}<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${gid})" stroke="${strokeColor}" stroke-width="${sw}" stroke-opacity="0.7"/>`;
-  } else {
-    const solidColor = BASE_COLORS[type] || COLOR_MATERIAL;
-    const gid = `sg${solidColor.replace('#','')}${a}`;
-    fillDef = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${solidColor}" stop-opacity="1"/>
-      <stop offset="100%" stop-color="${solidColor}" stop-opacity="0.6"/>
-    </linearGradient></defs>`;
-    fillDef = `${fillDef}<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${gid})" stroke="${solidColor}" stroke-width="${sw}" stroke-opacity="0.7"/>`;
-  }
+  const solidColor = BASE_COLORS[type] || COLOR_MATERIAL;
+  const fillDef = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${solidColor}" stroke="${solidColor}" stroke-width="${sw}" stroke-opacity="0.5"/>`;
 
   // Orange dot top-right when available
   const availBadge = available
@@ -195,42 +196,27 @@ function LegendDot({ color = null, gradient = false, available = false, hasGesuc
 
 function MapLegend() {
   return (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: 24,
-        left: 12,
-        zIndex: 1000,
-        background: 'rgba(255,255,255,0.93)',
-        borderRadius: 10,
-        padding: '8px 12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.13)',
-        fontSize: 12,
-        lineHeight: '1.6',
-        pointerEvents: 'none',
-        border: '1px solid rgba(0,0,0,0.08)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+    <div className="map-legend-box">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
         <LegendDot color={COLOR_MATERIAL} />
-        <span style={{ color: '#374151', fontWeight: 500 }}>Material</span>
+        <span>Material</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
         <LegendDot color={COLOR_PROJECT} />
-        <span style={{ color: '#374151', fontWeight: 500 }}>Projekt</span>
+        <span>Projekt</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
         <LegendDot color={COLOR_ACTOR} />
-        <span style={{ color: '#374151', fontWeight: 500 }}>Akteur</span>
+        <span>Akteur</span>
       </div>
-      <div style={{ width: '100%', height: 1, background: 'rgba(0,0,0,0.07)', margin: '5px 0' }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
-        <LegendDot gradient available />
-        <span style={{ color: '#374151', fontWeight: 500 }}>+ Angebot verfügbar</span>
+      <div style={{ width: '100%', height: 1, background: 'rgba(0,0,0,0.07)', margin: '4px 0' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+        <LegendDot color={COLOR_MATERIAL} available />
+        <span>+ Angebot</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <LegendDot gradient hasGesuch />
-        <span style={{ color: '#374151', fontWeight: 500 }}>+ Gesuch vorhanden</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <LegendDot color={COLOR_MATERIAL} hasGesuch />
+        <span>+ Gesuch</span>
       </div>
     </div>
   );
@@ -261,6 +247,7 @@ export default function ExploreMap({
   matchConnections = [],
   onOpenDetails,
   invalidateKey,
+  search = '',
 }) {
   useEffect(() => {
     L.Marker.prototype.options.icon = createDefaultIcon();
@@ -303,6 +290,7 @@ export default function ExploreMap({
         selected={selected}
         invalidateKey={invalidateKey}
         entities={entities}
+        search={search}
       />
 
       {/* Connection lines — rendered below markers */}
