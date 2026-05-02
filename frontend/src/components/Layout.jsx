@@ -49,7 +49,6 @@ const navigation = [
   { name: 'Projekte', href: '/projects', icon: FolderOpen },
   { name: 'Materialien', href: '/materials', icon: Package },
   { name: 'Akteure', href: '/actors', icon: Users },
-  { name: 'Merkliste', href: '/favorites', icon: Bookmark },
   { name: 'Nachrichten', href: '/messages', icon: Mail },
 ];
 
@@ -384,6 +383,14 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                   >
                     <Users className="w-4 h-4 text-actor-600" />
                     Meine Akteure
+                  </Link>
+                  <Link
+                    to="/favorites"
+                    onClick={onClose}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Bookmark className="w-4 h-4 text-amber-500" />
+                    Merkliste
                   </Link>
                   <button
                     onClick={() => { onClose(); onShowMyRequests(); }}

@@ -17,7 +17,7 @@ function ImageCarousel({ images, apiBase }) {
   return (
     <div className="border-b border-gray-200">
       {/* Main image */}
-      <div className="relative group">
+      <div className="relative">
         <img
           src={url(images[idx])}
           alt={images[idx].original_name || `Bild ${idx + 1}`}
@@ -27,19 +27,27 @@ function ImageCarousel({ images, apiBase }) {
           <>
             <button
               onClick={prev}
-              className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={next}
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
-            {/* Counter */}
-            <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs font-medium px-2 py-0.5 rounded-full">
-              {idx + 1} / {images.length}
+            {/* Dot indicators */}
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {images.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIdx(i)}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    i === idx ? 'bg-white' : 'bg-white/40 hover:bg-white/70'
+                  }`}
+                />
+              ))}
             </div>
           </>
         )}
@@ -66,8 +74,10 @@ function ImageCarousel({ images, apiBase }) {
 }
 import ProjectForm from '../../components/projects/ProjectForm';
 import { MEDIA_BASE } from '../../services/api';
+import MaterialIdSection from '../../components/shared/MaterialIdSection';
 import { useAuthStore } from '../../store/authStore';
 import SharePrintBar from '../../components/shared/SharePrintBar';
+import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectPoster } from '../../utils/exportUtils';
 const API_BASE = MEDIA_BASE;
 
@@ -230,22 +240,19 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Images carousel (cover images only; step images appear in-context below) */}
-        {(() => {
-          const coverImgs = (project.images || []).filter(img => img.step_index == null);
-          return coverImgs.length > 0 ? <ImageCarousel images={coverImgs} apiBase={API_BASE} /> : null;
-        })()}
+        {/* Images carousel – all project images; step images also appear in-context below */}
+        {project.images?.length > 0 && (
+          <ImageCarousel images={project.images} apiBase={API_BASE} />
+        )}
 
         {/* Content */}
-        <div className="p-6 border-b border-gray-200">
-          {project.content ? (
+        {project.content && (
+          <div className="p-6 border-b border-gray-200">
             <div className="prose max-w-none">
               <p className="whitespace-pre-wrap text-gray-700">{project.content}</p>
             </div>
-          ) : (
-            <p className="text-gray-400 italic">No content yet. Edit this article to add content.</p>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Sustainability principles */}
         {(circular.length || suff.length || cons.length || eff.length || gen.length) ? (
@@ -382,10 +389,22 @@ export default function ProjectDetail() {
         )}
       </article>
 
+      {project.material_id && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-5 mt-0">
+          <MaterialIdSection
+            materialId={project.material_id}
+            passportType="project"
+            entityType="projects"
+            entityId={project.id}
+          />
+        </div>
+      )}
+
       <SharePrintBar
         url={`${window.location.origin}/projects/${project.id}`}
         title={project.name}
         onPrint={() => exportProjectPoster(project)}
+        actions={<BookmarkButton entityType="project" entityId={project.id} showCount size="md" />}
       />
 
       {showForm && (

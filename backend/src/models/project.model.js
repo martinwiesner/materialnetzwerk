@@ -1,5 +1,6 @@
 import { getDB } from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { generateMaterialId } from '../utils/materialId.js';
 
 // Normalise multer file.path → web-accessible /uploads/... path
 // Works with both relative (./uploads/...) and absolute (/home/.../uploads/...) paths
@@ -95,19 +96,21 @@ const Project = {
   create: (data) => {
     const db = getDB();
     const id = uuidv4();
+    const projectMaterialId = generateMaterialId('projects');
     db.prepare(`INSERT INTO projects (id, name, description, content,
       circular_principles, principles_sufficiency, principles_consistency, principles_efficiency, general_sustainability_principles,
       location_name, latitude, longitude, address,
       time_effort, tools, steps, "references",
-      status, is_public, is_available, owner_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      status, is_public, is_available, owner_id, material_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, data.name, data.description||null, data.content||null,
         data.circular_principles||null, data.principles_sufficiency||null, data.principles_consistency||null, data.principles_efficiency||null, data.general_sustainability_principles||null,
         data.location_name||null, data.latitude??null, data.longitude??null, data.address||null,
         data.time_effort||null, data.tools||null,
         data.steps ? JSON.stringify(data.steps) : null,
         data.references ? JSON.stringify(data.references) : null,
-        data.status||'draft', data.is_public?1:0, data.is_available?1:0, data.owner_id);
+        data.status||'draft', data.is_public?1:0, data.is_available?1:0, data.owner_id,
+        projectMaterialId);
     return Project.findById(id);
   },
 

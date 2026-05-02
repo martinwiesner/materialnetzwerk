@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2 } from 'lucide-react';
 import { OwnerLine } from '../shared/ContactButton';
 import SharePrintBar from '../shared/SharePrintBar';
+import BookmarkButton from '../shared/BookmarkButton';
+import MaterialIdSection from '../shared/MaterialIdSection';
 import { exportMaterialPoster } from '../../utils/exportUtils';
 import { MEDIA_BASE } from '../../services/api';
 
@@ -379,11 +381,23 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
               )}
             </Section>
           </div>
+
+          {material.material_id && (
+            <div className="pt-4">
+              <MaterialIdSection
+                materialId={material.material_id}
+                passportType={material.passport_type || 'construction'}
+                entityType="materials"
+                entityId={material.id}
+              />
+            </div>
+          )}
         </div>
         <SharePrintBar
           url={`${window.location.origin}/materials/${material.id}`}
           title={material.name}
           onPrint={() => exportMaterialPoster(material)}
+          actions={<BookmarkButton entityType="material" entityId={material.id} showCount size="md" />}
         />
       </div>
     </div>

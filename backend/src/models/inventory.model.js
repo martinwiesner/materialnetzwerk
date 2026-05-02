@@ -33,7 +33,13 @@ const Inventory = {
       WHERE i.id = ?
     `).get(id);
     if (!row) return undefined;
-    row.images = db.prepare('SELECT * FROM inventory_images WHERE inventory_id = ? ORDER BY sort_order ASC').all(id);
+    const invImages = db.prepare('SELECT * FROM inventory_images WHERE inventory_id = ? ORDER BY sort_order ASC').all(id);
+    if (invImages.length > 0) {
+      row.images = invImages;
+    } else {
+      // Fall back to the underlying material's cover image
+      row.images = db.prepare('SELECT * FROM material_images WHERE material_id = ? ORDER BY sort_order ASC LIMIT 1').all(row.material_id);
+    }
     row.files  = db.prepare('SELECT * FROM inventory_files  WHERE inventory_id = ? ORDER BY created_at ASC').all(id);
     return row;
   },

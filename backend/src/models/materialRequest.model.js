@@ -16,18 +16,28 @@ const MaterialRequest = {
 
   findById: (id) => {
     const db = getDB();
-    return db.prepare(`
+    const row = db.prepare(`
       SELECT r.*,
         u.first_name as requester_first_name, u.last_name as requester_last_name, u.email as requester_email,
         i.quantity as inventory_quantity, i.unit as inventory_unit,
         i.user_id as owner_id,
-        m.name as material_name
+        i.location_name, i.address,
+        m.name as material_name, m.id as material_id, m.category
       FROM material_requests r
       JOIN users u ON r.requester_id = u.id
       JOIN inventory i ON r.inventory_id = i.id
       JOIN materials m ON i.material_id = m.id
       WHERE r.id = ?
     `).get(id);
+    if (!row) return undefined;
+    // Prefer inventory's own images; fall back to the material's cover image
+    const invImages = db.prepare('SELECT * FROM inventory_images WHERE inventory_id = ? ORDER BY sort_order ASC').all(row.inventory_id);
+    if (invImages.length > 0) {
+      row.images = invImages;
+    } else {
+      row.images = db.prepare('SELECT * FROM material_images WHERE material_id = ? ORDER BY sort_order ASC LIMIT 1').all(row.material_id);
+    }
+    return row;
   },
 
   // All requests FOR a given inventory entry (for the owner)

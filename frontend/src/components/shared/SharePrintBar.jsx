@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Share2, Printer, Check } from 'lucide-react';
 
-export default function SharePrintBar({ url, title, onPrint }) {
+export default function SharePrintBar({ url, title, onPrint, actions }) {
   const [copied, setCopied] = useState(false);
 
   async function handleShare() {
@@ -18,8 +18,9 @@ export default function SharePrintBar({ url, title, onPrint }) {
 
   return (
     <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
-      <span className="text-xs text-gray-400 font-mono truncate max-w-[200px]">{url}</span>
-      <div className="flex gap-2">
+      <span className="text-xs text-gray-400 font-mono break-all">{url}</span>
+      <div className="flex items-center gap-2">
+        {actions}
         <button
           onClick={handleShare}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors"

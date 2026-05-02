@@ -22,6 +22,7 @@ import {
 } from '../controllers/material.controller.js';
 import protect, { optionalAuth } from '../middleware/auth.middleware.js';
 import { uploadMaterialImages as multerMatImages, uploadMaterialFiles as multerMatFiles } from '../middleware/upload.middleware.js';
+import Material from '../models/material.model.js';
 
 const router = express.Router();
 
@@ -241,3 +242,92 @@ router.delete('/:id/files/:fileId', protect, (req, res) => deleteMaterialFile(re
 // Actor association routes
 router.get('/:id/actors', optionalAuth, (req, res) => getMaterialActors(req, res));
 router.put('/:id/actors', protect, (req, res) => setMaterialActors(req, res));
+
+// Digital Product Passport — DPP-structured JSON assembled from existing columns
+router.get('/:id/passport', optionalAuth, (req, res) => {
+  const material = Material.findById(req.params.id);
+  if (!material) return res.status(404).json({ message: 'Material not found' });
+
+  const extra = (() => { try { return JSON.parse(material.passport_data || '{}'); } catch { return {}; } })();
+  const safeParse = (v) => { try { return JSON.parse(v || '[]'); } catch { return []; } };
+
+  const passport = {
+    schema: material.passport_type === 'product' ? 'eu-espr-2024-1781' : 'eu-cpr-2024-3110',
+    generated_at: new Date().toISOString(),
+    identification: {
+      material_id: material.material_id,
+      name: material.name,
+      category: material.category,
+      description: material.description,
+    },
+    technical: {
+      density: material.tech_density,
+      fire_class: material.tech_flammability,
+      thermal_conductivity: material.tech_thermal_insulation,
+      compressive_strength: material.tech_compressive_strength,
+      tensile_strength: material.tech_tensile_strength,
+      acoustic_insulation: material.tech_acoustics,
+      thicknesses: material.tech_thicknesses,
+      dimensions: material.tech_dimensions,
+    },
+    sustainability: {
+      gwp_value: material.gwp_value,
+      gwp_unit: material.gwp_unit,
+      gwp_total_value: material.gwp_total_value,
+      gwp_total_unit: material.gwp_total_unit,
+      gwp_c3_c4: extra.gwp_c3_c4 || null,
+      gwp_d: extra.gwp_d || null,
+      recyclate_content: material.recyclate_content,
+      recycling_percentage: material.recycling_percentage,
+      voc_values: material.voc_values,
+      circularity: material.circularity,
+      human_health: material.human_health,
+      processing_sustainability: material.processing_sustainability,
+      climate_description: material.sust_climate_description,
+      principles: [
+        ...safeParse(material.principles_consistency),
+        ...safeParse(material.principles_efficiency),
+        ...safeParse(material.principles_sufficiency),
+      ],
+      certifications: {
+        epd: !!material.cert_epd,
+        epd_reference: extra.epd_reference || null,
+        epd_program: extra.epd_program || null,
+        cradle_to_cradle: !!material.cert_cradle_to_cradle,
+        fsc_pefc: !!material.cert_fsc_pefc,
+      },
+    },
+    origin: {
+      source: material.origin_source,
+      acquisition: material.origin_acquisition,
+      previous_use: material.previous_use,
+      location_name: material.location_name,
+      coordinates: (material.latitude && material.longitude)
+        ? { lat: material.latitude, lng: material.longitude } : null,
+    },
+    application: {
+      processing: material.use_processing,
+      indoor_outdoor: material.use_indoor_outdoor,
+      indoor: !!material.use_indoor,
+      outdoor: !!material.use_outdoor,
+      where: material.use_where,
+      not_suitable: material.use_not_suitable,
+      limitations: material.use_limitations,
+    },
+    circularity: {
+      is_reusable: !!material.is_reusable,
+      is_transferable: !!material.is_transferable,
+      is_giftable: !!material.is_giftable,
+      design_for_disassembly: extra.design_for_disassembly || false,
+      disassembly_instructions: extra.disassembly_instructions || null,
+      recycling_instructions: extra.recycling_instructions || null,
+    },
+    regulatory_framework: {
+      dopc_reference: extra.dopc_reference || null,
+      harmonised_standard: extra.harmonised_standard || null,
+      ce_marking: extra.ce_marking || false,
+    },
+  };
+
+  res.json(passport);
+});

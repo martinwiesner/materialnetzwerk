@@ -17,6 +17,8 @@ import actorRoutes from './routes/actor.routes.js';
 import pushRoutes from './routes/push.routes.js';
 import materialRequestRoutes from './routes/materialRequest.routes.js';
 import favoriteRoutes from './routes/favorite.routes.js';
+import resolverRoutes from './routes/resolver.routes.js';
+import labelRoutes from './routes/label.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -99,6 +101,9 @@ app.use('/api/actors', actorRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/requests', materialRequestRoutes);
 app.use('/api/favorites', favoriteRoutes);
+app.use('/api/labels', labelRoutes);
+app.use('/api/id', resolverRoutes);
+app.use('/id', resolverRoutes);
 
 // Swagger UI
 const swaggerPath = join(__dirname, '../swagger-output.json');

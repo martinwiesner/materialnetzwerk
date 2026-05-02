@@ -955,6 +955,29 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Materialquelle</label>
+                  <select name="origin_source" value={formData.origin_source}
+                    onChange={e => setFormData({...formData, origin_source: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
+                    <option value="">Wählen…</option>
+                    <option value="primary">Primärquelle</option>
+                    <option value="secondary_rückbau">Sekundärquelle – Rückbau</option>
+                    <option value="secondary_überschuss">Sekundärquelle – Überschuss</option>
+                    <option value="secondary_restposten">Sekundärquelle – Restposten</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Vorherige Nutzung</label>
+                  <input type="text" name="previous_use" value={formData.previous_use}
+                    onChange={e => setFormData({...formData, previous_use: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                    placeholder="z.B. Dachstuhl, Industriehalle"
+                    disabled={!formData.origin_source?.startsWith('secondary')} />
+                </div>
+              </div>
+
               <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Ähnliche Materialien (IDs)</label>
                   <input
@@ -976,6 +999,32 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Anwendungsbereich</label>
+                <div className="flex gap-4 mb-3">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" checked={formData.use_indoor} onChange={e => setFormData({...formData, use_indoor: e.target.checked})} className="w-4 h-4 text-primary-500 rounded" />
+                    Innenbereich
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" checked={formData.use_outdoor} onChange={e => setFormData({...formData, use_outdoor: e.target.checked})} className="w-4 h-4 text-primary-500 rounded" />
+                    Außenbereich
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Geeignet für</label>
+                    <textarea name="use_where" value={formData.use_where} onChange={e => setFormData({...formData, use_where: e.target.value})} rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder="Wo kann das Material verwendet werden?" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Nicht geeignet für</label>
+                    <textarea name="use_not_suitable" value={formData.use_not_suitable} onChange={e => setFormData({...formData, use_not_suitable: e.target.value})} rows={2}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder="Wo ist es nicht geeignet?" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1047,6 +1096,18 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Druckfestigkeit</label>
+                <input type="text" name="tech_compressive_strength" value={formData.tech_compressive_strength}
+                  onChange={e => setFormData({...formData, tech_compressive_strength: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. 30 N/mm²" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Zugfestigkeit</label>
+                <input type="text" name="tech_tensile_strength" value={formData.tech_tensile_strength}
+                  onChange={e => setFormData({...formData, tech_tensile_strength: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. 500 N/mm²" />
               </div>
             </div>
           </div>
@@ -1123,6 +1184,19 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Recyclingfähigkeit (%)</label>
+                  <input type="number" step="0.1" min="0" max="100" name="recycling_percentage" value={formData.recycling_percentage}
+                    onChange={e => setFormData({...formData, recycling_percentage: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                    placeholder="Anteil der recyclingfähig ist" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">VOC-Emissionsklasse</label>
+                  <input type="text" name="voc_values" value={formData.voc_values}
+                    onChange={e => setFormData({...formData, voc_values: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. A+" />
+                </div>
               </div>
 
               <div>
@@ -1174,6 +1248,22 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 </div>
               </div>
 
+            </div>
+
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <div className="text-sm font-semibold text-gray-900 mb-3">Zertifizierungen & Standards</div>
+              <div className="flex flex-wrap gap-4">
+                {[
+                  { key: 'cert_epd', label: 'Umweltproduktdeklaration (EPD)' },
+                  { key: 'cert_cradle_to_cradle', label: 'Cradle-to-Cradle' },
+                  { key: 'cert_fsc_pefc', label: 'FSC / PEFC' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" checked={formData[key]} onChange={e => setFormData({...formData, [key]: e.target.checked})} className="w-4 h-4 text-primary-500 rounded" />
+                    {label}
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1620,101 +1710,6 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             />
           </div>
 
-          {/* NEW: technical properties */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <p className="text-sm font-semibold text-gray-800">🔧 Technische Eigenschaften</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Druckfestigkeit</label>
-                <input type="text" name="tech_compressive_strength" value={formData.tech_compressive_strength}
-                  onChange={e => setFormData({...formData, tech_compressive_strength: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. 30 N/mm²" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Zugfestigkeit</label>
-                <input type="text" name="tech_tensile_strength" value={formData.tech_tensile_strength}
-                  onChange={e => setFormData({...formData, tech_tensile_strength: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. 500 N/mm²" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Recyclinganteil (%)</label>
-                <input type="number" step="0.1" min="0" max="100" name="recycling_percentage" value={formData.recycling_percentage}
-                  onChange={e => setFormData({...formData, recycling_percentage: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">VOC-Werte</label>
-                <input type="text" name="voc_values" value={formData.voc_values}
-                  onChange={e => setFormData({...formData, voc_values: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. A+" />
-              </div>
-            </div>
-          </div>
-
-          {/* NEW: Origin */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <p className="text-sm font-semibold text-gray-800">🌍 Herkunft</p>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Quelle</label>
-              <select name="origin_source" value={formData.origin_source}
-                onChange={e => setFormData({...formData, origin_source: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
-                <option value="">Wählen…</option>
-                <option value="primary">Primärquelle</option>
-                <option value="secondary_rückbau">Sekundärquelle – Rückbau</option>
-                <option value="secondary_überschuss">Sekundärquelle – Überschuss</option>
-                <option value="secondary_restposten">Sekundärquelle – Restposten</option>
-              </select>
-            </div>
-            {formData.origin_source?.startsWith('secondary') && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Vorherige Nutzung</label>
-                <input type="text" name="previous_use" value={formData.previous_use}
-                  onChange={e => setFormData({...formData, previous_use: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. Dachstuhl, Industriehalle" />
-              </div>
-            )}
-          </div>
-
-          {/* NEW: Application limits */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <p className="text-sm font-semibold text-gray-800">🏗️ Grenzen der Anwendung</p>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="checkbox" checked={formData.use_indoor} onChange={e => setFormData({...formData, use_indoor: e.target.checked})} className="w-4 h-4 text-primary-500 rounded" />
-                Innen
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="checkbox" checked={formData.use_outdoor} onChange={e => setFormData({...formData, use_outdoor: e.target.checked})} className="w-4 h-4 text-primary-500 rounded" />
-                Außen
-              </label>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Geeignet für</label>
-              <textarea name="use_where" value={formData.use_where} onChange={e => setFormData({...formData, use_where: e.target.value})} rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder="Wo kann das Material verwendet werden?" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Nicht geeignet für</label>
-              <textarea name="use_not_suitable" value={formData.use_not_suitable} onChange={e => setFormData({...formData, use_not_suitable: e.target.value})} rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder="Wo ist es nicht geeignet?" />
-            </div>
-          </div>
-
-          {/* NEW: Certifications */}
-          <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-            <p className="text-sm font-semibold text-gray-800">🏅 Zertifizierungen & Standards</p>
-            {[
-              { key: 'cert_epd', label: 'Umweltproduktdeklarationen (EPD)' },
-              { key: 'cert_cradle_to_cradle', label: 'Cradle-to-Cradle' },
-              { key: 'cert_fsc_pefc', label: 'FSC / PEFC' },
-            ].map(({ key, label }) => (
-              <label key={key} className="flex items-center gap-2 cursor-pointer text-sm">
-                <input type="checkbox" checked={formData[key]} onChange={e => setFormData({...formData, [key]: e.target.checked})} className="w-4 h-4 text-primary-500 rounded" />
-                {label}
-              </label>
-            ))}
-          </div>
 
           {/* Images */}
           {/* Pending preview — shown before material is saved */}

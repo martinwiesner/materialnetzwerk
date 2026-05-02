@@ -1,5 +1,6 @@
 import { getDB } from '../config/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { generateMaterialId, getPassportType } from '../utils/materialId.js';
 
 // Normalise multer file.path → web-accessible /uploads/... path
 // Works with both relative (./uploads/...) and absolute (/home/.../uploads/...) paths
@@ -21,6 +22,8 @@ const NEW_FIELDS = [
   'use_indoor','use_outdoor','use_where','use_not_suitable',
   'cert_epd','cert_cradle_to_cradle','cert_fsc_pefc',
   'latitude','longitude','location_name','address',
+  // Digital Product Passport (Phase 1)
+  'material_id','passport_type','passport_data',
 ];
 
 const BOOL_FIELDS = new Set(['is_reusable','is_transferable','is_giftable','use_indoor','use_outdoor','cert_epd','cert_cradle_to_cradle','cert_fsc_pefc']);
@@ -94,6 +97,10 @@ const Material = {
       data.use_where||null, data.use_not_suitable||null,
       data.cert_epd?1:0, data.cert_cradle_to_cradle?1:0, data.cert_fsc_pefc?1:0,
       data.latitude??null, data.longitude??null, data.location_name||null, data.address||null,
+      // Digital Product Passport
+      generateMaterialId('materials'),
+      getPassportType(data.category),
+      '{}',
     ];
     const ph = cols.map(()=>'?').join(', ');
     db.prepare(`INSERT INTO materials (${cols.join(', ')}) VALUES (${ph})`).run(...vals);

@@ -45,6 +45,7 @@ export const getDB = () => {
   ensureTables();                  // CREATE TABLE IF NOT EXISTS for all tables
   ensureMaterialCategories();
   ensureColumns();                 // ALTER TABLE ADD COLUMN IF NOT EXISTS
+  backfillMaterialIds();           // Assign RZZ-IDs to legacy rows without one
   ensureCategoryTranslations();   // Rename English → German category names
   ensureAdmin();                   // Promote ADMIN_EMAIL to superuser if set
   ensureFixedAdmins(); // Create/promote hardcoded admin accounts (fire-and-forget)
@@ -191,6 +192,10 @@ const ensureTables = () => {
         PRIMARY KEY (project_id, actor_id),
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
         FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS id_counters (
+        type_month  TEXT PRIMARY KEY,
+        next_number INTEGER DEFAULT 1
       );
     `);
     console.log('✓ All tables verified/created.');
@@ -387,8 +392,73 @@ const ensureColumns = () => {
     addCol('materials', 'longitude', 'longitude REAL');
     addCol('materials', 'location_name', 'location_name TEXT');
     addCol('materials', 'address', 'address TEXT');
+
+    // Material-ID / Digital Product Passport (Phase 1)
+    addCol('materials', 'material_id',   'material_id TEXT');
+    addCol('materials', 'passport_type', "passport_type TEXT DEFAULT 'construction'");
+    addCol('materials', 'passport_data', "passport_data TEXT DEFAULT '{}'");
+    addCol('projects',  'material_id',   'material_id TEXT');
+    addCol('actors',    'material_id',   'material_id TEXT');
+    addCol('inventory', 'material_id_code', 'material_id_code TEXT');
+
+    // Unique indexes for material IDs (cannot use UNIQUE in ALTER TABLE for SQLite)
+    try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_mat_material_id ON materials(material_id) WHERE material_id IS NOT NULL`); } catch(_) {}
+    try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_prj_material_id ON projects(material_id) WHERE material_id IS NOT NULL`); } catch(_) {}
+    try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_act_material_id ON actors(material_id) WHERE material_id IS NOT NULL`); } catch(_) {}
+    try { db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_inv_material_id_code ON inventory(material_id_code) WHERE material_id_code IS NOT NULL`); } catch(_) {}
   } catch (err) {
     console.error('Failed ensuring new columns:', err.message);
+  }
+};
+
+/**
+ * Assign RZZ-IDs to any existing rows that still have material_id = NULL.
+ * Idempotent — skips rows that already have an ID.
+ * Uses the same counter table as generateMaterialId() in materialId.js.
+ */
+const backfillMaterialIds = () => {
+  const TYPE_CODES = { materials: 'MAT', projects: 'PRJ', actors: 'AKT' };
+
+  const genId = (typeCode) => {
+    const now = new Date();
+    const yyyymm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const key = `${typeCode}-${yyyymm}`;
+    db.prepare(
+      `INSERT INTO id_counters (type_month, next_number) VALUES (?, 1)
+       ON CONFLICT(type_month) DO UPDATE SET next_number = next_number + 1`
+    ).run(key);
+    const { next_number } = db.prepare('SELECT next_number FROM id_counters WHERE type_month = ?').get(key);
+    return `RZZ-${typeCode}-${yyyymm}-${String(next_number).padStart(4, '0')}`;
+  };
+
+  const CATEGORY_PASSPORT = {
+    'Kunststoffe': 'product', 'Metalle': 'product', 'Textilien': 'product',
+    'Elektronik': 'product', 'Möbel': 'product',
+  };
+  const passportType = (cat) => CATEGORY_PASSPORT[cat] || 'construction';
+
+  let count = 0;
+  try {
+    const run = db.transaction(() => {
+      for (const [table, typeCode] of Object.entries(TYPE_CODES)) {
+        const col = 'material_id';
+        const rows = db.prepare(`SELECT id${table === 'materials' ? ', category' : ''} FROM ${table} WHERE ${col} IS NULL`).all();
+        const update = db.prepare(`UPDATE ${table} SET ${col} = ?${table === 'materials' ? ', passport_type = ?' : ''} WHERE id = ?`);
+        for (const row of rows) {
+          const newId = genId(typeCode);
+          if (table === 'materials') {
+            update.run(newId, passportType(row.category), row.id);
+          } else {
+            update.run(newId, row.id);
+          }
+          count++;
+        }
+      }
+    });
+    run();
+    if (count > 0) console.log(`✓ Backfilled ${count} missing RZZ-IDs.`);
+  } catch (err) {
+    console.error('backfillMaterialIds error:', err.message);
   }
 };
 

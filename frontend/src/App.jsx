@@ -22,6 +22,7 @@ import Actors from './pages/actors/Actors';
 import Favorites from './pages/favorites/Favorites';
 import GesuchDetail from './pages/gesuch/GesuchDetail';
 import AngebotDetail from './pages/angebot/AngebotDetail';
+import IdResolver from './pages/IdResolver';
 
 // Protected route wrapper
 function ProtectedRoute({ children }) {
@@ -107,6 +108,9 @@ export default function App() {
           <Route path="offers" element={<Navigate to="/" replace />} />
           <Route path="marketplace" element={<Navigate to="/" replace />} />
         </Route>
+
+        {/* RZZ-ID resolver — outside Layout so no chrome during redirect */}
+        <Route path="/id/:materialId" element={<IdResolver />} />
 
         {/* Catch all - redirect to marketplace */}
         <Route path="*" element={<Navigate to="/" replace />} />
