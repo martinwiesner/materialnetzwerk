@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2 } from 'lucide-react';
 import { OwnerLine } from '../shared/ContactButton';
+import SharePrintBar from '../shared/SharePrintBar';
+import { exportMaterialPoster } from '../../utils/exportUtils';
 
 function safeJsonParse(value, fallback) {
   if (!value) return fallback;
@@ -146,7 +148,7 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
         </div>
 
         {/* Body */}
-        <div className="p-5 overflow-y-auto max-h-[calc(92vh-72px)]">
+        <div className="p-5 overflow-y-auto max-h-[calc(92vh-144px)]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Section title="Kurzbeschreibung" icon={Info}>
               {material.short_description ? (
@@ -330,6 +332,11 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
             </Section>
           </div>
         </div>
+        <SharePrintBar
+          url={`${window.location.origin}/materials/${material.id}`}
+          title={material.name}
+          onPrint={() => exportMaterialPoster(material)}
+        />
       </div>
     </div>
   );

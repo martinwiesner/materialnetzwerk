@@ -161,15 +161,14 @@ const VALUE_TYPE_LABELS = {
 
 export async function exportAngebotPoster(offer) {
   const angebotUrl = `${window.location.origin}/angebot/${offer.id}`;
-  const qrDataUrl = await QRCode.toDataURL(angebotUrl, {
-    width: 240,
-    margin: 1,
-    color: { dark: '#1a3a0a', light: '#ffffff' },
-  });
-  openAngebotPosterWindow({ offer, qrDataUrl, angebotUrl });
+  const w = window.open('', '_blank', 'width=650,height=950');
+  if (!w) { alert('Bitte im Browser Popups für diese Seite erlauben.'); return; }
+  w.document.write('<html><body style="font-family:sans-serif;padding:40px;color:#9ca3af">Poster wird erstellt…</body></html>');
+  const qrDataUrl = await QRCode.toDataURL(angebotUrl, { width: 240, margin: 1, color: { dark: '#1a3a0a', light: '#ffffff' } });
+  openAngebotPosterWindow({ offer, qrDataUrl, angebotUrl, w });
 }
 
-function openAngebotPosterWindow({ offer, qrDataUrl, angebotUrl }) {
+function openAngebotPosterWindow({ offer, qrDataUrl, angebotUrl, w }) {
   const qty = offer.quantity != null
     ? `${offer.quantity} ${offer.unit || offer.material_unit || ''}`.trim()
     : null;
@@ -184,8 +183,6 @@ function openAngebotPosterWindow({ offer, qrDataUrl, angebotUrl }) {
   const coverImageUrl = buildCoverImageUrl(offer.images);
   const pathUrl = `/angebot/${offer.id}`;
 
-  const w = window.open('', '_blank', 'width=650,height=950');
-  if (!w) return;
   w.document.write(`<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -270,15 +267,14 @@ function openAngebotPosterWindow({ offer, qrDataUrl, angebotUrl }) {
 
 export async function exportGesuchPoster(gesuch) {
   const gesuchUrl = `${window.location.origin}/gesuch/${gesuch.id}`;
-  const qrDataUrl = await QRCode.toDataURL(gesuchUrl, {
-    width: 240,
-    margin: 1,
-    color: { dark: '#1a2e05', light: '#ffffff' },
-  });
-  openGesuchPosterWindow({ gesuch, qrDataUrl, gesuchUrl });
+  const w = window.open('', '_blank', 'width=650,height=950');
+  if (!w) { alert('Bitte im Browser Popups für diese Seite erlauben.'); return; }
+  w.document.write('<html><body style="font-family:sans-serif;padding:40px;color:#9ca3af">Poster wird erstellt…</body></html>');
+  const qrDataUrl = await QRCode.toDataURL(gesuchUrl, { width: 240, margin: 1, color: { dark: '#1a2e05', light: '#ffffff' } });
+  openGesuchPosterWindow({ gesuch, qrDataUrl, gesuchUrl, w });
 }
 
-function openGesuchPosterWindow({ gesuch, qrDataUrl, gesuchUrl }) {
+function openGesuchPosterWindow({ gesuch, qrDataUrl, gesuchUrl, w }) {
   const qty = gesuch.quantity != null
     ? `${gesuch.quantity} ${gesuch.unit || gesuch.material_unit || ''}`.trim()
     : null;
@@ -288,9 +284,6 @@ function openGesuchPosterWindow({ gesuch, qrDataUrl, gesuchUrl }) {
   const dateStr = new Date().toLocaleDateString('de-DE');
   const coverImageUrl = buildCoverImageUrl(gesuch.images);
   const pathUrl = `/gesuch/${gesuch.id}`;
-
-  const w = window.open('', '_blank', 'width=650,height=950');
-  if (!w) return;
 
   const html = '<!DOCTYPE html>\n'
     + '<html lang="de">\n<head>\n'
@@ -338,6 +331,146 @@ function openGesuchPosterWindow({ gesuch, qrDataUrl, gesuchUrl }) {
   w.document.write(html + tearStripsHtml({ qrDataUrl, name: gesuch.material_name || 'Materialgesuch', pathUrl, accentColor: '#6b21a8' })
     + '<p style="margin-top:16px; text-align:center; padding-bottom:24px;" class="no-print">'
     + '<button onclick="window.print()" style="padding:8px 28px;background:#6b21a8;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">Als PDF speichern / Drucken</button>'
+    + '</p></body></html>');
+  w.document.close();
+}
+
+
+// ── Material Poster (Aushang) ─────────────────────────────────────────────────
+
+export async function exportMaterialPoster(material) {
+  const materialUrl = `${window.location.origin}/materials/${material.id}`;
+  const w = window.open('', '_blank', 'width=650,height=950');
+  if (!w) { alert('Bitte im Browser Popups für diese Seite erlauben.'); return; }
+  w.document.write('<html><body style="font-family:sans-serif;padding:40px;color:#9ca3af">Poster wird erstellt…</body></html>');
+  const qrDataUrl = await QRCode.toDataURL(materialUrl, { width: 240, margin: 1, color: { dark: '#1a3a6e', light: '#ffffff' } });
+  openMaterialPosterWindow({ material, qrDataUrl, materialUrl, w });
+}
+
+function openMaterialPosterWindow({ material, qrDataUrl, materialUrl, w }) {
+  const dateStr = new Date().toLocaleDateString('de-DE');
+  const coverImageUrl = buildCoverImageUrl(material.images);
+  const pathUrl = `/materials/${material.id}`;
+
+  const html = '<!DOCTYPE html>\n'
+    + '<html lang="de">\n<head>\n'
+    + '<meta charset="UTF-8"/>\n'
+    + '<title>Material: ' + (material.name || 'Material') + ' – RZZ Materialien</title>\n'
+    + '<style>\n'
+    + '*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n'
+    + 'body { font-family: Helvetica Neue, Arial, sans-serif; background: #fff; color: #1f2937; padding: 32px 36px 0; max-width: 560px; margin: 0 auto; display:flex; flex-direction:column; min-height:277mm; }\n'
+    + '.brand { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #2563eb; padding-bottom:10px; margin-bottom:16px; }\n'
+    + '.brand-name { font-size:13pt; font-weight:800; color:#2563eb; letter-spacing:-0.02em; }\n'
+    + '.brand-date { font-size:8pt; color:#9ca3af; }\n'
+    + '.cover-img { width:100%; height:200px; object-fit:cover; border-radius:10px; margin-bottom:14px; }\n'
+    + '.type-badge { display:inline-block; background:#dbeafe; color:#1d4ed8; border:1.5px solid #93c5fd; border-radius:20px; padding:4px 14px; font-size:10pt; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:10px; }\n'
+    + '.material-name { font-size:26pt; font-weight:900; color:#111827; line-height:1.1; margin-bottom:12px; }\n'
+    + '.details-grid { display:grid; grid-template-columns:auto 1fr; gap:5px 14px; margin-bottom:14px; font-size:10.5pt; }\n'
+    + '.details-grid .label { color:#6b7280; font-weight:600; white-space:nowrap; }\n'
+    + '.notes-block { background:#eff6ff; border-left:4px solid #2563eb; border-radius:0 8px 8px 0; padding:9px 13px; font-size:10pt; color:#374151; line-height:1.5; margin-bottom:16px; }\n'
+    + '.qr-section { display:flex; align-items:flex-start; gap:16px; border-top:1.5px solid #e5e7eb; padding-top:16px; margin-bottom:16px; }\n'
+    + '.qr-section img.qr { width:110px; height:110px; flex-shrink:0; border:1.5px solid #e5e7eb; border-radius:8px; }\n'
+    + '.qr-label { font-size:7.5pt; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:3px; }\n'
+    + '.qr-url { font-size:7.5pt; color:#2563eb; word-break:break-all; font-family:monospace; margin-bottom:6px; }\n'
+    + '.qr-cta { font-size:8.5pt; color:#374151; line-height:1.5; }\n'
+    + 'footer { font-size:7.5pt; color:#9ca3af; text-align:center; border-top:1px solid #e5e7eb; padding:8px 0 12px; }\n'
+    + '@media print { body { padding:1cm 1cm 0; max-width:none; } @page { margin:0.8cm; size:A4; } .no-print { display:none!important; } }\n'
+    + '</style>\n</head>\n<body>\n'
+    + '<div class="brand"><span class="brand-name">RZZ Materialien</span><span class="brand-date">Stand: ' + dateStr + '</span></div>\n'
+    + (coverImageUrl ? '<img class="cover-img" src="' + coverImageUrl + '" alt="' + (material.name || '') + '" />\n' : '')
+    + '<div class="type-badge">Material</div>\n'
+    + '<div class="material-name">' + (material.name || 'Material') + '</div>\n'
+    + '<div class="details-grid">\n'
+    + (material.category ? '<span class="label">Kategorie</span><span>' + material.category + '</span>\n' : '')
+    + (material.unit ? '<span class="label">Einheit</span><span>' + material.unit + '</span>\n' : '')
+    + (material.gwp_value != null ? '<span class="label">GWP-Wert</span><span>' + material.gwp_value + (material.gwp_unit ? ' ' + material.gwp_unit : ' kg CO₂e') + '</span>\n' : '')
+    + (material.manufacturer ? '<span class="label">Hersteller</span><span>' + material.manufacturer + '</span>\n' : '')
+    + (material.location_name ? '<span class="label">Standort</span><span>' + material.location_name + (material.address ? ' · ' + material.address : '') + '</span>\n' : '')
+    + '</div>\n'
+    + (material.description || material.short_description ? '<div class="notes-block">' + (material.short_description || material.description).replace(/\n/g, '<br/>') + '</div>\n' : '')
+    + '<div class="qr-section">\n'
+    + '<img class="qr" src="' + qrDataUrl + '" alt="QR-Code" />\n'
+    + '<div><div class="qr-label">Mehr Info</div>\n'
+    + '<div class="qr-url">' + materialUrl + '</div>\n'
+    + '<div class="qr-cta">QR-Code scannen, um dieses Material in der RZZ-Materialplattform zu sehen.</div></div>\n'
+    + '</div>\n'
+    + '<footer>RZZ Materialien · reallabor-zekiwa-zeitz.de · Exportiert ' + dateStr + '</footer>\n';
+
+  w.document.write(html + tearStripsHtml({ qrDataUrl, name: material.name || 'Material', pathUrl, accentColor: '#1d4ed8' })
+    + '<p style="margin-top:16px; text-align:center; padding-bottom:24px;" class="no-print">'
+    + '<button onclick="window.print()" style="padding:8px 28px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">Als PDF speichern / Drucken</button>'
+    + '</p></body></html>');
+  w.document.close();
+}
+
+// ── Project Poster (Aushang) ──────────────────────────────────────────────────
+
+export async function exportProjectPoster(project) {
+  const projectUrl = `${window.location.origin}/projects/${project.id}`;
+  const w = window.open('', '_blank', 'width=650,height=950');
+  if (!w) { alert('Bitte im Browser Popups für diese Seite erlauben.'); return; }
+  w.document.write('<html><body style="font-family:sans-serif;padding:40px;color:#9ca3af">Poster wird erstellt…</body></html>');
+  const qrDataUrl = await QRCode.toDataURL(projectUrl, { width: 240, margin: 1, color: { dark: '#1a3a0a', light: '#ffffff' } });
+  openProjectPosterWindow({ project, qrDataUrl, projectUrl, w });
+}
+
+function openProjectPosterWindow({ project, qrDataUrl, projectUrl, w }) {
+  const dateStr = new Date().toLocaleDateString('de-DE');
+  const coverImageUrl = buildCoverImageUrl(project.images);
+  const pathUrl = `/projects/${project.id}`;
+  const ownerName = project.owner_first_name
+    ? `${project.owner_first_name} ${project.owner_last_name || ''}`.trim()
+    : project.owner_email?.split('@')[0] || null;
+  const createdAt = project.created_at
+    ? new Date(project.created_at).toLocaleDateString('de-DE')
+    : null;
+
+  const html = '<!DOCTYPE html>\n'
+    + '<html lang="de">\n<head>\n'
+    + '<meta charset="UTF-8"/>\n'
+    + '<title>Projekt: ' + (project.name || 'Projekt') + ' – RZZ Materialien</title>\n'
+    + '<style>\n'
+    + '*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n'
+    + 'body { font-family: Helvetica Neue, Arial, sans-serif; background: #fff; color: #1f2937; padding: 32px 36px 0; max-width: 560px; margin: 0 auto; display:flex; flex-direction:column; min-height:277mm; }\n'
+    + '.brand { display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #3b6e14; padding-bottom:10px; margin-bottom:16px; }\n'
+    + '.brand-name { font-size:13pt; font-weight:800; color:#3b6e14; letter-spacing:-0.02em; }\n'
+    + '.brand-date { font-size:8pt; color:#9ca3af; }\n'
+    + '.cover-img { width:100%; height:200px; object-fit:cover; border-radius:10px; margin-bottom:14px; }\n'
+    + '.type-badge { display:inline-block; background:#dcfce7; color:#15803d; border:1.5px solid #86efac; border-radius:20px; padding:4px 14px; font-size:10pt; font-weight:700; letter-spacing:0.06em; text-transform:uppercase; margin-bottom:10px; }\n'
+    + '.material-name { font-size:26pt; font-weight:900; color:#111827; line-height:1.1; margin-bottom:12px; }\n'
+    + '.details-grid { display:grid; grid-template-columns:auto 1fr; gap:5px 14px; margin-bottom:14px; font-size:10.5pt; }\n'
+    + '.details-grid .label { color:#6b7280; font-weight:600; white-space:nowrap; }\n'
+    + '.notes-block { background:#f0fdf4; border-left:4px solid #3b6e14; border-radius:0 8px 8px 0; padding:9px 13px; font-size:10pt; color:#374151; line-height:1.5; margin-bottom:16px; }\n'
+    + '.qr-section { display:flex; align-items:flex-start; gap:16px; border-top:1.5px solid #e5e7eb; padding-top:16px; margin-bottom:16px; }\n'
+    + '.qr-section img.qr { width:110px; height:110px; flex-shrink:0; border:1.5px solid #e5e7eb; border-radius:8px; }\n'
+    + '.qr-label { font-size:7.5pt; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.07em; margin-bottom:3px; }\n'
+    + '.qr-url { font-size:7.5pt; color:#3b6e14; word-break:break-all; font-family:monospace; margin-bottom:6px; }\n'
+    + '.qr-cta { font-size:8.5pt; color:#374151; line-height:1.5; }\n'
+    + 'footer { font-size:7.5pt; color:#9ca3af; text-align:center; border-top:1px solid #e5e7eb; padding:8px 0 12px; }\n'
+    + '@media print { body { padding:1cm 1cm 0; max-width:none; } @page { margin:0.8cm; size:A4; } .no-print { display:none!important; } }\n'
+    + '</style>\n</head>\n<body>\n'
+    + '<div class="brand"><span class="brand-name">RZZ Materialien</span><span class="brand-date">Stand: ' + dateStr + '</span></div>\n'
+    + (coverImageUrl ? '<img class="cover-img" src="' + coverImageUrl + '" alt="' + (project.name || '') + '" />\n' : '')
+    + '<div class="type-badge">Projekt</div>\n'
+    + '<div class="material-name">' + (project.name || 'Projekt') + '</div>\n'
+    + '<div class="details-grid">\n'
+    + (project.status ? '<span class="label">Status</span><span>' + project.status + '</span>\n' : '')
+    + (ownerName ? '<span class="label">Auftraggeber</span><span>' + ownerName + '</span>\n' : '')
+    + (project.location_name ? '<span class="label">Standort</span><span>' + project.location_name + (project.address ? ' · ' + project.address : '') + '</span>\n' : '')
+    + (createdAt ? '<span class="label">Erstellt am</span><span>' + createdAt + '</span>\n' : '')
+    + '</div>\n'
+    + (project.description ? '<div class="notes-block">' + project.description.replace(/\n/g, '<br/>') + '</div>\n' : '')
+    + '<div class="qr-section">\n'
+    + '<img class="qr" src="' + qrDataUrl + '" alt="QR-Code" />\n'
+    + '<div><div class="qr-label">Mehr Info</div>\n'
+    + '<div class="qr-url">' + projectUrl + '</div>\n'
+    + '<div class="qr-cta">QR-Code scannen, um dieses Projekt in der RZZ-Materialplattform zu sehen.</div></div>\n'
+    + '</div>\n'
+    + '<footer>RZZ Materialien · reallabor-zekiwa-zeitz.de · Exportiert ' + dateStr + '</footer>\n';
+
+  w.document.write(html + tearStripsHtml({ qrDataUrl, name: project.name || 'Projekt', pathUrl, accentColor: '#15803d' })
+    + '<p style="margin-top:16px; text-align:center; padding-bottom:24px;" class="no-print">'
+    + '<button onclick="window.print()" style="padding:8px 28px;background:#3b6e14;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">Als PDF speichern / Drucken</button>'
     + '</p></body></html>');
   w.document.close();
 }

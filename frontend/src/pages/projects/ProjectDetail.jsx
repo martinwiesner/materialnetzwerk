@@ -9,6 +9,8 @@ import {
 import ProjectForm from '../../components/projects/ProjectForm';
 import { MEDIA_BASE } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import SharePrintBar from '../../components/shared/SharePrintBar';
+import { exportProjectPoster } from '../../utils/exportUtils';
 const API_BASE = MEDIA_BASE;
 
 function safeJsonParse(value, fallback) {
@@ -331,6 +333,12 @@ export default function ProjectDetail() {
           </div>
         )}
       </article>
+
+      <SharePrintBar
+        url={`${window.location.origin}/projects/${project.id}`}
+        title={project.name}
+        onPrint={() => exportProjectPoster(project)}
+      />
 
       {showForm && (
         <ProjectForm

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Store, MapPin, Package, User, ArrowLeft, Printer, Tag, Send } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { exportAngebotPoster } from '../../utils/exportUtils';
+import SharePrintBar from '../../components/shared/SharePrintBar';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import { useState } from 'react';
@@ -193,11 +194,11 @@ export default function AngebotDetail() {
         </div>
       </div>
 
-      {/* Link hint */}
-      <div className="text-xs text-gray-400 text-center">
-        Direktlink zu diesem Angebot:{' '}
-        <span className="font-mono text-gray-600 select-all">{window.location.href}</span>
-      </div>
+      <SharePrintBar
+        url={window.location.href}
+        title={offer.material_name}
+        onPrint={() => exportAngebotPoster(offer)}
+      />
 
       {showRequestModal && offer && (
         <MaterialRequestModal

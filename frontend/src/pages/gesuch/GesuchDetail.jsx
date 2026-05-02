@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { BookMarked, MapPin, Package, User, ArrowLeft, Printer, Tag } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { exportGesuchPoster } from '../../utils/exportUtils';
+import SharePrintBar from '../../components/shared/SharePrintBar';
 
 export default function GesuchDetail() {
   const { id } = useParams();
@@ -152,11 +153,11 @@ export default function GesuchDetail() {
         </div>
       </div>
 
-      {/* Link hint */}
-      <div className="text-xs text-gray-400 text-center">
-        Direktlink zu diesem Gesuch:{' '}
-        <span className="font-mono text-gray-600 select-all">{window.location.href}</span>
-      </div>
+      <SharePrintBar
+        url={window.location.href}
+        title={gesuch.material_name}
+        onPrint={() => exportGesuchPoster(gesuch)}
+      />
     </div>
   );
 }
