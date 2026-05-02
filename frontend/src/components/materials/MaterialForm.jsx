@@ -889,7 +889,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category *
+                Kategorie *
               </label>
               <select
                 name="category"
@@ -900,7 +900,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 disabled={catsLoading}
               >
                 <option value="" disabled>
-                  {catsLoading ? 'Loading categories…' : 'Select a category'}
+                  {catsLoading ? 'Kategorien werden geladen…' : 'Kategorie wählen'}
                 </option>
                 {/* Ensure legacy category appears if editing and not in list */}
                 {material && formData.category && !categories.includes(formData.category) && (
@@ -915,7 +915,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+              Beschreibung
             </label>
             <textarea
               name="description"
@@ -1477,7 +1477,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Manufacturer
+                Hersteller
               </label>
               <input
                 type="text"
@@ -1503,11 +1503,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           </div>
 
           <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Environmental Data</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Umweltdaten</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  GWP Value
+                  GWP-Wert
                 </label>
                 <input
                   type="number"
@@ -1516,13 +1516,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   value={formData.gwp_value}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="e.g., 2.5"
+                  placeholder="z. B. 2,5"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  GWP Unit
+                  GWP-Einheit
                 </label>
                 <select
                   name="gwp_unit"
@@ -1539,7 +1539,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Recycled Content (%)
+                  Recyclinganteil (%)
                 </label>
                 <input
                   type="number"
@@ -1555,7 +1555,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Certifications
+                  Zertifizierungen
                 </label>
                 <input
                   type="text"
@@ -1563,7 +1563,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   value={formData.certifications}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="e.g., FSC, LEED"
+                  placeholder="z. B. FSC, LEED"
                 />
               </div>
             </div>
@@ -1577,7 +1577,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   onChange={handleChange}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
-                <span className="text-sm text-gray-700">Recyclable</span>
+                <span className="text-sm text-gray-700">Recycelbar</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
@@ -1588,14 +1588,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   onChange={handleChange}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
-                <span className="text-sm text-gray-700">Biodegradable</span>
+                <span className="text-sm text-gray-700">Biologisch abbaubar</span>
               </label>
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Source URL
+              Quellen-URL
             </label>
             <input
               type="url"
@@ -1609,7 +1609,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
+              Notizen
             </label>
             <textarea
               name="notes"

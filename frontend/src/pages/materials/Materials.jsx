@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../services/materialService';
 import { inventoryService } from '../../services/inventoryService';
-import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked, Store } from 'lucide-react';
 import { useToast } from '../../store/toastStore';
 import MaterialForm from '../../components/materials/MaterialForm';
 import clsx from 'clsx';
@@ -290,6 +290,13 @@ export default function Materials() {
             >
               <Plus className="w-5 h-5" />
               Material dokumentieren
+            </button>
+            <button
+              onClick={() => { if (!requireAuth()) return; setFormInitialMode('offer-only'); setShowForm(true); }}
+              className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white px-5 py-3 rounded-xl font-medium text-base transition-colors"
+            >
+              <Store className="w-5 h-5" />
+              Angebot eintragen
             </button>
             <button
               onClick={() => { if (!requireAuth()) return; setFormInitialMode('gesuch'); setShowForm(true); }}
