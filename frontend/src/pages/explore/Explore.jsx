@@ -659,13 +659,22 @@ export default function Explore() {
         {/* Row 2: description + mobile info button */}
         <div className="flex items-center gap-2">
           <span className="text-xs sm:text-sm text-gray-500 leading-snug">
-            Die regionale Plattform des{' '}
-            <a href="https://www.reallabor-zekiwa-zeitz.de" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors">
-              RZZ
-              <svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
-            , auf der Materialien, Projekte und Beteiligte zusammenfinden.
+            <span className="sm:hidden">Die{' '}
+              <a href="https://www.reallabor-zekiwa-zeitz.de" target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors">
+                RZZ
+                <svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+              -Plattform für Materialien, Projekte und Akteure.</span>
+            <span className="hidden sm:inline">
+              Die regionale Plattform des{' '}
+              <a href="https://www.reallabor-zekiwa-zeitz.de" target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors">
+                RZZ
+                <svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+              , auf der Materialien, Projekte und Beteiligte zusammenfinden.
+            </span>
           </span>
           <button
             data-onboarding="guidelines-button"
@@ -688,7 +697,7 @@ export default function Explore() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Suchen (Name, Ort, Notizen…)"
-              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              className="w-full pl-10 pr-10 py-1.5 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
             />
             {search ? (
               <button
@@ -702,43 +711,13 @@ export default function Explore() {
           </div>
 
           <div className="flex flex-wrap gap-1.5">
-            {filterMode === 'all' && (<>
-            <button
-              onClick={() => setShowMaterials((v) => !v)}
-              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-all"
-              style={showMaterials
-                ? { background: '#0033FF', borderColor: '#0033FF', color: '#fff' }
-                : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
-            >
-              Materialien
-            </button>
-            <button
-              onClick={() => setShowProjects((v) => !v)}
-              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-all"
-              style={showProjects
-                ? { background: '#639530', borderColor: '#639530', color: '#fff' }
-                : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
-            >
-              Projekte
-            </button>
-            <button
-              onClick={() => setShowActors((v) => !v)}
-              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-all"
-              style={showActors
-                ? { background: '#FF3B36', borderColor: '#FF3B36', color: '#fff' }
-                : { background: '#fff', borderColor: '#e5e7eb', color: '#6b7280' }}
-            >
-              Akteure
-            </button>
-            </>)}
-
             {/* Filter dropdown */}
             <div className="relative">
               <button
                 onClick={() => setFilterDropdownOpen((v) => !v)}
                 className={clsx(
                   'px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-colors flex items-center gap-1',
-                  filterMode !== 'all'
+                  filterMode !== 'all' || !showMaterials || !showProjects || !showActors
                     ? 'bg-gray-800 border-gray-800 text-white'
                     : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                 )}
@@ -749,25 +728,63 @@ export default function Explore() {
               {filterDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setFilterDropdownOpen(false)} />
-                  <div className="absolute top-full mt-1 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-52 py-1 text-sm">
-                  {[
-                    { value: 'all', label: 'Alle anzeigen' },
-                    { value: 'available', label: 'Nur verfügbare Angebote' },
-                    { value: 'gesuche', label: 'Nur Gesuche' },
-                  ].map(({ value, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => { setFilterMode(value); setFilterDropdownOpen(false); }}
-                      className={clsx(
-                        'w-full text-left px-4 py-2 transition-colors flex items-center gap-2',
-                        filterMode === value ? 'bg-gray-50 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'
-                      )}
-                    >
-                      <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', filterMode === value ? 'bg-gray-800' : 'bg-gray-200')} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                  <div className="absolute top-full mt-1 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-56 py-1 text-sm">
+                    {/* Ansicht-Filter */}
+                    {[
+                      { value: 'all', label: 'Alle anzeigen' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => { setFilterMode(value); setFilterDropdownOpen(false); }}
+                        className={clsx(
+                          'w-full text-left px-4 py-2 transition-colors flex items-center gap-2',
+                          filterMode === value ? 'bg-gray-50 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'
+                        )}
+                      >
+                        <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', filterMode === value ? 'bg-gray-800' : 'bg-gray-200')} />
+                        {label}
+                      </button>
+                    ))}
+
+                    {/* Typ-Toggles (immer sichtbar, Mehrfachauswahl) */}
+                    <div className="border-t border-gray-100 px-3 pt-2 pb-1">
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Typen</p>
+                      {[
+                        { key: 'materials', label: 'Materialien', color: '#0033FF', active: showMaterials, toggle: () => setShowMaterials((v) => !v) },
+                        { key: 'projects',  label: 'Projekte',    color: '#639530', active: showProjects,  toggle: () => setShowProjects((v) => !v) },
+                        { key: 'actors',    label: 'Akteure',     color: '#FF3B36', active: showActors,    toggle: () => setShowActors((v) => !v) },
+                      ].map(({ key, label, color, active, toggle }) => (
+                        <button
+                          key={key}
+                          onClick={(e) => { e.stopPropagation(); toggle(); }}
+                          className="w-full flex items-center gap-2.5 px-1 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors" style={{ background: active ? color : '#e5e7eb' }} />
+                          <span className={active ? 'text-gray-900 font-medium' : 'text-gray-400'}>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Weitere Filter */}
+                    <div className="border-t border-gray-100 pt-1">
+                      {[
+                        { value: 'available', label: 'Nur verfügbare Angebote' },
+                        { value: 'gesuche',   label: 'Nur Gesuche' },
+                      ].map(({ value, label }) => (
+                        <button
+                          key={value}
+                          onClick={() => { setFilterMode(value); setFilterDropdownOpen(false); }}
+                          className={clsx(
+                            'w-full text-left px-4 py-2 transition-colors flex items-center gap-2',
+                            filterMode === value ? 'bg-gray-50 font-medium text-gray-900' : 'text-gray-600 hover:bg-gray-50'
+                          )}
+                        >
+                          <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', filterMode === value ? 'bg-gray-800' : 'bg-gray-200')} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </>
               )}
             </div>

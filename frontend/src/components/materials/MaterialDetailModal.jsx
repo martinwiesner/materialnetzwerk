@@ -116,7 +116,7 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
               <button
                 onClick={onEdit}
                 className="p-2 rounded-lg text-gray-500 hover:text-primary-600 hover:bg-primary-50"
-                aria-label="Edit"
+                aria-label="Bearbeiten"
                 type="button"
                 title="Material bearbeiten"
               >
@@ -137,7 +137,7 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
             <button
               onClick={onClose}
               className="p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-              aria-label="Close"
+              aria-label="Schließen"
               type="button"
             >
               <X className="w-5 h-5" />

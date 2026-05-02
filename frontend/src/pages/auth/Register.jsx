@@ -39,7 +39,7 @@ export default function Register() {
       navigate(next || '/', { replace: true });
     },
     onError: (err) => {
-      setError(err.response?.data?.error || 'Registration failed');
+      setError(err.response?.data?.error || 'Registrierung fehlgeschlagen');
     },
   });
 
@@ -48,7 +48,7 @@ export default function Register() {
     setError('');
     
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Passwörter stimmen nicht überein');
       return;
     }
 
@@ -70,10 +70,10 @@ export default function Register() {
         </div>
         
         <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
-          Create Account
+          Konto erstellen
         </h1>
         <p className="text-center text-gray-600 mb-8">
-          Join the Material Library community
+          Werde Teil der RZZ-Plattform
         </p>
 
         {error && (
@@ -86,7 +86,7 @@ export default function Register() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                First Name
+                Vorname
               </label>
               <input
                 type="text"
@@ -94,12 +94,12 @@ export default function Register() {
                 value={formData.firstName}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition"
-                placeholder="John"
+                placeholder="Max"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Last Name
+                Nachname
               </label>
               <input
                 type="text"
@@ -107,14 +107,14 @@ export default function Register() {
                 value={formData.lastName}
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition"
-                placeholder="Doe"
+                placeholder="Mustermann"
               />
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Username
+              Benutzername
             </label>
             <input
               type="text"
@@ -144,7 +144,7 @@ export default function Register() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              Passwort
             </label>
             <div className="relative">
               <input
@@ -169,7 +169,7 @@ export default function Register() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
+              Passwort bestätigen
             </label>
             <input
               type="password"
@@ -187,14 +187,14 @@ export default function Register() {
             disabled={registerMutation.isPending}
             className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {registerMutation.isPending ? 'Creating account...' : 'Create Account'}
+            {registerMutation.isPending ? 'Konto wird erstellt…' : 'Konto erstellen'}
           </button>
         </form>
 
         <p className="text-center text-gray-600 mt-6">
-          Already have an account?{' '}
+          Bereits registriert?{' '}
           <Link to="/login" className="text-primary-600 hover:text-primary-700 font-medium">
-            Sign in
+            Anmelden
           </Link>
         </p>
       </div>

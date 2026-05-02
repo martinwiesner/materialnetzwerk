@@ -39,7 +39,7 @@ export default function Inventory() {
   });
 
   const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this inventory item?')) {
+    if (window.confirm('Eintrag wirklich löschen?')) {
       deleteMutation.mutate(id);
     }
   };
@@ -66,15 +66,15 @@ export default function Inventory() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-gray-600">Track your material stock</p>
+          <h1 className="text-2xl font-bold text-gray-900">Lagerbestand</h1>
+          <p className="text-gray-600">Verwalte deinen Materialbestand</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
         >
           <Plus className="w-5 h-5" />
-          Add Inventory
+          Eintrag hinzufügen
         </button>
       </div>
 
@@ -82,7 +82,7 @@ export default function Inventory() {
       {pendingTransfers.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
           <h3 className="font-medium text-yellow-800 mb-3">
-            Pending Transfers ({pendingTransfers.length})
+            Offene Transfers ({pendingTransfers.length})
           </h3>
           <div className="space-y-2">
             {pendingTransfers.map((transfer) => (
@@ -96,7 +96,7 @@ export default function Inventory() {
                   <span className="text-gray-600">
                     {transfer.quantity} {transfer.unit}
                   </span>
-                  <span className="text-gray-500 mx-2">from</span>
+                  <span className="text-gray-500 mx-2">von</span>
                   <span className="text-gray-700">{transfer.from_user_name}</span>
                 </div>
                 <button
@@ -104,7 +104,7 @@ export default function Inventory() {
                   disabled={acceptTransferMutation.isPending}
                   className="px-3 py-1 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
                 >
-                  Accept
+                  Annehmen
                 </button>
               </div>
             ))}
@@ -118,7 +118,7 @@ export default function Inventory() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search inventory..."
+            placeholder="Lagerbestand durchsuchen…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -134,14 +134,14 @@ export default function Inventory() {
       ) : inventory.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <Warehouse className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No inventory items</h3>
-          <p className="text-gray-600 mb-4">Start tracking your material stock</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Einträge vorhanden</h3>
+          <p className="text-gray-600 mb-4">Trage dein erstes Material ein</p>
           <button
             onClick={() => setShowForm(true)}
             className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            Add Inventory
+            Eintrag hinzufügen
           </button>
         </div>
       ) : (
@@ -150,10 +150,10 @@ export default function Inventory() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Material</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Quantity</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 hidden md:table-cell">Location</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600">Menge</th>
+                <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 hidden md:table-cell">Standort</th>
                 <th className="text-left px-4 py-3 text-sm font-medium text-gray-600 hidden md:table-cell">Status</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Actions</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">Aktionen</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -162,10 +162,10 @@ export default function Inventory() {
                   <td className="px-4 py-3">
                     <div>
                       <span className="font-medium text-gray-900">
-                        {item.material_name || 'Unknown Material'}
+                        {item.material_name || 'Unbekanntes Material'}
                       </span>
                       {item.batch_number && (
-                        <p className="text-sm text-gray-500">Batch: {item.batch_number}</p>
+                        <p className="text-sm text-gray-500">Charge: {item.batch_number}</p>
                       )}
                     </div>
                   </td>
@@ -190,7 +190,7 @@ export default function Inventory() {
                       <button
                         onClick={() => handleTransfer(item)}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Transfer"
+                        title="Weitergeben"
                       >
                         <ArrowRightLeft className="w-4 h-4" />
                       </button>

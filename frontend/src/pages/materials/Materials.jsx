@@ -322,10 +322,10 @@ export default function Materials() {
                 'px-3 py-2 text-sm font-medium inline-flex items-center gap-2',
                 viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'
               )}
-              title="List"
+              title="Liste"
             >
               <List className="w-4 h-4" />
-              List
+              Liste
             </button>
             <button
               onClick={() => setViewMode('map')}
@@ -333,10 +333,10 @@ export default function Materials() {
                 'px-3 py-2 text-sm font-medium inline-flex items-center gap-2',
                 viewMode === 'map' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'
               )}
-              title="Map"
+              title="Karte"
             >
               <MapPinned className="w-4 h-4" />
-              Map
+              Karte
             </button>
           </div>
 
@@ -348,7 +348,7 @@ export default function Materials() {
             className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            Add Material
+            Material hinzufügen
           </button>
         </div>
       </div>
@@ -360,7 +360,7 @@ export default function Materials() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search materials..."
+              placeholder="Materialien suchen…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -371,7 +371,7 @@ export default function Materials() {
             onChange={(e) => setCategory(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           >
-            <option value="">All Categories</option>
+            <option value="">Alle Kategorien</option>
             {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
@@ -396,8 +396,8 @@ export default function Materials() {
         ) : mapPoints.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
             <Leaf className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No mapped inventory yet</h3>
-            <p className="text-gray-600">Add inventory entries with a location to see them on the map.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Noch keine verorteten Einträge</h3>
+            <p className="text-gray-600">Füge Lagereinträge mit Standort hinzu, um sie auf der Karte zu sehen.</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
@@ -413,8 +413,8 @@ export default function Materials() {
       ) : materials.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <Leaf className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No materials found</h3>
-          <p className="text-gray-600 mb-4">Get started by adding your first material</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Materialien gefunden</h3>
+          <p className="text-gray-600 mb-4">Lege dein erstes Material an</p>
           <button
             onClick={() => {
               if (!requireAuth()) return;
@@ -423,7 +423,7 @@ export default function Materials() {
             className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            Add Material
+            Material hinzufügen
           </button>
         </div>
       ) : (
@@ -504,7 +504,7 @@ export default function Materials() {
                           handleEdit(material);
                         }}
                         className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                        title="Edit"
+                        title="Bearbeiten"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
@@ -514,7 +514,7 @@ export default function Materials() {
                           handleDelete(material.id);
                         }}
                         className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Delete"
+                        title="Löschen"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -539,7 +539,7 @@ export default function Materials() {
                   )}
                   {material.unit && (
                     <div className="bg-gray-50 rounded-lg p-2">
-                      <span className="text-gray-500 block text-xs">Unit</span>
+                      <span className="text-gray-500 block text-xs">Einheit</span>
                       <span className="font-medium text-gray-900 truncate block">
                         {material.unit}
                       </span>

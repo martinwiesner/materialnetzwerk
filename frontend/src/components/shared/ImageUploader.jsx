@@ -77,7 +77,7 @@ export default function ImageUploader({
                 {/* Cover badge */}
                 {isCover && (
                   <span className="absolute top-1 left-1 bg-primary-500 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
-                    <Star className="w-2.5 h-2.5 fill-white" /> Cover
+                    <Star className="w-2.5 h-2.5 fill-white" /> Titelbild
                   </span>
                 )}
 

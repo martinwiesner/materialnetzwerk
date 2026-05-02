@@ -43,7 +43,7 @@ function LoginForm({ onDone }) {
       onDone?.();
     },
     onError: (err) => {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Anmeldung fehlgeschlagen');
     },
   });
 
@@ -61,7 +61,7 @@ function LoginForm({ onDone }) {
       ) : null}
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
         <input
           type="email"
           value={form.email}
@@ -73,7 +73,7 @@ function LoginForm({ onDone }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
         <div className="relative">
           <input
             type={showPassword ? 'text' : 'password'}
@@ -98,7 +98,7 @@ function LoginForm({ onDone }) {
         disabled={mutation.isPending}
         className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {mutation.isPending ? 'Signing in...' : 'Sign In'}
+        {mutation.isPending ? 'Anmelden…' : 'Anmelden'}
       </button>
     </form>
   );
@@ -130,7 +130,7 @@ function RegisterForm({ onDone }) {
       onDone?.();
     },
     onError: (err) => {
-      setError(err.response?.data?.error || 'Registration failed');
+      setError(err.response?.data?.error || 'Registrierung fehlgeschlagen');
     },
   });
 
@@ -149,7 +149,7 @@ function RegisterForm({ onDone }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
           <input
             type="text"
             value={form.first_name}
@@ -159,7 +159,7 @@ function RegisterForm({ onDone }) {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Nachname</label>
           <input
             type="text"
             value={form.last_name}
@@ -171,7 +171,7 @@ function RegisterForm({ onDone }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
         <input
           type="email"
           value={form.email}
@@ -183,7 +183,7 @@ function RegisterForm({ onDone }) {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
         <div className="relative">
           <input
             type={showPassword ? 'text' : 'password'}
@@ -210,7 +210,7 @@ function RegisterForm({ onDone }) {
         disabled={mutation.isPending}
         className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {mutation.isPending ? 'Creating account...' : 'Create account'}
+        {mutation.isPending ? 'Konto wird erstellt…' : 'Konto erstellen'}
       </button>
     </form>
   );
@@ -240,7 +240,7 @@ export default function AuthOverlay() {
                 <Leaf className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">Material Library</p>
+                <p className="text-sm font-semibold text-gray-900">RZZ Materialien</p>
                 <p className="text-xs text-gray-500">Login / Registrierung</p>
               </div>
             </div>

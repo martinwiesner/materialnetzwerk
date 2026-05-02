@@ -35,7 +35,7 @@ export default function Login() {
       navigate(next || '/', { replace: true });
     },
     onError: (err) => {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Anmeldung fehlgeschlagen');
     },
   });
 
@@ -59,10 +59,10 @@ export default function Login() {
         </div>
         
         <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">
-          Welcome Back
+          Willkommen zurück
         </h1>
         <p className="text-center text-gray-600 mb-8">
-          Sign in to your Material Library account
+          Melde dich in deinem RZZ-Konto an
         </p>
 
         {error && (
@@ -89,7 +89,7 @@ export default function Login() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
+              Passwort
             </label>
             <div className="relative">
               <input
@@ -116,14 +116,14 @@ export default function Login() {
             disabled={loginMutation.isPending}
             className="w-full bg-primary-500 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
+            {loginMutation.isPending ? 'Anmelden…' : 'Anmelden'}
           </button>
         </form>
 
         <p className="text-center text-gray-600 mt-6">
-          Don't have an account?{' '}
+          Noch kein Konto?{' '}
           <Link to="/register" className="text-primary-600 hover:text-primary-700 font-medium">
-            Sign up
+            Registrieren
           </Link>
         </p>
       </div>

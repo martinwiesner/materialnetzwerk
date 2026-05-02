@@ -20,22 +20,22 @@ export default function Dashboard() {
 
   const stats = [
     {
-      name: 'Total Materials',
+      name: 'Materialien gesamt',
       value: materialsData?.pagination?.total || materials.length,
       icon: Package,
       href: '/materials',
       color: 'bg-blue-500',
     },
     {
-      name: 'Active Projects',
+      name: 'Aktive Projekte',
       value: projectsData?.pagination?.total || projects.length,
       icon: FolderOpen,
       href: '/projects',
       color: 'bg-project-500',
     },
     {
-      name: 'Marketplace',
-      value: 'Open',
+      name: 'Marktplatz',
+      value: 'Offen',
       icon: Store,
       href: '/marketplace?tab=my-inventory',
       color: 'bg-orange-500',
@@ -45,8 +45,8 @@ export default function Dashboard() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Overview of your material library</p>
+        <h1 className="text-2xl font-bold text-gray-900">Übersicht</h1>
+        <p className="text-gray-600">Deine Materialplattform im Überblick</p>
       </div>
 
       {/* Stats Cards */}
@@ -74,16 +74,16 @@ export default function Dashboard() {
         {/* Recent Materials */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-900">Recent Materials</h2>
+            <h2 className="font-semibold text-gray-900">Neueste Materialien</h2>
             <Link to="/materials" className="text-sm text-primary-600 hover:text-primary-700">
-              View all
+              Alle anzeigen
             </Link>
           </div>
           <div className="p-4">
             {materials.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p>No materials yet</p>
+                <p>Noch keine Materialien</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -114,16 +114,16 @@ export default function Dashboard() {
         {/* Recent Projects */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-900">Recent Projects</h2>
+            <h2 className="font-semibold text-gray-900">Neueste Projekte</h2>
             <Link to="/projects" className="text-sm text-primary-600 hover:text-primary-700">
-              View all
+              Alle anzeigen
             </Link>
           </div>
           <div className="p-4">
             {projects.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <FolderOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                <p>No projects yet</p>
+                <p>Noch keine Projekte</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -135,7 +135,7 @@ export default function Dashboard() {
                   >
                     <div>
                       <p className="font-medium text-gray-900">{project.name}</p>
-                      <p className="text-sm text-gray-500">{project.client_name || 'No client'}</p>
+                      <p className="text-sm text-gray-500">{project.client_name || 'Kein Auftraggeber'}</p>
                     </div>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       project.status === 'active' ? 'bg-project-50 text-project-700' :
@@ -154,19 +154,19 @@ export default function Dashboard() {
         {/* Marketplace Shortcut */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 lg:col-span-2">
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-900">Marketplace</h2>
+            <h2 className="font-semibold text-gray-900">Marktplatz</h2>
             <Link to="/marketplace?tab=my-inventory" className="text-sm text-primary-600 hover:text-primary-700">
-              Open marketplace
+              Marktplatz öffnen
             </Link>
           </div>
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="p-4 bg-primary-50 rounded-lg border border-primary-100">
-              <p className="text-sm font-semibold text-primary-800 mb-1">Your offers</p>
-              <p className="text-sm text-primary-700">Manage your materials and set them available for others.</p>
+              <p className="text-sm font-semibold text-primary-800 mb-1">Deine Angebote</p>
+              <p className="text-sm text-primary-700">Verwalte deine Materialien und stelle sie für andere bereit.</p>
             </div>
             <div className="p-4 bg-project-50 rounded-lg border border-project-100">
-              <p className="text-sm font-semibold text-project-800 mb-1">Community offers</p>
-              <p className="text-sm text-project-700">Browse other users' available materials and projects.</p>
+              <p className="text-sm font-semibold text-project-800 mb-1">Angebote der Community</p>
+              <p className="text-sm text-project-700">Entdecke verfügbare Materialien anderer Nutzer.</p>
             </div>
           </div>
         </div>
@@ -179,11 +179,11 @@ export default function Dashboard() {
             <Leaf className="w-6 h-6 text-primary-600" />
           </div>
           <div>
-            <h3 className="font-semibold text-primary-900 mb-1">Sustainability Tip</h3>
+            <h3 className="font-semibold text-primary-900 mb-1">Nachhaltigkeitstipp</h3>
             <p className="text-primary-700">
-              Track the Global Warming Potential (GWP) of your materials to make more 
-              environmentally conscious decisions. Materials with lower GWP values 
-              contribute less to climate change.
+              Erfasse das Treibhauspotenzial (GWP) deiner Materialien, um umweltbewusstere
+              Entscheidungen zu treffen. Materialien mit niedrigem GWP-Wert tragen weniger
+              zum Klimawandel bei.
             </p>
           </div>
         </div>
