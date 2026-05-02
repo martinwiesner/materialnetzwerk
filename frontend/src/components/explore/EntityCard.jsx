@@ -1,4 +1,4 @@
-import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users, Send, BookMarked } from 'lucide-react';
+import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users, Send, BookMarked, Printer } from 'lucide-react';
 import clsx from 'clsx';
 
 function badgeForType(type) {
@@ -9,7 +9,7 @@ function badgeForType(type) {
   return { label: 'Projekt', className: 'bg-project-50 text-project-800 border-project-200', icon: FolderOpen };
 }
 
-export default function EntityCard({ entity, active = false, onSelect, onOpenDetails, onRequest }) {
+export default function EntityCard({ entity, active = false, onSelect, onOpenDetails, onRequest, onPrint, onPrintOffer }) {
   const badge = badgeForType(entity.type);
   const Icon = badge.icon;
 
@@ -80,6 +80,28 @@ export default function EntityCard({ entity, active = false, onSelect, onOpenDet
               >
                 <Send className="w-3 h-3" />
                 Anfragen
+              </button>
+            )}
+            {onPrintOffer && entity.type === 'material' && entity.available && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onPrintOffer(); }}
+                className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-900 border border-green-200 hover:border-green-400 bg-white px-2.5 py-1 rounded-lg transition-colors"
+                title="Angebots-Aushang drucken"
+              >
+                <Printer className="w-3 h-3" />
+                Aushang
+              </button>
+            )}
+            {onPrint && entity.type === 'gesuch' && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onPrint(); }}
+                className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 border border-purple-200 hover:border-purple-400 bg-white px-2.5 py-1 rounded-lg transition-colors"
+                title="Als Aushang drucken"
+              >
+                <Printer className="w-3 h-3" />
+                Aushang
               </button>
             )}
             <button

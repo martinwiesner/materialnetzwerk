@@ -167,6 +167,15 @@ const ensureTables = () => {
         FOREIGN KEY (inventory_id) REFERENCES inventory(id) ON DELETE CASCADE,
         FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE
       );
+      CREATE TABLE IF NOT EXISTS user_favorites (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, entity_type, entity_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
       CREATE TABLE IF NOT EXISTS material_actors (
         material_id TEXT NOT NULL,
         actor_id TEXT NOT NULL,

@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../services/materialService';
 import { inventoryService } from '../../services/inventoryService';
-import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked, Store } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked, Store, Download, FileText } from 'lucide-react';
+import BookmarkButton from '../../components/shared/BookmarkButton';
+import { exportMaterialsToCSV, exportMaterialsToPDF } from '../../utils/exportUtils';
 import { useToast } from '../../store/toastStore';
 import MaterialForm from '../../components/materials/MaterialForm';
 import clsx from 'clsx';
@@ -347,16 +349,34 @@ export default function Materials() {
             </button>
           </div>
 
-          <button
-            onClick={() => {
-              if (!requireAuth()) return;
-              setShowForm(true);
-            }}
-            className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
-          >
-            <Plus className="w-5 h-5" />
-            Material hinzufügen
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => exportMaterialsToCSV(materials)}
+              disabled={materials.length === 0}
+              title="Als CSV exportieren"
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => exportMaterialsToPDF(materials)}
+              disabled={materials.length === 0}
+              title="Als PDF exportieren"
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                if (!requireAuth()) return;
+                setShowForm(true);
+              }}
+              className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Material hinzufügen
+            </button>
+          </div>
         </div>
       </div>
 
@@ -503,30 +523,38 @@ export default function Materials() {
                     </span>
                   </div>
 
-                  {(isAuthenticated && (material.created_by === user?.id || user?.is_admin)) && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(material);
-                        }}
-                        className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                        title="Bearbeiten"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(material.id);
-                        }}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Löschen"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex gap-1">
+                    <BookmarkButton
+                      entityType="material"
+                      entityId={material.id}
+                      size="sm"
+                      showCount
+                    />
+                    {(isAuthenticated && (material.created_by === user?.id || user?.is_admin)) && (
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(material);
+                          }}
+                          className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Bearbeiten"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(material.id);
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Löschen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {material.description && (

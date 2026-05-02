@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
-import { Plus, Search, Edit2, Trash2, FolderOpen, Eye, Globe, Lock, MapPinned, List, Leaf, Tag } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, FolderOpen, Eye, Globe, Lock, MapPinned, List, Leaf, Tag, Download, FileText } from 'lucide-react';
+import BookmarkButton from '../../components/shared/BookmarkButton';
+import { exportProjectsToCSV, exportProjectsToPDF } from '../../utils/exportUtils';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import ProjectForm from '../../components/projects/ProjectForm';
@@ -188,18 +190,36 @@ export default function Projects() {
             </button>
           </div>
 
-          {activeTab === 'my-projects' && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                if (!requireAuth()) return;
-                setShowForm(true);
-              }}
-              className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
+              onClick={() => exportProjectsToCSV(projects)}
+              disabled={!projects?.length}
+              title="Als CSV exportieren"
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
             >
-              <Plus className="w-5 h-5" />
-              Neuer Artikel
+              <Download className="w-4 h-4" />
             </button>
-          )}
+            <button
+              onClick={() => exportProjectsToPDF(projects)}
+              disabled={!projects?.length}
+              title="Als PDF exportieren"
+              className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+            {activeTab === 'my-projects' && (
+              <button
+                onClick={() => {
+                  if (!requireAuth()) return;
+                  setShowForm(true);
+                }}
+                className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                Neuer Artikel
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -399,6 +419,12 @@ export default function Projects() {
                         </div>
                       </div>
                       <div className="flex gap-1">
+                        <BookmarkButton
+                          entityType="project"
+                          entityId={project.id}
+                          size="sm"
+                          showCount
+                        />
                         <Link
                           to={`/projects/${project.id}`}
                           className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"

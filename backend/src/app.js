@@ -16,6 +16,7 @@ import messageRoutes from './routes/message.routes.js';
 import actorRoutes from './routes/actor.routes.js';
 import pushRoutes from './routes/push.routes.js';
 import materialRequestRoutes from './routes/materialRequest.routes.js';
+import favoriteRoutes from './routes/favorite.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -97,6 +98,7 @@ app.use('/api/messages',
 app.use('/api/actors', actorRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/requests', materialRequestRoutes);
+app.use('/api/favorites', favoriteRoutes);
 
 // Swagger UI
 const swaggerPath = join(__dirname, '../swagger-output.json');

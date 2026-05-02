@@ -23,6 +23,7 @@ import ActorDetailOverlay from '../../pages/actors/ActorDetailOverlay';
 import ActorForm from '../../components/actors/ActorForm';
 
 import { MEDIA_BASE } from '../../services/api';
+import { exportGesuchPoster, exportAngebotPoster } from '../../utils/exportUtils';
 
 const API_BASE = MEDIA_BASE;
 
@@ -837,7 +838,7 @@ export default function Explore() {
                   if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
                   if (e.type === 'offer') setOfferDetailId(e.raw?.id);
                   if (e.type === 'actor') setActorDetail(e.raw);
-                  if (e.type === 'gesuch' && e.raw?.material_id) navigate(`/materials/${e.raw.material_id}`);
+                  if (e.type === 'gesuch') navigate(`/gesuch/${e.raw?.id}`);
                 }}
               />
             </div>
@@ -872,8 +873,10 @@ export default function Explore() {
                       if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
                       if (e.type === 'offer') setOfferDetailId(e.raw?.id);
                       if (e.type === 'actor') setActorDetail(e.raw);
-                      if (e.type === 'gesuch' && e.raw?.material_id) navigate(`/materials/${e.raw.material_id}`);
+                      if (e.type === 'gesuch') navigate(`/gesuch/${e.raw?.id}`);
                     }}
+                    onPrint={e.type === 'gesuch' ? () => exportGesuchPoster(e.raw) : undefined}
+                    onPrintOffer={e.type === 'material' && e.offerRaw ? () => exportAngebotPoster(e.offerRaw) : undefined}
                     onRequest={
                       e.type === 'material' && e.offerRaw
                         ? () => {

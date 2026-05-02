@@ -24,6 +24,7 @@ import {
   ClipboardList,
   FlaskConical,
   BookOpen,
+  Bookmark,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
@@ -48,6 +49,7 @@ const navigation = [
   { name: 'Projekte', href: '/projects', icon: FolderOpen },
   { name: 'Materialien', href: '/materials', icon: Package },
   { name: 'Akteure', href: '/actors', icon: Users },
+  { name: 'Merkliste', href: '/favorites', icon: Bookmark },
   { name: 'Nachrichten', href: '/messages', icon: Mail },
 ];
 

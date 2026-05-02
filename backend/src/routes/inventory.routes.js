@@ -120,12 +120,11 @@ router.get('/transfers', protect,
   (req, res) => getTransfers(req, res)
 );
 
-router.get('/:id', protect,
+router.get('/:id', optionalAuth,
   /*
     #swagger.tags = ['Inventory']
     #swagger.summary = 'Get inventory entry by ID'
-    #swagger.description = 'Retrieve a specific inventory entry'
-    #swagger.security = [{ "bearerAuth": [] }]
+    #swagger.description = 'Retrieve a specific inventory entry (public for gesuche)'
     #swagger.parameters['id'] = {
       in: 'path',
       description: 'Inventory ID',

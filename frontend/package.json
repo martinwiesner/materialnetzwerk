@@ -17,6 +17,7 @@
     "geist": "^1.7.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.314.0",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-leaflet": "^4.2.1",

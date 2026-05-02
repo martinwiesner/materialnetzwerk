@@ -19,6 +19,9 @@ import Messages from './pages/messages/Messages';
 import Marketplace from './pages/marketplace/Marketplace';
 import Explore from './pages/explore/Explore';
 import Actors from './pages/actors/Actors';
+import Favorites from './pages/favorites/Favorites';
+import GesuchDetail from './pages/gesuch/GesuchDetail';
+import AngebotDetail from './pages/angebot/AngebotDetail';
 
 // Protected route wrapper
 function ProtectedRoute({ children }) {
@@ -97,6 +100,9 @@ export default function App() {
           <Route path="projects/:id" element={<ProjectDetail />} />
           <Route path="messages" element={<Messages />} />
           <Route path="actors" element={<Actors />} />
+          <Route path="favorites" element={<Favorites />} />
+          <Route path="gesuch/:id" element={<GesuchDetail />} />
+          <Route path="angebot/:id" element={<AngebotDetail />} />
           {/* Legacy routes */}
           <Route path="offers" element={<Navigate to="/" replace />} />
           <Route path="marketplace" element={<Navigate to="/" replace />} />

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X, MapPin, Package, User, Calendar, Truck, Tag, MessageSquare, Download, ExternalLink, Send, Inbox } from 'lucide-react';
+import { X, MapPin, Package, User, Calendar, Truck, Tag, MessageSquare, Download, ExternalLink, Send, Inbox, Printer } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { MEDIA_BASE } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import MaterialRequestModal from '../requests/MaterialRequestModal';
 import IncomingRequestsPanel from '../requests/IncomingRequestsPanel';
+import { exportAngebotPoster } from '../../utils/exportUtils';
 
 const API_BASE = MEDIA_BASE;
 
@@ -263,6 +264,14 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
                   {item.owner_first_name || item.owner_email?.split('@')[0] || 'Unbekannt'}
                 </div>
                 <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => exportAngebotPoster(item)}
+                    className="inline-flex items-center gap-2 border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                    title="Aushang als PDF drucken"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Aushang
+                  </button>
                   {onContact && (
                     <button
                       onClick={() => onContact(item)}
