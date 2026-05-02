@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2 } from 'lucide-react';
 import { OwnerLine } from '../shared/ContactButton';
 import SharePrintBar from '../shared/SharePrintBar';
 import { exportMaterialPoster } from '../../utils/exportUtils';
+import { MEDIA_BASE } from '../../services/api';
+
+const API_BASE = MEDIA_BASE;
 
 function safeJsonParse(value, fallback) {
   if (!value) return fallback;
@@ -44,6 +47,45 @@ function TagGroup({ title, items }) {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ImageGallery({ images, name }) {
+  const [active, setActive] = useState(0);
+  const imgUrl = (img) => {
+    if (!img?.file_path) return null;
+    const p = img.file_path.replace(/^\./, '');
+    return `${API_BASE}${p.startsWith('/') ? p : '/' + p}`;
+  };
+
+  return (
+    <div className="mb-5">
+      <img
+        src={imgUrl(images[active])}
+        alt={name}
+        className="w-full h-64 object-cover rounded-2xl border border-gray-100"
+      />
+      {images.length > 1 && (
+        <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+          {images.map((img, i) => (
+            <button
+              key={img.id ?? i}
+              type="button"
+              onClick={() => setActive(i)}
+              className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
+                i === active ? 'border-primary-500' : 'border-transparent'
+              }`}
+            >
+              <img
+                src={imgUrl(img)}
+                alt={`${name} ${i + 1}`}
+                className="h-16 w-24 object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -149,6 +191,12 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
 
         {/* Body */}
         <div className="p-5 overflow-y-auto max-h-[calc(92vh-144px)]">
+
+          {/* Images */}
+          {material.images && material.images.length > 0 && (
+            <ImageGallery images={material.images} name={material.name} />
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Section title="Kurzbeschreibung" icon={Info}>
               {material.short_description ? (

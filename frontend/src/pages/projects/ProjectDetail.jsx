@@ -2,10 +2,68 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
-import { 
-  ArrowLeft, Edit2, Trash2, Globe, Lock, Package, 
-  Calendar, User, Leaf
+import {
+  ArrowLeft, Edit2, Trash2, Globe, Lock, Package,
+  Calendar, User, Leaf, ChevronLeft, ChevronRight
 } from 'lucide-react';
+
+function ImageCarousel({ images, apiBase }) {
+  const [idx, setIdx] = useState(0);
+  if (!images.length) return null;
+  const url = (img) => `${apiBase}${img.file_path?.replace(/^\./, '')}`;
+  const prev = () => setIdx((i) => (i - 1 + images.length) % images.length);
+  const next = () => setIdx((i) => (i + 1) % images.length);
+
+  return (
+    <div className="border-b border-gray-200">
+      {/* Main image */}
+      <div className="relative group">
+        <img
+          src={url(images[idx])}
+          alt={images[idx].original_name || `Bild ${idx + 1}`}
+          className="w-full h-72 object-cover"
+        />
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={prev}
+              className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={next}
+              className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            {/* Counter */}
+            <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs font-medium px-2 py-0.5 rounded-full">
+              {idx + 1} / {images.length}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Thumbnails */}
+      {images.length > 1 && (
+        <div className="flex gap-1.5 p-3 overflow-x-auto bg-gray-50">
+          {images.map((img, i) => (
+            <button
+              key={img.id ?? i}
+              onClick={() => setIdx(i)}
+              className={`flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
+                i === idx ? 'border-project-500' : 'border-transparent opacity-60 hover:opacity-100'
+              }`}
+            >
+              <img src={url(img)} alt="" className="h-14 w-20 object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 import ProjectForm from '../../components/projects/ProjectForm';
 import { MEDIA_BASE } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -172,21 +230,11 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Images */}
-        {project.images && project.images.length > 0 && (
-          <div className="p-6 border-b border-gray-200">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {project.images.map((image) => (
-                <img
-                  key={image.id}
-                  src={`${API_BASE}${image.file_path?.replace(/^\./, '')}`}
-                  alt={image.original_name}
-                  className="w-full h-40 object-cover rounded-lg"
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Images carousel (cover images only; step images appear in-context below) */}
+        {(() => {
+          const coverImgs = (project.images || []).filter(img => img.step_index == null);
+          return coverImgs.length > 0 ? <ImageCarousel images={coverImgs} apiBase={API_BASE} /> : null;
+        })()}
 
         {/* Content */}
         <div className="p-6 border-b border-gray-200">

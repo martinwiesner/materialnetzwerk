@@ -47,11 +47,17 @@ export default function MaterialDetail() {
 
   const canEdit = isAuthenticated && (material.created_by === user?.id || user?.is_admin);
 
+  // If the user landed directly on this URL (no app history), go to home instead of back
+  const handleClose = () => {
+    if (window.history.state?.idx > 0) navigate(-1);
+    else navigate('/');
+  };
+
   return (
     <>
       <MaterialDetailModal
         material={material}
-        onClose={() => navigate(-1)}
+        onClose={handleClose}
         canEdit={canEdit}
         onEdit={() => setEditing(true)}
         onDelete={canEdit ? () => deleteMutation.mutate() : undefined}
