@@ -3,6 +3,7 @@ import { X, ClipboardList, Package, Undo2 } from 'lucide-react';
 import { materialRequestService } from '../../services/materialRequestService';
 import { StatusBadge } from './MaterialRequestModal';
 import { useToast } from '../../store/toastStore';
+import { formatDate } from '../../utils/dates';
 
 function MyRequestCard({ req, onWithdraw, mutating }) {
   const name = req.owner_first_name
@@ -15,7 +16,7 @@ function MyRequestCard({ req, onWithdraw, mutating }) {
         <div className="min-w-0">
           <p className="font-medium text-gray-900 text-sm truncate">{req.material_name || 'Material'}</p>
           <p className="text-xs text-gray-400">Anbieter: {name}</p>
-          <p className="text-xs text-gray-400">{new Date(req.created_at).toLocaleDateString('de-DE')}</p>
+          <p className="text-xs text-gray-400">{formatDate(req.created_at)}</p>
         </div>
         <StatusBadge status={req.status} />
       </div>

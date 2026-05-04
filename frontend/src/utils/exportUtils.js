@@ -1,4 +1,5 @@
 import QRCode from 'qrcode';
+import { formatDate } from './dates';
 
 // ── CSV Export ────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ export function exportMaterialsToCSV(materials) {
     m.address,
     m.recyclable ? 'Ja' : 'Nein',
     m.biodegradable ? 'Ja' : 'Nein',
-    m.created_at ? new Date(m.created_at).toLocaleDateString('de-DE') : '',
+    m.created_at ? formatDate(m.created_at) : '',
   ]);
   downloadCSV([headers, ...rows], 'materialien');
 }
@@ -49,7 +50,7 @@ export function exportProjectsToCSV(projects) {
     p.client_name,
     p.location_name,
     p.address,
-    p.created_at ? new Date(p.created_at).toLocaleDateString('de-DE') : '',
+    p.created_at ? formatDate(p.created_at) : '',
   ]);
   downloadCSV([headers, ...rows], 'projekte');
 }
@@ -422,7 +423,7 @@ function openProjectPosterWindow({ project, qrDataUrl, projectUrl, w }) {
     ? `${project.owner_first_name} ${project.owner_last_name || ''}`.trim()
     : project.owner_email?.split('@')[0] || null;
   const createdAt = project.created_at
-    ? new Date(project.created_at).toLocaleDateString('de-DE')
+    ? formatDate(project.created_at)
     : null;
 
   const html = '<!DOCTYPE html>\n'

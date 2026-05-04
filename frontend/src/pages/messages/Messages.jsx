@@ -3,6 +3,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { messageService } from '../../services/messageService';
+import { parseDbDate, formatDateTime, formatDate } from '../../utils/dates';
 import { Mail, Send, CheckCheck, Trash2, ArrowLeft, X, Inbox } from 'lucide-react';
 import clsx from 'clsx';
 import IncomingRequestsPanel from '../../components/requests/IncomingRequestsPanel';
@@ -32,24 +33,28 @@ export default function Messages() {
     queryKey: ['messages-inbox'],
     queryFn: messageService.getInbox,
     enabled: Boolean(isAuthenticated && token),
+    refetchInterval: 15_000, // refresh inbox list every 15 s
   });
 
   const { data: sentData, isLoading: sentLoading } = useQuery({
     queryKey: ['messages-sent'],
     queryFn: messageService.getSent,
     enabled: Boolean(isAuthenticated && token),
+    refetchInterval: 15_000,
   });
 
   const { data: unreadCount } = useQuery({
     queryKey: ['messages-unread-count'],
     queryFn: messageService.getUnreadCount,
     enabled: Boolean(isAuthenticated && token),
+    refetchInterval: 15_000,
   });
 
   const { data: conversationData, isLoading: conversationLoading } = useQuery({
     queryKey: ['conversation', selectedConversation?.otherUserId],
     queryFn: () => messageService.getConversation(selectedConversation.otherUserId),
     enabled: Boolean(isAuthenticated && token && selectedConversation),
+    refetchInterval: 5_000, // poll open chat window every 5 s for new messages
   });
 
   const sendMutation = useMutation({
@@ -99,7 +104,7 @@ export default function Messages() {
 
   const inbox = Array.isArray(inboxData) ? inboxData : [];
   const sent = Array.isArray(sentData) ? sentData : [];
-  const allMessages = [...inbox, ...sent].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const allMessages = [...inbox, ...sent].sort((a, b) => parseDbDate(b.created_at) - parseDbDate(a.created_at));
   const isLoading = inboxLoading || sentLoading;
   const conversation = Array.isArray(conversationData) ? conversationData : [];
 
@@ -128,7 +133,7 @@ export default function Messages() {
           otherUserName,
           latestMessage: message,
           unreadCount,
-          lastMessageDate: new Date(message.created_at)
+          lastMessageDate: parseDbDate(message.created_at)
         });
       }
     });
@@ -230,7 +235,7 @@ export default function Messages() {
                       )}
                       <p className="whitespace-pre-wrap">{message.content}</p>
                       <p className={clsx('text-xs mt-2', isFromMe ? 'text-primary-100' : 'text-gray-500')}>
-                        {new Date(message.created_at).toLocaleString('de-DE')}
+                        {formatDateTime(message.created_at)}
                       </p>
                     </div>
                   </div>
@@ -465,7 +470,7 @@ export default function Messages() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span className="text-xs text-gray-400 whitespace-nowrap">
-                      {new Date(latestMsg.created_at).toLocaleDateString()}
+                      {formatDate(latestMsg.created_at)}
                     </span>
                     <span className="text-xs text-gray-500">
                       {new Date(latestMsg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

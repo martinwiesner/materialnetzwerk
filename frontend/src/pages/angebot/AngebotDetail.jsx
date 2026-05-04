@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import { useState } from 'react';
 import MaterialRequestModal from '../../components/requests/MaterialRequestModal';
+import { formatDate } from '../../utils/dates';
 
 const VALUE_TYPE_LABELS = {
   swap: 'Tausch',
@@ -66,7 +67,7 @@ export default function AngebotDetail() {
     ? `${offer.owner_first_name} ${offer.owner_last_name || ''}`.trim()
     : offer.owner_email?.split('@')[0] || null;
   const createdAt = offer.created_at
-    ? new Date(offer.created_at).toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' })
+    ? formatDate(offer.created_at, { year: 'numeric', month: 'long', day: 'numeric' })
     : null;
   const valueLabel = VALUE_TYPE_LABELS[offer.value_type] || offer.value_type;
   const price = offer.price != null

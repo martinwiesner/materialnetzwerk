@@ -79,6 +79,7 @@ import { useAuthStore } from '../../store/authStore';
 import SharePrintBar from '../../components/shared/SharePrintBar';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectPoster } from '../../utils/exportUtils';
+import { formatDate } from '../../utils/dates';
 const API_BASE = MEDIA_BASE;
 
 function safeJsonParse(value, fallback) {
@@ -235,7 +236,7 @@ export default function ProjectDetail() {
             )}
             <span className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              {new Date(project.created_at).toLocaleDateString()}
+              {formatDate(project.created_at)}
             </span>
           </div>
         </div>

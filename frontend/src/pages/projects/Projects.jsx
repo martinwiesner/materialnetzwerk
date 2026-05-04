@@ -13,6 +13,7 @@ import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import RzzDecoration from '../../components/ui/RzzDecoration';
 import { useToast } from '../../store/toastStore';
 import { OwnerLine } from '../../components/shared/ContactButton';
+import { formatDate } from '../../utils/dates';
 
 export default function Projects() {
   const { isAuthenticated, token, user } = useAuthStore();
@@ -402,7 +403,7 @@ export default function Projects() {
                           </div>
                         )}
                         <p className="text-xs text-gray-400">
-                          {new Date(project.created_at).toLocaleDateString('de-DE')}
+                          {formatDate(project.created_at)}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {typeof project.total_gwp_value === 'number' && project.total_gwp_value > 0 && (

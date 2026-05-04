@@ -4,6 +4,7 @@ import { BookMarked, MapPin, Package, User, ArrowLeft, Printer, Tag } from 'luci
 import { inventoryService } from '../../services/inventoryService';
 import { exportGesuchPoster } from '../../utils/exportUtils';
 import SharePrintBar from '../../components/shared/SharePrintBar';
+import { formatDate } from '../../utils/dates';
 
 export default function GesuchDetail() {
   const { id } = useParams();
@@ -43,7 +44,7 @@ export default function GesuchDetail() {
     ? `${gesuch.owner_first_name} ${gesuch.owner_last_name || ''}`.trim()
     : gesuch.owner_email || null;
   const createdAt = gesuch.created_at
-    ? new Date(gesuch.created_at).toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' })
+    ? formatDate(gesuch.created_at, { year: 'numeric', month: 'long', day: 'numeric' })
     : null;
 
   return (

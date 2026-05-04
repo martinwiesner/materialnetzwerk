@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Inbox, CheckCircle2, XCircle, Archive, Package, X, ChevronDown, ChevronUp, Undo2 } from 'lucide-react';
 import { materialRequestService } from '../../services/materialRequestService';
+import { formatDate } from '../../utils/dates';
 import { StatusBadge } from './MaterialRequestModal';
 import { useToast } from '../../store/toastStore';
 
@@ -41,7 +42,7 @@ function RequestCard({ req, onAction, mutating }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-medium text-gray-900 text-sm">{name}</p>
-          <p className="text-xs text-gray-400">{new Date(req.created_at).toLocaleDateString('de-DE')}</p>
+          <p className="text-xs text-gray-400">{formatDate(req.created_at)}</p>
         </div>
         <StatusBadge status={req.status} />
       </div>

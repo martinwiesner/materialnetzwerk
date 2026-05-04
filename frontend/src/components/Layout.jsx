@@ -427,37 +427,61 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                 </div>
 
                 {/* Push toggle */}
-                {pushSupported && permission !== 'denied' && (
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
-                          {subscribed ? <Bell className="w-4 h-4 text-project-600" /> : <BellOff className="w-4 h-4 text-gray-400" />}
-                          Benachrichtigungen
+                {(() => {
+                  // iOS Safari only supports Web Push when installed as PWA (Home Screen)
+                  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+                  const isStandalone = window.navigator.standalone === true;
+                  const iosNeedsPwa = isIos && !isStandalone;
+
+                  if (iosNeedsPwa) {
+                    return (
+                      <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <BellOff className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                          <span className="text-sm font-medium text-amber-800">Push-Benachrichtigungen</span>
                         </div>
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          {subscribed ? 'Aktiv — du wirst bei neuen Nachrichten informiert.' : 'Deaktiviert'}
-                        </div>
+                        <p className="text-xs text-amber-700 leading-relaxed">
+                          Auf iOS nur als App verfügbar: In Safari auf{' '}
+                          <strong>Teilen → Zum Home-Bildschirm</strong> tippen, dann die App öffnen und hier aktivieren.
+                        </p>
                       </div>
-                      <button
-                        onClick={subscribed ? disablePush : enablePush}
-                        disabled={pushLoading}
-                        className={clsx(
-                          'flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50',
-                          subscribed ? 'bg-project-500' : 'bg-gray-300'
-                        )}
-                      >
-                        <span className={clsx(
-                          'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                          subscribed ? 'translate-x-6' : 'translate-x-1'
-                        )} />
-                      </button>
+                    );
+                  }
+
+                  if (!pushSupported) return null;
+
+                  return (
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                            {subscribed ? <Bell className="w-4 h-4 text-project-600" /> : <BellOff className="w-4 h-4 text-gray-400" />}
+                            Benachrichtigungen
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            {subscribed ? 'Aktiv — du wirst bei neuen Nachrichten informiert.' : 'Deaktiviert'}
+                          </div>
+                        </div>
+                        <button
+                          onClick={subscribed ? disablePush : enablePush}
+                          disabled={pushLoading}
+                          className={clsx(
+                            'flex-shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50',
+                            subscribed ? 'bg-project-500' : 'bg-gray-300'
+                          )}
+                        >
+                          <span className={clsx(
+                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                            subscribed ? 'translate-x-6' : 'translate-x-1'
+                          )} />
+                        </button>
+                      </div>
+                      {permission === 'denied' && (
+                        <p className="mt-2 text-xs text-actor-600">Benachrichtigungen sind im Browser blockiert.</p>
+                      )}
                     </div>
-                    {permission === 'denied' && (
-                      <p className="mt-2 text-xs text-actor-600">Benachrichtigungen sind im Browser blockiert.</p>
-                    )}
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
