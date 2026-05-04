@@ -25,6 +25,7 @@ import {
   FlaskConical,
   BookOpen,
   Bookmark,
+  Settings,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
@@ -413,6 +414,16 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                       </span>
                     )}
                   </button>
+                  {user?.is_admin && (
+                    <Link
+                      to="/admin"
+                      onClick={onClose}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-primary-700 hover:bg-primary-50 transition-colors font-medium"
+                    >
+                      <Settings className="w-4 h-4 text-primary-500" />
+                      Admin-Panel
+                    </Link>
+                  )}
                 </div>
 
                 {/* Push toggle */}

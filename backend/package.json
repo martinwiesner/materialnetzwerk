@@ -4,7 +4,9 @@
   "description": "Backend API for Material Library - managing materials, projects, products, components, and inventories",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node scripts/test-api.js",
+    "test:browser": "node scripts/test-browser.js",
+    "test:all": "node scripts/test-api.js && node scripts/test-browser.js",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "swagger": "node ./swagger.js",
@@ -39,6 +41,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10",
+    "playwright": "^1.59.1",
     "swagger-autogen": "^2.23.7"
   }
 }

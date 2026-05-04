@@ -50,7 +50,8 @@ export const getDB = () => {
   ensureAdmin();                   // Promote ADMIN_EMAIL to superuser if set
   ensureFixedAdmins(); // Create/promote hardcoded admin accounts (fire-and-forget)
   ensureSeedData();
-  
+  ensureSettings();
+
   return db;
 };
 
@@ -196,6 +197,20 @@ const ensureTables = () => {
       CREATE TABLE IF NOT EXISTS id_counters (
         type_month  TEXT PRIMARY KEY,
         next_number INTEGER DEFAULT 1
+      );
+      CREATE TABLE IF NOT EXISTS platform_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id  TEXT NOT NULL,
+        endpoint TEXT NOT NULL UNIQUE,
+        p256dh   TEXT NOT NULL,
+        auth     TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
     `);
     console.log('✓ All tables verified/created.');
@@ -828,5 +843,68 @@ const ensureSeedData = () => {
     seed().catch((e) => console.error('Seed failed:', e.message));
   } catch (err) {
     console.error('Failed seeding demo data:', err.message);
+  }
+};
+
+/**
+ * Seed default platform texts.
+ * Uses INSERT OR IGNORE — existing customisations are never overwritten.
+ */
+const ensureSettings = () => {
+  try {
+    const defaults = {
+      platform_intro:
+        'Ein digitales Werkzeug des Reallabors ZEKIWA Zeitz. Die Plattform vernetzt Materialien, Projekte und Akteure der Region und macht Stoffkreisläufe sichtbar — für eine funktionierende Kreislaufwirtschaft auf dem Gelände der ehemaligen Kinderwagenfabrik in Zeitz.\n\nPlattform befindet sich in der Beta-Phase — Funktionen können sich ändern, und wir freuen uns über jedes Feedback!',
+      guidelines_materials_yes: JSON.stringify([
+        '<strong>Bau- und Werkstoffe</strong> im Kontext von nachhaltigem, zirkulärem Bauen',
+        '<strong>Nachwachsende Rohstoffe</strong>: Holz, Hanf, Stroh, Lehm, Flachs, Wolle, Schilf, Kork u.&nbsp;v.&nbsp;m.',
+        '<strong>Recycling- und Sekundärrohstoffe</strong>: Rezyklate, rückgebaute Baustoffe, aufbereitete Materialien',
+        '<strong>Innovative Materialien</strong>: z.&nbsp;B. Myzel-Werkstoffe, Textilbeton, Materialien aus invasiven Pflanzen',
+        '<strong>Konventionelle Baustoffe</strong>, die im Kreislauf geführt werden können (z.&nbsp;B. Ziegel aus Rückbau)',
+        'Materialien mit <strong>regionalem Bezug</strong> — besonders willkommen, aber keine Pflicht',
+        '<strong>Restmaterialien und Überschüsse</strong>, die weiterverwendet werden könnten',
+      ]),
+      guidelines_materials_no: JSON.stringify([
+        'Fertige Konsumprodukte (Möbel, Elektrogeräte, Kleidung)',
+        'Materialien ohne Bezug zu Bau, Gestaltung oder Kreislaufwirtschaft',
+        'Reine Verkaufsanzeigen / kommerzielle Werbung',
+        'Gefahrstoffe oder Materialien, deren Weitergabe rechtlich unzulässig ist',
+      ]),
+      guidelines_projects_yes: JSON.stringify([
+        '<strong>Bau- und Gestaltungsprojekte</strong>, die Materialien aus der Datenbank nutzen',
+        '<strong>Forschungsprojekte</strong> zu Materialien, Kreislaufwirtschaft oder nachhaltigem Bauen',
+        '<strong>Prototypen und Experimente</strong>: z.&nbsp;B. Akustikabsorber aus Weizenspreu',
+        '<strong>Laufende und geplante Vorhaben</strong> — Projekte müssen nicht abgeschlossen sein',
+        'Projekte können als <strong>Entwurf</strong> gespeichert werden (nur für dich sichtbar)',
+      ]),
+      guidelines_projects_no: JSON.stringify([
+        'Reine Stellenanzeigen oder Jobangebote',
+        'Projekte ohne Materialbezug (reine Software-Projekte, Events ohne Baubezug)',
+      ]),
+      guidelines_actors_yes: JSON.stringify([
+        '<strong>Hersteller</strong> von nachhaltigen Bau- oder Werkstoffen',
+        '<strong>Lieferanten / Händler</strong> von Recycling- oder Bio-Baustoffen',
+        '<strong>Forschung / Labore</strong>, die an Materialinnovationen arbeiten',
+        '<strong>Recycling- / Verwertungsbetriebe</strong> und Urban-Mining-Initiativen',
+        '<strong>Makerspaces, Repair Cafés, Upcycling-Werkstätten</strong>',
+        '<strong>Vereine und Initiativen</strong> für Kreislaufwirtschaft oder nachhaltiges Bauen',
+        '<strong>Unternehmen</strong> aus Bau / Gestaltung mit zirkulärem Ansatz',
+        'Fokus liegt auf der Region — überregionale Akteure mit Bezug willkommen',
+      ]),
+      guidelines_actors_no: JSON.stringify([
+        'Privatpersonen als Einzelpersonen (es geht um Organisationen und Initiativen)',
+        'Unternehmen ohne erkennbaren Bezug zu Materialien, Bau oder Kreislaufwirtschaft',
+        'Reine Werbeeinträge',
+      ]),
+      // agb_html is intentionally not seeded — empty means "use hardcoded default"
+    };
+
+    const stmt = db.prepare('INSERT OR IGNORE INTO platform_settings (key, value) VALUES (?, ?)');
+    for (const [key, value] of Object.entries(defaults)) {
+      stmt.run(key, value);
+    }
+    console.log('✓ Platform settings seeded/verified.');
+  } catch (err) {
+    console.error('ensureSettings failed:', err.message);
   }
 };

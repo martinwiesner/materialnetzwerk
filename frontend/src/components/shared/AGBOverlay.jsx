@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { X, Scale } from 'lucide-react';
 import { useAgbStore } from '../../store/agbStore';
+import { useSettings } from '../../hooks/useSettings';
 
 function Para({ title, children }) {
   return (
@@ -13,6 +14,8 @@ function Para({ title, children }) {
 
 export default function AGBOverlay() {
   const { isOpen, close } = useAgbStore();
+  const { data: settings } = useSettings();
+  const customHtml = settings?.agb_html;
 
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
@@ -48,6 +51,13 @@ export default function AGBOverlay() {
         {/* Body */}
         <div className="overflow-y-auto px-5 py-5 space-y-5">
 
+          {customHtml ? (
+            <div
+              className="text-xs text-gray-600 leading-relaxed space-y-4 [&_strong]:text-gray-800 [&_a]:underline [&_a]:hover:text-gray-800 [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-1"
+              dangerouslySetInnerHTML={{ __html: customHtml }}
+            />
+          ) : (
+          <>
           {/* Präambel */}
           <div className="bg-amber-50 rounded-xl px-4 py-3 border border-amber-100 text-xs text-amber-800 leading-relaxed">
             Diese Plattform ist ein unentgeltliches Forschungswerkzeug, das im Rahmen des öffentlich
@@ -273,6 +283,8 @@ export default function AGBOverlay() {
               Reallabor ZEKIWA Zeitz / Hochschule Anhalt
             </p>
           </Para>
+          </>
+          )}
 
         </div>
 

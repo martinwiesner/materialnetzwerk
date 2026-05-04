@@ -3,6 +3,57 @@ import { X, Package, FolderOpen, Users, Eye, FlaskConical, ChevronDown, ChevronU
 import { useGuidelinesStore } from '../../store/guidelinesStore';
 import { useAgbStore } from '../../store/agbStore';
 import { useAuthStore } from '../../store/authStore';
+import { useSettings } from '../../hooks/useSettings';
+
+// ── defaults (fallback when settings are not yet loaded) ──────────────────────
+const DEFAULT_INTRO = 'Ein digitales Werkzeug des Reallabors ZEKIWA Zeitz. Die Plattform vernetzt Materialien, Projekte und Akteure der Region und macht Stoffkreisläufe sichtbar — für eine funktionierende Kreislaufwirtschaft auf dem Gelände der ehemaligen Kinderwagenfabrik in Zeitz.\n\nPlattform befindet sich in der Beta-Phase — Funktionen können sich ändern, und wir freuen uns über jedes Feedback!';
+
+const DEFAULT_MATERIALS_YES = [
+  '<strong>Bau- und Werkstoffe</strong> im Kontext von nachhaltigem, zirkulärem Bauen',
+  '<strong>Nachwachsende Rohstoffe</strong>: Holz, Hanf, Stroh, Lehm, Flachs, Wolle, Schilf, Kork u.&nbsp;v.&nbsp;m.',
+  '<strong>Recycling- und Sekundärrohstoffe</strong>: Rezyklate, rückgebaute Baustoffe, aufbereitete Materialien',
+  '<strong>Innovative Materialien</strong>: z.&nbsp;B. Myzel-Werkstoffe, Textilbeton, Materialien aus invasiven Pflanzen',
+  '<strong>Konventionelle Baustoffe</strong>, die im Kreislauf geführt werden können (z.&nbsp;B. Ziegel aus Rückbau)',
+  'Materialien mit <strong>regionalem Bezug</strong> — besonders willkommen, aber keine Pflicht',
+  '<strong>Restmaterialien und Überschüsse</strong>, die weiterverwendet werden könnten',
+];
+const DEFAULT_MATERIALS_NO = [
+  'Fertige Konsumprodukte (Möbel, Elektrogeräte, Kleidung)',
+  'Materialien ohne Bezug zu Bau, Gestaltung oder Kreislaufwirtschaft',
+  'Reine Verkaufsanzeigen / kommerzielle Werbung',
+  'Gefahrstoffe oder Materialien, deren Weitergabe rechtlich unzulässig ist',
+];
+const DEFAULT_PROJECTS_YES = [
+  '<strong>Bau- und Gestaltungsprojekte</strong>, die Materialien aus der Datenbank nutzen',
+  '<strong>Forschungsprojekte</strong> zu Materialien, Kreislaufwirtschaft oder nachhaltigem Bauen',
+  '<strong>Prototypen und Experimente</strong>: z.&nbsp;B. Akustikabsorber aus Weizenspreu',
+  '<strong>Laufende und geplante Vorhaben</strong> — Projekte müssen nicht abgeschlossen sein',
+  'Projekte können als <strong>Entwurf</strong> gespeichert werden (nur für dich sichtbar)',
+];
+const DEFAULT_PROJECTS_NO = [
+  'Reine Stellenanzeigen oder Jobangebote',
+  'Projekte ohne Materialbezug (reine Software-Projekte, Events ohne Baubezug)',
+];
+const DEFAULT_ACTORS_YES = [
+  '<strong>Hersteller</strong> von nachhaltigen Bau- oder Werkstoffen',
+  '<strong>Lieferanten / Händler</strong> von Recycling- oder Bio-Baustoffen',
+  '<strong>Forschung / Labore</strong>, die an Materialinnovationen arbeiten',
+  '<strong>Recycling- / Verwertungsbetriebe</strong> und Urban-Mining-Initiativen',
+  '<strong>Makerspaces, Repair Cafés, Upcycling-Werkstätten</strong>',
+  '<strong>Vereine und Initiativen</strong> für Kreislaufwirtschaft oder nachhaltiges Bauen',
+  '<strong>Unternehmen</strong> aus Bau / Gestaltung mit zirkulärem Ansatz',
+  'Fokus liegt auf der Region — überregionale Akteure mit Bezug willkommen',
+];
+const DEFAULT_ACTORS_NO = [
+  'Privatpersonen als Einzelpersonen (es geht um Organisationen und Initiativen)',
+  'Unternehmen ohne erkennbaren Bezug zu Materialien, Bau oder Kreislaufwirtschaft',
+  'Reine Werbeeinträge',
+];
+
+function parseList(jsonStr, fallback) {
+  if (!jsonStr) return fallback;
+  try { return JSON.parse(jsonStr); } catch { return fallback; }
+}
 
 // ── Collapsible section ───────────────────────────────────────────────────────
 
@@ -70,6 +121,17 @@ function SubHeading({ children }) {
 export default function GuidelinesOverlay({ onClose }) {
   const { isAuthenticated } = useAuthStore();
   const openAgb = useAgbStore((s) => s.open);
+  const { data: settings } = useSettings();
+
+  const introText = settings?.platform_intro ?? DEFAULT_INTRO;
+  const introParagraphs = introText.split('\n').filter(Boolean);
+
+  const materialsYes = parseList(settings?.guidelines_materials_yes, DEFAULT_MATERIALS_YES);
+  const materialsNo = parseList(settings?.guidelines_materials_no, DEFAULT_MATERIALS_NO);
+  const projectsYes = parseList(settings?.guidelines_projects_yes, DEFAULT_PROJECTS_YES);
+  const projectsNo = parseList(settings?.guidelines_projects_no, DEFAULT_PROJECTS_NO);
+  const actorsYes = parseList(settings?.guidelines_actors_yes, DEFAULT_ACTORS_YES);
+  const actorsNo = parseList(settings?.guidelines_actors_no, DEFAULT_ACTORS_NO);
   const openCreate = () => {
     onClose();
     window.dispatchEvent(new CustomEvent('rzz:openCreateMenu'));
@@ -123,25 +185,9 @@ export default function GuidelinesOverlay({ onClose }) {
 
           {/* ── Was ist die Plattform? ── */}
           <div className="bg-gray-50 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed space-y-2">
-            <p>
-              Ein digitales Werkzeug des{' '}
-              <a
-                href="https://www.reallabor-zekiwa-zeitz.de"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-gray-800 inline-flex items-center gap-0.5"
-              >
-                Reallabors ZEKIWA Zeitz
-                <ExternalLink className="w-3 h-3" />
-              </a>.{' '}
-              Die Plattform vernetzt Materialien, Projekte und Akteure der Region und macht
-              Stoffkreisläufe sichtbar — für eine funktionierende Kreislaufwirtschaft auf
-              dem Gelände der ehemaligen Kinderwagenfabrik in Zeitz.
-            </p>
-            <p>
-              Plattform befindet sich in der <strong className="text-gray-800">Beta-Phase</strong> — Funktionen
-              können sich ändern, und wir freuen uns über jedes Feedback!
-            </p>
+            {introParagraphs.map((para, i) => (
+              <p key={i}>{para}</p>
+            ))}
           </div>
 
           {/* ── Drei Entity-Typen als Mini-Cards ── */}
@@ -178,22 +224,9 @@ export default function GuidelinesOverlay({ onClose }) {
 
           <Section icon={Package} title="Materialien" color="#0033FF" defaultOpen>
             <SubHeading>Was gehört hierher</SubHeading>
-            <YesList items={[
-              '<strong>Bau- und Werkstoffe</strong> im Kontext von nachhaltigem, zirkulärem Bauen',
-              '<strong>Nachwachsende Rohstoffe</strong>: Holz, Hanf, Stroh, Lehm, Flachs, Wolle, Schilf, Kork u.&nbsp;v.&nbsp;m.',
-              '<strong>Recycling- und Sekundärrohstoffe</strong>: Rezyklate, rückgebaute Baustoffe, aufbereitete Materialien',
-              '<strong>Innovative Materialien</strong>: z.&nbsp;B. Myzel-Werkstoffe, Textilbeton, Materialien aus invasiven Pflanzen',
-              '<strong>Konventionelle Baustoffe</strong>, die im Kreislauf geführt werden können (z.&nbsp;B. Ziegel aus Rückbau)',
-              'Materialien mit <strong>regionalem Bezug</strong> — besonders willkommen, aber keine Pflicht',
-              '<strong>Restmaterialien und Überschüsse</strong>, die weiterverwendet werden könnten',
-            ]} />
+            <YesList items={materialsYes} />
             <SubHeading>Was gehört NICHT hierher</SubHeading>
-            <NoList items={[
-              'Fertige Konsumprodukte (Möbel, Elektrogeräte, Kleidung)',
-              'Materialien ohne Bezug zu Bau, Gestaltung oder Kreislaufwirtschaft',
-              'Reine Verkaufsanzeigen / kommerzielle Werbung',
-              'Gefahrstoffe oder Materialien, deren Weitergabe rechtlich unzulässig ist',
-            ]} />
+            <NoList items={materialsNo} />
             <SubHeading>Hinweise zur Qualität</SubHeading>
             <YesList items={[
               'Möglichst aussagekräftiger Name und Beschreibung',
@@ -206,18 +239,9 @@ export default function GuidelinesOverlay({ onClose }) {
 
           <Section icon={FolderOpen} title="Projekte" color="#639530">
             <SubHeading>Was gehört hierher</SubHeading>
-            <YesList items={[
-              '<strong>Bau- und Gestaltungsprojekte</strong>, die Materialien aus der Datenbank nutzen',
-              '<strong>Forschungsprojekte</strong> zu Materialien, Kreislaufwirtschaft oder nachhaltigem Bauen',
-              '<strong>Prototypen und Experimente</strong>: z.&nbsp;B. Akustikabsorber aus Weizenspreu',
-              '<strong>Laufende und geplante Vorhaben</strong> — Projekte müssen nicht abgeschlossen sein',
-              'Projekte können als <strong>Entwurf</strong> gespeichert werden (nur für dich sichtbar)',
-            ]} />
+            <YesList items={projectsYes} />
             <SubHeading>Was gehört NICHT hierher</SubHeading>
-            <NoList items={[
-              'Reine Stellenanzeigen oder Jobangebote',
-              'Projekte ohne Materialbezug (reine Software-Projekte, Events ohne Baubezug)',
-            ]} />
+            <NoList items={projectsNo} />
             <SubHeading>Besonders wertvoll</SubHeading>
             <YesList items={[
               'Verknüpfung mit Materialien aus der Datenbank',
@@ -229,22 +253,9 @@ export default function GuidelinesOverlay({ onClose }) {
 
           <Section icon={Users} title="Akteure" color="#FF3B36">
             <SubHeading>Was gehört hierher</SubHeading>
-            <YesList items={[
-              '<strong>Hersteller</strong> von nachhaltigen Bau- oder Werkstoffen',
-              '<strong>Lieferanten / Händler</strong> von Recycling- oder Bio-Baustoffen',
-              '<strong>Forschung / Labore</strong>, die an Materialinnovationen arbeiten',
-              '<strong>Recycling- / Verwertungsbetriebe</strong> und Urban-Mining-Initiativen',
-              '<strong>Makerspaces, Repair Cafés, Upcycling-Werkstätten</strong>',
-              '<strong>Vereine und Initiativen</strong> für Kreislaufwirtschaft oder nachhaltiges Bauen',
-              '<strong>Unternehmen</strong> aus Bau / Gestaltung mit zirkulärem Ansatz',
-              'Fokus liegt auf der Region — überregionale Akteure mit Bezug willkommen',
-            ]} />
+            <YesList items={actorsYes} />
             <SubHeading>Was gehört NICHT hierher</SubHeading>
-            <NoList items={[
-              'Privatpersonen als Einzelpersonen (es geht um Organisationen und Initiativen)',
-              'Unternehmen ohne erkennbaren Bezug zu Materialien, Bau oder Kreislaufwirtschaft',
-              'Reine Werbeeinträge',
-            ]} />
+            <NoList items={actorsNo} />
           </Section>
 
           <Section icon={Eye} title="Was kann ich ohne Login sehen?" color="#6366f1">

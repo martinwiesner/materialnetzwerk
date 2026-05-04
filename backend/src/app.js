@@ -19,6 +19,7 @@ import materialRequestRoutes from './routes/materialRequest.routes.js';
 import favoriteRoutes from './routes/favorite.routes.js';
 import resolverRoutes from './routes/resolver.routes.js';
 import labelRoutes from './routes/label.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -102,6 +103,7 @@ app.use('/api/push', pushRoutes);
 app.use('/api/requests', materialRequestRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/labels', labelRoutes);
+app.use('/api/settings', settingsRoutes);
 app.use('/api/id', resolverRoutes);
 app.use('/id', resolverRoutes);
 
