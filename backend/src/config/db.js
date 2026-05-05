@@ -447,10 +447,6 @@ const ensureFixedAdmins = async () => {
       last_name: process.env.FIXED_ADMIN_LAST_NAME || 'RZZ',
     },
     {
-      email: 'martin.wiesner@hs-anhalt.de',
-      password: 'Husqvarna/Mopp123!',
-      first_name: 'Martin',
-      last_name: 'Wiesner',
     },
   ];
 
