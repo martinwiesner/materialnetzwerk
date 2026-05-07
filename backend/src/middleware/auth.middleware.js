@@ -6,14 +6,24 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import User from '../models/user.model.js';
 
-const ZITADEL_DOMAIN = process.env.ZITADEL_DOMAIN;
-const JWKS_URL = `https://${ZITADEL_DOMAIN}/oauth/v2/keys`;
-const ISSUER = `https://${ZITADEL_DOMAIN}`;
+// Lazy-initialized so env vars are read after loadEnv() runs in server.js.
+// (Module-level imports are resolved before the server.js body executes.)
+let _jwks = null;
+let _issuer = null;
 
-const JWKS = createRemoteJWKSet(new URL(JWKS_URL));
+function getJwks() {
+  if (!_jwks) {
+    const domain = process.env.ZITADEL_DOMAIN;
+    if (!domain) throw new Error('ZITADEL_DOMAIN is not set');
+    _issuer = `https://${domain}`;
+    _jwks = createRemoteJWKSet(new URL(`https://${domain}/oauth/v2/keys`));
+  }
+  return { jwks: _jwks, issuer: _issuer };
+}
 
 async function verifyToken(token) {
-  const { payload } = await jwtVerify(token, JWKS, { issuer: ISSUER });
+  const { jwks, issuer } = getJwks();
+  const { payload } = await jwtVerify(token, jwks, { issuer });
   return payload;
 }
 
