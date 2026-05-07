@@ -21,8 +21,6 @@ services:
         VITE_ZITADEL_AUTHORITY: ${VITE_ZITADEL_AUTHORITY}
         VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
     restart: always
-    ports:
-      - "80:80"
     depends_on:
       - backend
     networks:
