@@ -1,0 +1,19 @@
+node_modules/
+.DS_Store
+frontend/dist/
+backend/data/
+backend/uploads/
+backend/logs/
+db-backups/
+uploads-backups/
+data/
+**/.env
+**/.env.secret
+**/.env.local
+*.sqlite
+*.db
+*.zip
+
+# Seed data is NOT committed — kept out of git
+backend/seed/seed.db
+backend/seed/uploads/

@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.secret
+
+# Database
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Seed data is NOT committed — kept out of git
+# Use init-db.js (fallback) or copy manually via SSH/Coolify exec
+seed/seed.db
+seed/uploads/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build
+dist/
+build/

@@ -1,0 +1,37 @@
+services:
+
+  backend:
+    build: ./backend
+    restart: always
+    volumes:
+      - backend_data:/usr/src/app/data
+      - backend_uploads:/usr/src/app/uploads
+    env_file:
+      - ./backend/.env
+    command: ["npm", "start"]
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.coolify
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_ZITADEL_AUTHORITY: ${VITE_ZITADEL_AUTHORITY}
+        VITE_ZITADEL_CLIENT_ID: ${VITE_ZITADEL_CLIENT_ID}
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  backend_data:
+  backend_uploads:
+
+networks:
+  app-network:
+    driver: bridge

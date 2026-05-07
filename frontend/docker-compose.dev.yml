@@ -1,0 +1,19 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./logs:/app/logs
+    environment:
+      # Internal URL for Vite proxy (container -> host)
+      BACKEND_URL: http://host.docker.internal:8081
+      # Public URL for client-side code (empty = use relative /api path via proxy)
+      VITE_API_URL: ""
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: sh -c "npm run dev 2>&1 | tee /app/logs/frontend.log"

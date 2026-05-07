@@ -1,0 +1,37 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - material-network
+
+  backend:
+    build:
+      context: ../Material-Library-BackendNodeJS
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    volumes:
+      - backend_data:/usr/src/app/data
+      - backend_uploads:/usr/src/app/uploads
+    environment:
+      NODE_ENV: production
+      PORT: 8081
+      INIT_DB: "true"
+    env_file:
+      - ../Material-Library-BackendNodeJS/.env
+    networks:
+      - material-network
+
+networks:
+  material-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+  backend_uploads:
