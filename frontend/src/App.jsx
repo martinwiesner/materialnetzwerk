@@ -9,6 +9,8 @@ import Layout from './components/Layout';
 
 // Auth pages
 import Callback from './pages/auth/Callback';
+import SilentRenew from './pages/auth/SilentRenew';
+import AuthDebug from './pages/auth/AuthDebug';
 
 // Main pages
 import Materials from './pages/materials/Materials';
@@ -78,6 +80,10 @@ export default function App() {
       <Routes>
         {/* OIDC callback — Zitadel redirects here after login */}
         <Route path="/callback" element={<Callback />} />
+        {/* Silent token renewal iframe target */}
+        <Route path="/silent-renew" element={<SilentRenew />} />
+        {/* Auth diagnostics — visit /auth-debug to inspect config and state */}
+        <Route path="/auth-debug" element={<AuthDebug />} />
 
         {/* Main app routes (public by default) */}
         <Route path="/" element={<Layout />}>
