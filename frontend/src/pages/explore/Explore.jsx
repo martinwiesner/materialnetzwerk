@@ -106,10 +106,18 @@ function distKm(lat1, lon1, lat2, lon2) {
 // Combined recency + proximity score — lower = higher in list
 // Recency (65%): normalized over 180 days; Proximity (35%): normalized over 150 km
 function entityScore(e) {
-  const dist = distKm(ZEITZ_LAT, ZEITZ_LON, e.location?.lat ?? ZEITZ_LAT, e.location?.lon ?? ZEITZ_LON);
-  const ageMs = Date.now() - (e.raw?.created_at ? new Date(e.raw.created_at).getTime() : 0);
-  const ageDays = ageMs / 86400000;
-  return Math.min(dist / 150, 1) * 0.35 + Math.min(ageDays / 180, 1) * 0.65;
+  const lat = e.location?.lat ?? ZEITZ_LAT;
+  const lon = e.location?.lon ?? ZEITZ_LON;
+  const dist = distKm(ZEITZ_LAT, ZEITZ_LON, lat, lon);
+
+  // Try both snake_case and camelCase field names; fall back to now (= score 0, appears first)
+  const rawDate = e.raw?.created_at || e.raw?.createdAt;
+  const createdMs = rawDate ? new Date(rawDate).getTime() : Date.now();
+  const ageDays = Math.max(0, (Date.now() - createdMs) / 86400000);
+
+  const distScore = Math.min(dist / 150, 1);
+  const ageScore = Math.min(ageDays / 180, 1);
+  return distScore * 0.35 + ageScore * 0.65;
 }
 
 function buildEntities({ materials, offers, projects, actors, gesuche, search }) {
@@ -752,7 +760,7 @@ export default function Explore() {
               {filterDropdownOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setFilterDropdownOpen(false)} />
-                  <div className="absolute top-full mt-1 right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-56 py-1 text-sm">
+                  <div className="absolute top-full mt-1 left-0 sm:left-auto sm:right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-56 py-1 text-sm">
                     {/* Ansicht-Filter */}
                     {[
                       { value: 'all', label: 'Alle anzeigen' },
