@@ -61,6 +61,7 @@ export default function Materials() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [filterAvailable, setFilterAvailable] = useState(false);
+  const [filterOnlyGesuch, setFilterOnlyGesuch] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formInitialMode, setFormInitialMode] = useState(undefined);
   const [editingMaterial, setEditingMaterial] = useState(null);
@@ -151,7 +152,13 @@ export default function Materials() {
 
   const materials = filterAvailable
     ? allMaterials.filter(m => Boolean(inventoryByMaterial[m.id]?.quantity))
-    : allMaterials;
+    : (filterOnlyGesuch ? [] : allMaterials);
+
+  const filteredGesuche = filterAvailable ? [] : gesuche.filter(g => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (g.material_name || '').toLowerCase().includes(q) || (g.notes || '').toLowerCase().includes(q);
+  });
 
   const mapPoints = (inventory || [])
     .filter((i) => i?.latitude && i?.longitude)
@@ -405,12 +412,21 @@ export default function Materials() {
             ))}
           </select>
           <button
-            onClick={() => setFilterAvailable(v => !v)}
+            onClick={() => { setFilterAvailable(v => !v); setFilterOnlyGesuch(false); }}
             className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
               filterAvailable ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-300 text-orange-600 hover:bg-orange-50'
             }`}
           >
             Nur verfügbare
+          </button>
+          <button
+            onClick={() => { setFilterOnlyGesuch(v => !v); setFilterAvailable(false); }}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+              filterOnlyGesuch ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-purple-300 text-purple-700 hover:bg-purple-50'
+            }`}
+          >
+            <BookMarked className="w-4 h-4" />
+            Nur Gesuche
           </button>
         </div>
       </div>
@@ -438,10 +454,10 @@ export default function Materials() {
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
         </div>
-      ) : materials.length === 0 ? (
+      ) : (filteredGesuche.length === 0 && materials.length === 0) ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <Leaf className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Materialien gefunden</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Einträge gefunden</h3>
           <p className="text-gray-600 mb-4">Lege dein erstes Material an</p>
           <button
             onClick={() => {
@@ -455,7 +471,78 @@ export default function Materials() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <>
+          {/* Gesuch Cards */}
+          {filteredGesuche.length > 0 && (
+            <div className={materials.length > 0 ? 'mb-8' : ''}>
+              {!filterOnlyGesuch && (
+                <h3 className="text-base font-semibold text-purple-800 mb-3 flex items-center gap-2">
+                  <BookMarked className="w-4 h-4" />
+                  Materialgesuche ({filteredGesuche.length})
+                </h3>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredGesuche.map((gesuch) => (
+                  <div
+                    key={gesuch.id}
+                    className="bg-white rounded-2xl shadow-sm border border-purple-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/gesuch/${gesuch.id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/gesuch/${gesuch.id}`); }}
+                  >
+                    <div className="relative">
+                      <div className="w-full h-32 bg-purple-50 flex items-center justify-center">
+                        <BookMarked className="w-10 h-10 text-purple-300" />
+                      </div>
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600/90 text-white text-xs font-medium shadow-sm">
+                          <BookMarked className="w-3.5 h-3.5" />
+                          Materialgesuch
+                        </div>
+                        {(gesuch.quantity || gesuch.unit) && (
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-xs text-gray-700 shadow-sm">
+                            <Package2 className="w-3.5 h-3.5" />
+                            <span className="truncate">
+                              {gesuch.quantity ? `${gesuch.quantity} ${gesuch.unit || ''}`.trim() : gesuch.unit || ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 truncate">{gesuch.material_name || 'Material'}</h3>
+                      {gesuch.category && (
+                        <span className="inline-block px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full mt-1">
+                          {gesuch.category}
+                        </span>
+                      )}
+                      {gesuch.notes && (
+                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{gesuch.notes}</p>
+                      )}
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-2 text-sm text-gray-600 min-w-0">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{gesuch.location_name || '—'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/gesuch/${gesuch.id}`); }}
+                          className="text-sm font-medium text-purple-600 hover:text-purple-700 flex-shrink-0"
+                        >
+                          Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Material Cards */}
+          {materials.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {materials.map((material) => (
             <div
               key={material.id}
@@ -585,7 +672,9 @@ export default function Materials() {
               </div>
             </div>
           ))}
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Material Form Modal */}
