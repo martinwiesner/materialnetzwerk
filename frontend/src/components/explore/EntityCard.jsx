@@ -52,6 +52,12 @@ export default function EntityCard({ entity, active = false, onSelect, onOpenDet
                 verfügbar
               </div>
             )}
+            {entity.type === 'material' && entity.hasGesuch && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600/90 text-white text-xs font-medium shadow-sm">
+                <BookMarked className="w-3.5 h-3.5" />
+                gesucht
+              </div>
+            )}
             {metaRight ? (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-xs text-gray-700 shadow-sm">
                 <Package className="w-3.5 h-3.5" />

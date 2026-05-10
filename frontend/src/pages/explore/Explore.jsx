@@ -91,6 +91,27 @@ function deterministicGeo(seed) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Zeitz city center coordinates
+const ZEITZ_LAT = 51.0534;
+const ZEITZ_LON = 12.1353;
+
+function distKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Combined recency + proximity score — lower = higher in list
+// Recency (65%): normalized over 180 days; Proximity (35%): normalized over 150 km
+function entityScore(e) {
+  const dist = distKm(ZEITZ_LAT, ZEITZ_LON, e.location?.lat ?? ZEITZ_LAT, e.location?.lon ?? ZEITZ_LON);
+  const ageMs = Date.now() - (e.raw?.created_at ? new Date(e.raw.created_at).getTime() : 0);
+  const ageDays = ageMs / 86400000;
+  return Math.min(dist / 150, 1) * 0.35 + Math.min(ageDays / 180, 1) * 0.65;
+}
+
 function buildEntities({ materials, offers, projects, actors, gesuche, search }) {
   const q = normalizeStr(search);
 
@@ -249,8 +270,9 @@ function buildEntities({ materials, offers, projects, actors, gesuche, search })
       };
     });
 
-  // Order: materials first, then projects, then actors, gesuche, offers last (usually overlapping with materials)
-  return [...materialEntities, ...projectEntities, ...actorEntities, ...gesuchEntities, ...offerEntities];
+  // Sort all entities together by recency + proximity to Zeitz (offers are excluded via filteredEntities)
+  const all = [...gesuchEntities, ...materialEntities, ...projectEntities, ...actorEntities, ...offerEntities];
+  return all.sort((a, b) => entityScore(a) - entityScore(b));
 }
 
 /**
