@@ -66,6 +66,6 @@ rsync -avz --progress \
 
 # 3. Auf dem Server: neu bauen und starten
 echo "🔨 Building and restarting on server..."
-ssh $SERVER "cd $REMOTE_PATH && docker compose up -d --build --force-recreate"
+ssh $SERVER "cd $REMOTE_PATH && docker compose build --build-arg CACHEBUST=\$(date +%s) frontend && docker compose up -d --force-recreate"
 
 echo "✅ Done! App is live at https://materialien.reallabor-zekiwa-zeitz.de"
