@@ -86,6 +86,7 @@ export default function Materials() {
   const { data: gesucheData } = useQuery({
     queryKey: ['gesuche'],
     queryFn: () => inventoryService.getGesuche(),
+    staleTime: 0, // always refetch on focus/mount so new Gesuche appear for all users
   });
 
   const toast = useToast();

@@ -493,6 +493,7 @@ export default function Explore() {
   const gesucheQuery = useQuery({
     queryKey: ['gesuche', { explore: true }],
     queryFn: () => inventoryService.getGesuche(),
+    staleTime: 0, // always refetch on focus/mount so new Gesuche appear for all users
   });
 
   const matchesQuery = useQuery({
