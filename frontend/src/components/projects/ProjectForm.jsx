@@ -65,6 +65,7 @@ const emptyForm = {
   tools: '',
   steps: [],
   references: [],
+  license: '',
 };
 
 function StepImageUpload({ stepIndex, onUpload, ensureDraft }) {
@@ -173,6 +174,7 @@ export default function ProjectForm({ project, onClose }) {
         tools: project.tools || '',
         steps: Array.isArray(steps) ? steps : [],
         references: safeJsonParse(project.references, []),
+        license: project.license || '',
       });
     }
   }, [project]);
@@ -569,18 +571,24 @@ export default function ProjectForm({ project, onClose }) {
                 <option value="archived">Archiviert</option>
               </select>
             </div>
-            <div className="flex items-end pb-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" name="is_public" checked={formData.is_public}
-                  onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
-                  className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500" />
-                <span className="flex items-center gap-1 text-sm text-gray-700">
-                  {formData.is_public
-                    ? <><Globe className="w-4 h-4 text-project-600" /> Öffentlich</>
-                    : <><Lock className="w-4 h-4 text-gray-500" /> Privat</>
-                  }
-                </span>
-              </label>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sichtbarkeit</label>
+              <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setFormData(f => ({ ...f, is_public: true }))}
+                  className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${formData.is_public ? 'bg-project-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <Globe className="w-3.5 h-3.5" /> Öffentlich
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData(f => ({ ...f, is_public: false }))}
+                  className={`px-3 py-2 text-sm flex items-center gap-1.5 border-l border-gray-200 transition-colors ${!formData.is_public ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  <Lock className="w-3.5 h-3.5" /> Privat
+                </button>
+              </div>
             </div>
             <div className="flex items-end pb-2">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -590,6 +598,25 @@ export default function ProjectForm({ project, onClose }) {
                 <span className="text-sm text-gray-700">Als <span className="text-orange-600 font-medium">verfügbar</span> markieren</span>
               </label>
             </div>
+          </div>
+
+          {/* License */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Lizenz</label>
+            <select
+              value={formData.license}
+              onChange={e => setFormData({ ...formData, license: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
+            >
+              <option value="">Keine Angabe</option>
+              <option value="CC BY 4.0">CC BY 4.0 – Namensnennung</option>
+              <option value="CC BY-SA 4.0">CC BY-SA 4.0 – Namensnennung + Weitergabe</option>
+              <option value="CC BY-NC 4.0">CC BY-NC 4.0 – Nicht kommerziell</option>
+              <option value="CC BY-NC-SA 4.0">CC BY-NC-SA 4.0 – Nicht kommerziell + Weitergabe</option>
+              <option value="CC0 1.0">CC0 1.0 – Gemeinfrei</option>
+              <option value="MIT">MIT License</option>
+              <option value="Alle Rechte vorbehalten">Alle Rechte vorbehalten</option>
+            </select>
           </div>
 
           {/* Execution */}

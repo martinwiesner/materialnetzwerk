@@ -1,13 +1,19 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { BookMarked, MapPin, Package, User, ArrowLeft, Printer, Tag } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { BookMarked, MapPin, Package, User, ArrowLeft, Printer, Tag, Edit2, X, Save } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { exportGesuchPoster } from '../../utils/exportUtils';
 import SharePrintBar from '../../components/shared/SharePrintBar';
 import { formatDate } from '../../utils/dates';
+import { useAuthStore } from '../../store/authStore';
 
 export default function GesuchDetail() {
   const { id } = useParams();
+  const { isAuthenticated, user } = useAuthStore();
+  const queryClient = useQueryClient();
+  const [showEdit, setShowEdit] = useState(false);
+  const [editData, setEditData] = useState(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['gesuch-detail', id],
@@ -15,6 +21,28 @@ export default function GesuchDetail() {
   });
 
   const gesuch = data?.data || data;
+
+  const updateMutation = useMutation({
+    mutationFn: (updates) => inventoryService.update(id, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['gesuch-detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['gesuche'], exact: false });
+      setShowEdit(false);
+    },
+  });
+
+  const openEdit = () => {
+    setEditData({
+      notes: gesuch?.notes || '',
+      quantity: gesuch?.quantity ?? '',
+      unit: gesuch?.unit || gesuch?.material_unit || '',
+      location_name: gesuch?.location_name || '',
+      is_available: gesuch?.is_available === 1 || gesuch?.is_available === true,
+    });
+    setShowEdit(true);
+  };
+
+  const isOwner = isAuthenticated && gesuch && (user?.id === gesuch.owner_id || user?.is_admin);
 
   if (isLoading) {
     return (
@@ -63,13 +91,24 @@ export default function GesuchDetail() {
             <BookMarked className="w-5 h-5 text-purple-700" />
             <span className="text-sm font-semibold text-purple-700 uppercase tracking-wide">Materialgesuch</span>
           </div>
-          <button
-            onClick={() => exportGesuchPoster(gesuch)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-purple-200 bg-white text-purple-700 hover:bg-purple-50 transition-colors"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Aushang drucken
-          </button>
+          <div className="flex items-center gap-2">
+            {isOwner && (
+              <button
+                onClick={openEdit}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-purple-200 bg-white text-purple-700 hover:bg-purple-50 transition-colors"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                Bearbeiten
+              </button>
+            )}
+            <button
+              onClick={() => exportGesuchPoster(gesuch)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-purple-200 bg-white text-purple-700 hover:bg-purple-50 transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Aushang drucken
+            </button>
+          </div>
         </div>
 
         <div className="px-6 py-5 space-y-5">
@@ -159,6 +198,92 @@ export default function GesuchDetail() {
         title={gesuch.material_name}
         onPrint={() => exportGesuchPoster(gesuch)}
       />
+
+      {/* Edit Modal */}
+      {showEdit && editData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEdit(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-purple-50">
+              <div className="flex items-center gap-2 text-purple-800">
+                <Edit2 className="w-4 h-4" />
+                <span className="font-semibold">Gesuch bearbeiten</span>
+              </div>
+              <button onClick={() => setShowEdit(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung / Hinweise</label>
+                <textarea
+                  rows={4}
+                  value={editData.notes}
+                  onChange={e => setEditData(d => ({ ...d, notes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-400 outline-none resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Menge</label>
+                  <input
+                    type="number" min="0" step="any"
+                    value={editData.quantity}
+                    onChange={e => setEditData(d => ({ ...d, quantity: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Einheit</label>
+                  <input
+                    type="text"
+                    value={editData.unit}
+                    onChange={e => setEditData(d => ({ ...d, unit: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ort</label>
+                <input
+                  type="text"
+                  value={editData.location_name}
+                  onChange={e => setEditData(d => ({ ...d, location_name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={editData.is_available}
+                  onChange={e => setEditData(d => ({ ...d, is_available: e.target.checked }))}
+                  className="w-4 h-4 text-purple-600 rounded"
+                />
+                Gesuch als <span className="font-medium text-red-600">erfüllt / inaktiv</span> markieren
+              </label>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={() => setShowEdit(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg transition-colors">
+                Abbrechen
+              </button>
+              <button
+                onClick={() => updateMutation.mutate({
+                  notes: editData.notes,
+                  quantity: editData.quantity ? parseFloat(editData.quantity) : null,
+                  unit: editData.unit,
+                  location_name: editData.location_name,
+                  is_available: editData.is_available ? 1 : 0,
+                })}
+                disabled={updateMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {updateMutation.isPending ? 'Speichern…' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

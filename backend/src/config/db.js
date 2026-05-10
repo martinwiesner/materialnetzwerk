@@ -399,6 +399,8 @@ const ensureColumns = () => {
     addCol('projects', 'is_available', 'is_available BOOLEAN DEFAULT 0');
     // projects – references / bibliography
     addCol('projects', 'references', '"references" TEXT');
+    // projects – license declaration
+    addCol('projects', 'license', 'license TEXT');
     // project_images – image credit
     addCol('project_images', 'credit', 'credit TEXT');
 

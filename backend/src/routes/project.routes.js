@@ -54,11 +54,11 @@ router.get('/public', optionalAuth,
   (req, res) => getPublicProjects(req, res)
 );
 
-router.get('/', protect,
+router.get('/', optionalAuth,
   /*
     #swagger.tags = ['Projects']
-    #swagger.summary = 'Get user projects'
-    #swagger.description = 'Retrieve all projects owned by the current user'
+    #swagger.summary = 'Get projects'
+    #swagger.description = 'Retrieve all projects (public for guests, all for authenticated users)'
     #swagger.security = [{ "bearerAuth": [] }]
     #swagger.parameters['status'] = {
       in: 'query',

@@ -101,15 +101,15 @@ const Project = {
       circular_principles, principles_sufficiency, principles_consistency, principles_efficiency, general_sustainability_principles,
       location_name, latitude, longitude, address,
       time_effort, tools, steps, "references",
-      status, is_public, is_available, owner_id, material_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      status, is_public, is_available, license, owner_id, material_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, data.name, data.description||null, data.content||null,
         data.circular_principles||null, data.principles_sufficiency||null, data.principles_consistency||null, data.principles_efficiency||null, data.general_sustainability_principles||null,
         data.location_name||null, data.latitude??null, data.longitude??null, data.address||null,
         data.time_effort||null, data.tools||null,
         data.steps ? JSON.stringify(data.steps) : null,
         data.references ? JSON.stringify(data.references) : null,
-        data.status||'draft', data.is_public?1:0, data.is_available?1:0, data.owner_id,
+        data.status||'draft', data.is_public?1:0, data.is_available?1:0, data.license||null, data.owner_id,
         projectMaterialId);
     return Project.findById(id);
   },
@@ -121,7 +121,7 @@ const Project = {
       'circular_principles','principles_sufficiency','principles_consistency','principles_efficiency','general_sustainability_principles',
       'location_name','latitude','longitude','address',
       'time_effort','tools','steps','references',
-      'status','is_public','is_available',
+      'status','is_public','is_available','license',
     ];
     const jsonFields = new Set(['steps','references']);
     const boolFields = new Set(['is_public','is_available']);
