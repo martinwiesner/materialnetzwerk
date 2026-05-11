@@ -493,6 +493,7 @@ export default function Explore() {
   const materialsQuery = useQuery({
     queryKey: ['materials', { explore: true }],
     queryFn: () => materialService.getAll(),
+    staleTime: 0,
   });
 
   // "Materialangebote" are inventory entries.
@@ -508,16 +509,19 @@ export default function Explore() {
   const availableOffersQuery = useQuery({
     queryKey: ['marketplace-inventory', { explore: true }],
     queryFn: () => inventoryService.getAvailable(),
+    staleTime: 0,
   });
 
   const projectsQuery = useQuery({
     queryKey: ['projects', { explore: true }],
     queryFn: () => (isAuthenticated && token ? projectService.getAll() : projectService.getPublic()),
+    staleTime: 0,
   });
 
   const actorsQuery = useQuery({
     queryKey: ['actors', { explore: true }],
     queryFn: () => actorService.getAll(),
+    staleTime: 0,
   });
 
   const gesucheQuery = useQuery({
