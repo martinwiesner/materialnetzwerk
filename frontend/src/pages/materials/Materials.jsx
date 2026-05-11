@@ -146,7 +146,8 @@ export default function Materials() {
   const gesuchByMaterial = (gesuche || []).reduce((acc, item) => {
     const matId = item.material_id;
     if (!matId) return acc;
-    acc[matId] = (acc[matId] || 0) + 1;
+    if (!acc[matId]) acc[matId] = { count: 0, id: item.id };
+    acc[matId].count++;
     return acc;
   }, {});
 
@@ -585,11 +586,15 @@ export default function Materials() {
                         verfügbar
                       </div>
                     )}
-                    {gesuchByMaterial[material.id] > 0 && (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600/90 text-white text-xs font-medium shadow-sm">
+                    {gesuchByMaterial[material.id]?.count > 0 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/gesuch/${gesuchByMaterial[material.id].id}`); }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600/90 text-white text-xs font-medium shadow-sm hover:bg-purple-700 transition-colors"
+                        title="Zum Materialgesuch"
+                      >
                         <BookMarked className="w-3.5 h-3.5" />
-                        gesucht
-                      </div>
+                        gesucht →
+                      </button>
                     )}
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-sm text-gray-700 shadow-sm">
                       <Package2 className="w-4 h-4" />

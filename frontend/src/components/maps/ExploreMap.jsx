@@ -345,7 +345,14 @@ export default function ExploreMap({
                   <div style={{ fontSize: 12, opacity: 0.65, marginBottom: 4 }}>{e.location.address}</div>
                 ) : null}
                 {e.quantityLabel ? (
-                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 2 }}>{e.quantityLabel}</div>
+                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 2 }}>
+                    {e.available ? `Verfügbar: ${e.quantityLabel}` : e.quantityLabel}
+                  </div>
+                ) : null}
+                {e.hasGesuch && e.type !== 'gesuch' ? (
+                  <div style={{ fontSize: 11, color: '#7C3AED', fontWeight: 600, marginBottom: 4 }}>
+                    ⬤ Materialgesuch vorhanden
+                  </div>
                 ) : null}
                 {typeof e.gwpTotal === 'number' ? (
                   <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 4 }}>
