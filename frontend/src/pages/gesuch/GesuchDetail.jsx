@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BookMarked, MapPin, Package, User, ArrowLeft, Printer, Tag, Edit2, X, Save } from 'lucide-react';
@@ -7,6 +7,8 @@ import { exportGesuchPoster } from '../../utils/exportUtils';
 import SharePrintBar from '../../components/shared/SharePrintBar';
 import { formatDate } from '../../utils/dates';
 import { useAuthStore } from '../../store/authStore';
+import ImageUploader from '../../components/shared/ImageUploader';
+import { MEDIA_BASE } from '../../services/api';
 
 export default function GesuchDetail() {
   const { id } = useParams();
@@ -14,6 +16,7 @@ export default function GesuchDetail() {
   const queryClient = useQueryClient();
   const [showEdit, setShowEdit] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [localImages, setLocalImages] = useState([]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['gesuch-detail', id],
@@ -21,6 +24,20 @@ export default function GesuchDetail() {
   });
 
   const gesuch = data?.data || data;
+
+  useEffect(() => {
+    if (gesuch?.images) setLocalImages(gesuch.images);
+  }, [gesuch]);
+
+  const handleImageUpload = async (files) => {
+    const result = await inventoryService.uploadImages(id, files);
+    setLocalImages(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
+  };
+
+  const handleImageDelete = async (imageId) => {
+    await inventoryService.deleteImage(id, imageId);
+    setLocalImages(prev => prev.filter(img => img.id !== imageId));
+  };
 
   const updateMutation = useMutation({
     mutationFn: (updates) => inventoryService.update(id, updates),
@@ -176,6 +193,25 @@ export default function GesuchDetail() {
               <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{gesuch.notes}</p>
             </div>
           )}
+
+          {/* Images */}
+          {localImages.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-2">Bilder</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[...localImages]
+                  .sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999))
+                  .map((img) => {
+                    const url = `${MEDIA_BASE}${img.file_path?.startsWith('/') ? img.file_path : '/' + img.file_path}`;
+                    return (
+                      <div key={img.id} className="rounded-xl overflow-hidden border border-gray-200">
+                        <img src={url} alt={img.original_name || 'Bild'} className="w-full h-32 object-cover" />
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -203,8 +239,8 @@ export default function GesuchDetail() {
       {showEdit && editData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowEdit(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-purple-50">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-purple-50 flex-shrink-0">
               <div className="flex items-center gap-2 text-purple-800">
                 <Edit2 className="w-4 h-4" />
                 <span className="font-semibold">Gesuch bearbeiten</span>
@@ -213,7 +249,7 @@ export default function GesuchDetail() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung / Hinweise</label>
                 <textarea
@@ -261,8 +297,15 @@ export default function GesuchDetail() {
                 />
                 Gesuch als <span className="font-medium text-red-600">erfüllt / inaktiv</span> markieren
               </label>
+
+              <ImageUploader
+                images={localImages}
+                onUpload={handleImageUpload}
+                onDelete={handleImageDelete}
+                label="Bilder"
+              />
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
               <button onClick={() => setShowEdit(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-200 rounded-lg transition-colors">
                 Abbrechen
               </button>

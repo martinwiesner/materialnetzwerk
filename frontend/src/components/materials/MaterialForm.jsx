@@ -126,6 +126,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
   const [offerPendingImages, setOfferPendingImages] = useState([]);
   const offerPendingImagesRef = useRef([]);
 
+  // Images queued for upload in gesuch mode (uploaded after gesuch is created)
+  const [gesuchPendingImages, setGesuchPendingImages] = useState([]);
+  const gesuchPendingImagesRef = useRef([]);
+
   // Optional: create a material offer (inventory entry) right after creating the material
   const [createOffer, setCreateOffer] = useState(false);
   const [offerData, setOfferData] = useState({
@@ -398,7 +402,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         entry_type: 'gesuch',
       });
     },
-    onSuccess: () => {
+    onSuccess: async (created) => {
+      if (created?.id && gesuchPendingImagesRef.current.length > 0) {
+        try {
+          await inventoryService.uploadImages(created.id, gesuchPendingImagesRef.current);
+          gesuchPendingImagesRef.current = [];
+          setGesuchPendingImages([]);
+        } catch { /* non-critical */ }
+      }
       queryClient.invalidateQueries({ queryKey: ['inventory'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['gesuche'], exact: false });
       if (gesuchMode === 'new') {
@@ -685,6 +696,43 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 <textarea value={gesuchData.notes} onChange={e => setGesuchData(d => ({ ...d, notes: e.target.value }))} rows={3}
                   placeholder="Wofür wird das Material benötigt? Besondere Anforderungen?"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none" />
+              </div>
+
+              {/* Images */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Bilder (optional)</label>
+                {gesuchPendingImages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {gesuchPendingImages.map((file, i) => (
+                      <div key={i} className="relative rounded-lg overflow-hidden border border-dashed border-purple-300 bg-purple-50">
+                        <img src={URL.createObjectURL(file)} className="w-full h-20 object-cover opacity-90" alt={file.name} />
+                        <button type="button"
+                          onClick={() => {
+                            const updated = gesuchPendingImages.filter((_, j) => j !== i);
+                            gesuchPendingImagesRef.current = updated;
+                            setGesuchPendingImages(updated);
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center leading-none">
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-purple-600 hover:text-purple-700 border border-dashed border-purple-300 rounded-lg px-3 py-1.5 bg-purple-50 hover:bg-purple-100 transition-colors">
+                  <Upload className="w-3 h-3" />
+                  {gesuchPendingImages.length > 0 ? 'Weitere Bilder hinzufügen' : 'Bilder hochladen (optional)'}
+                  <input type="file" multiple accept="image/*" className="hidden"
+                    onChange={e => {
+                      const files = Array.from(e.target.files || []);
+                      if (!files.length) return;
+                      const updated = [...gesuchPendingImagesRef.current, ...files];
+                      gesuchPendingImagesRef.current = updated;
+                      setGesuchPendingImages(updated);
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
               </div>
 
               <button
