@@ -59,13 +59,32 @@ const Project = {
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 
+  // Public projects only (for unauthenticated users)
   findAll: (filters = {}) => {
     const db = getDB();
     let query = `SELECT p.*, u.first_name as owner_first_name, u.last_name as owner_last_name, u.email as owner_email,
       COALESCE((SELECT SUM(pm.quantity*m.gwp_value) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
       'kg CO2e' AS total_gwp_unit
-      FROM projects p JOIN users u ON p.owner_id=u.id WHERE 1=1`;
+      FROM projects p JOIN users u ON p.owner_id=u.id WHERE p.is_public = 1`;
     const params = [];
+    if (filters.status) { query += ' AND p.status = ?'; params.push(filters.status); }
+    if (filters.is_available) { query += ' AND p.is_available = 1'; }
+    if (filters.search) { query += ' AND (p.name LIKE ? OR p.description LIKE ?)'; params.push(`%${filters.search}%`,`%${filters.search}%`); }
+    query += ' ORDER BY p.created_at DESC';
+    if (filters.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
+    const rows = db.prepare(query).all(...params);
+    const matQ = db.prepare('SELECT material_id FROM project_materials WHERE project_id = ?');
+    return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
+  },
+
+  // Own projects + all public projects from others (for authenticated users)
+  findForUser: (userId, filters = {}) => {
+    const db = getDB();
+    let query = `SELECT p.*, u.first_name as owner_first_name, u.last_name as owner_last_name, u.email as owner_email,
+      COALESCE((SELECT SUM(pm.quantity*m.gwp_value) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
+      'kg CO2e' AS total_gwp_unit
+      FROM projects p JOIN users u ON p.owner_id=u.id WHERE (p.is_public = 1 OR p.owner_id = ?)`;
+    const params = [userId];
     if (filters.status) { query += ' AND p.status = ?'; params.push(filters.status); }
     if (filters.is_available) { query += ' AND p.is_available = 1'; }
     if (filters.search) { query += ' AND (p.name LIKE ? OR p.description LIKE ?)'; params.push(`%${filters.search}%`,`%${filters.search}%`); }

@@ -141,7 +141,7 @@ export default function MaterialIdSection({ materialId, passportType = 'construc
                 {downloading ? 'Wird erstellt…' : 'QR-Code Aufkleber als PDF herunterladen'}
               </button>
               <p className="text-[11px] text-gray-400">
-                10 Aufkleber pro A4-Seite · 105 × 57 mm · kompatibel mit Avery Zweckform 3425, Herma 4615
+                24 Aufkleber pro A4-Seite · 70 × 36 mm · kompatibel mit Avery Zweckform 3484, Herma 4336
               </p>
             </div>
           )}

@@ -3,18 +3,18 @@ import QRCode from 'qrcode';
 
 // 1 mm = 2.835 PDF points
 const MM = 2.835;
-// Label dimensions: 105 × 57 mm (Avery Zweckform 3425, Herma 4615)
-const LABEL_W  = 105 * MM;  // 297.675 pt
-const LABEL_H  =  57 * MM;  // 161.595 pt
-const COLS     = 2;
-const ROWS     = 5;
-// Top margin so the 5-row grid is vertically centred on A4 (297mm)
-// (297mm − 5 × 57mm) / 2 = 13.5mm
-const TOP_MARGIN = 13.5 * MM;
-const QR_SIZE    =  38 * MM;  // visible QR square
-const QR_PAD_L   =   5 * MM;  // padding left of QR
-const TEXT_PAD_L =   4 * MM;  // gap between QR right edge and text
-const TEXT_PAD_R =   4 * MM;  // right margin inside label
+// Label dimensions: 70 × 36 mm (Avery Zweckform 3484, Herma 4336)
+const LABEL_W  = 70 * MM;   // 198.45 pt
+const LABEL_H  = 36 * MM;   // 102.06 pt
+const COLS     = 3;
+const ROWS     = 8;
+// Top margin so the 8-row grid is vertically centred on A4 (297mm)
+// (297mm − 8 × 36mm) / 2 = 4.5mm
+const TOP_MARGIN =  4.5 * MM;
+const QR_SIZE    =  26 * MM;  // visible QR square
+const QR_PAD_L   =   3 * MM;  // padding left of QR
+const TEXT_PAD_L =   3 * MM;  // gap between QR right edge and text
+const TEXT_PAD_R =   3 * MM;  // right margin inside label
 
 /**
  * Generate an A4 PDF with 10 identical self-adhesive labels (2 × 5 grid).
@@ -77,47 +77,47 @@ function _drawLabel(doc, { x, y, entity, qrBuffer, resolverUrl, regLabel }) {
   // Text column
   const textX   = qrX + QR_SIZE + TEXT_PAD_L;
   const textMaxW = LABEL_W - (textX - x) - TEXT_PAD_R;
-  let   ty       = y + 7 * MM;
+  let   ty       = y + 4 * MM;
 
   // RZZ header
-  doc.fillColor('#666666').fontSize(4.5).font('Helvetica-Bold')
+  doc.fillColor('#666666').fontSize(4).font('Helvetica-Bold')
     .text('\u267B RZZ MATERIALIEN', textX, ty, { width: textMaxW });
-  ty += 8;
+  ty += 6;
 
   // Entity name (truncated if too long)
   const name = entity.name || entity.material_name || '';
-  doc.fillColor('#111111').fontSize(9).font('Helvetica-Bold')
+  doc.fillColor('#111111').fontSize(7.5).font('Helvetica-Bold')
     .text(name, textX, ty, { width: textMaxW, lineBreak: false, ellipsis: true });
-  ty += 13;
+  ty += 11;
 
   // Category
   if (entity.category) {
-    doc.fillColor('#555555').fontSize(6).font('Helvetica')
+    doc.fillColor('#555555').fontSize(5).font('Helvetica')
       .text(entity.category, textX, ty, { width: textMaxW, lineBreak: false });
-    ty += 9;
+    ty += 7;
   }
 
   // Material ID (monospace, prominent)
-  doc.fillColor('#000000').fontSize(6.5).font('Courier-Bold')
+  doc.fillColor('#000000').fontSize(5.5).font('Courier-Bold')
     .text(entity.material_id, textX, ty, { width: textMaxW, lineBreak: false });
-  ty += 10;
+  ty += 8;
 
   // Location
   const loc = entity.location_name || '';
   if (loc) {
-    doc.fillColor('#555555').fontSize(5).font('Helvetica')
+    doc.fillColor('#555555').fontSize(4.5).font('Helvetica')
       .text(loc, textX, ty, { width: textMaxW, lineBreak: false });
-    ty += 8;
+    ty += 6;
   }
 
   // Regulation badge
-  doc.fillColor('#888888').fontSize(4.5).font('Helvetica')
+  doc.fillColor('#aaaaaa').fontSize(3.5).font('Helvetica')
     .text(regLabel, textX, ty, { width: textMaxW, lineBreak: false });
 
   // Footer URL (bottom of label)
   const urlStr = resolverUrl.replace(/^https?:\/\//, '');
-  doc.fillColor('#999999').fontSize(4.5).font('Helvetica')
-    .text('Scan \u00B7 ' + urlStr, x + 4 * MM, y + LABEL_H - 7 * MM, { width: LABEL_W - 8 * MM, lineBreak: false });
+  doc.fillColor('#999999').fontSize(3.5).font('Helvetica')
+    .text('Scan \u00B7 ' + urlStr, x + 3 * MM, y + LABEL_H - 4.5 * MM, { width: LABEL_W - 6 * MM, lineBreak: false });
 
   doc.restore();
 }

@@ -44,7 +44,11 @@ export const getProjects = (req, res) => {
       return res.json(projects);
     }
 
-    const projects = Project.findAll(filters);
+    // Authenticated: own projects + all public projects from others
+    // Unauthenticated: only public projects
+    const projects = req.user?.id
+      ? Project.findForUser(req.user.id, filters)
+      : Project.findAll(filters);
     return res.json(projects);
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch projects', error: error.message });
