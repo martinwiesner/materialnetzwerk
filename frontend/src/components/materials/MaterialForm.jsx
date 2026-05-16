@@ -106,6 +106,16 @@ const initialFormState = {
   longitude: '12.1287658',
   location_name: '',
   address: '',
+
+  // EPD / Ökobilanz-Grunddaten (EN 15804)
+  declared_unit: '',
+  gwp_fossil: '',
+  gwp_biogenic: '',
+  gwp_luluc: '',
+  adp_fossil: '',
+  adp_elements: '',
+  lifecycle_scope: '',
+  water_consumption: '',
 };
 
 export default function MaterialForm({ material, onClose, enableOfferOnCreate = false, initialMode }) {
@@ -263,6 +273,15 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         longitude: material.longitude ?? '',
         location_name: material.location_name || '',
         address: material.address || '',
+
+        declared_unit: material.declared_unit || '',
+        gwp_fossil: material.gwp_fossil ?? '',
+        gwp_biogenic: material.gwp_biogenic ?? '',
+        gwp_luluc: material.gwp_luluc ?? '',
+        adp_fossil: material.adp_fossil ?? '',
+        adp_elements: material.adp_elements ?? '',
+        lifecycle_scope: material.lifecycle_scope || '',
+        water_consumption: material.water_consumption ?? '',
       });
     }
   }, [material]);
@@ -454,18 +473,36 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       .filter(Boolean)
       .map((url) => ({ url }));
 
+    // Parse EPD numeric components
+    const epdFossil   = formData.gwp_fossil   !== '' ? parseFloat(formData.gwp_fossil)   : null;
+    const epdBiogenic = formData.gwp_biogenic  !== '' ? parseFloat(formData.gwp_biogenic)  : null;
+    const epdLuluc    = formData.gwp_luluc     !== '' ? parseFloat(formData.gwp_luluc)     : null;
+    // If at least one GWP component is filled, derive gwp_value as their sum (zero-fill missing ones)
+    const hasEpdGwp = epdFossil !== null || epdBiogenic !== null || epdLuluc !== null;
+    const derivedGwpValue = hasEpdGwp
+      ? (epdFossil ?? 0) + (epdBiogenic ?? 0) + (epdLuluc ?? 0)
+      : (formData.gwp_value !== '' ? parseFloat(formData.gwp_value) : null);
+
     const submitData = {
       ...formData,
       category: formData.category?.trim(),
 
       // normalize numeric fields
-      gwp_value: formData.gwp_value !== '' ? parseFloat(formData.gwp_value) : null,
+      gwp_value: derivedGwpValue,
       gwp_total_value: formData.gwp_total_value !== '' ? parseFloat(formData.gwp_total_value) : null,
       recyclate_content: formData.recyclate_content !== '' ? parseFloat(formData.recyclate_content) : null,
       recycling_percentage: formData.recycling_percentage !== '' ? parseFloat(formData.recycling_percentage) : null,
       recycled_content: formData.recycled_content ? parseFloat(formData.recycled_content) : null,
       latitude: formData.latitude !== '' ? parseFloat(formData.latitude) : null,
       longitude: formData.longitude !== '' ? parseFloat(formData.longitude) : null,
+
+      // EPD numeric fields
+      gwp_fossil: epdFossil,
+      gwp_biogenic: epdBiogenic,
+      gwp_luluc: epdLuluc,
+      adp_fossil:        formData.adp_fossil        !== '' ? parseFloat(formData.adp_fossil)        : null,
+      adp_elements:      formData.adp_elements       !== '' ? parseFloat(formData.adp_elements)       : null,
+      water_consumption: formData.water_consumption  !== '' ? parseFloat(formData.water_consumption)  : null,
 
       // normalize arrays/JSON
       similar_material_ids: JSON.stringify(similarIds),
@@ -1175,40 +1212,17 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">GWP gesamt</label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    name="gwp_total_value"
-                    value={formData.gwp_total_value}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                    placeholder="z. B. 12.34"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Einheit</label>
-                  <input
-                    type="text"
-                    name="gwp_total_unit"
-                    value={formData.gwp_total_unit}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Recyclatanteil (%)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    name="recyclate_content"
-                    value={formData.recyclate_content}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  />
-                </div>
+              <div className="w-full md:w-1/2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Recyclatanteil (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  name="recyclate_content"
+                  value={formData.recyclate_content}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  placeholder="0–100"
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1645,7 +1659,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  GWP-Wert
+                  GWP total (Projektsumme)
                 </label>
                 <input
                   type="number"
@@ -1654,8 +1668,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   value={formData.gwp_value}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="z. B. 2,5"
+                  placeholder="z. B. 2.5"
                 />
+                {(formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '') && (
+                  <p className="text-[11px] text-amber-600 mt-1">Wird aus EPD-Komponenten (fossil + biogen + luluc) berechnet</p>
+                )}
               </div>
 
               <div>
@@ -1675,35 +1692,6 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Recyclinganteil (%)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  name="recycled_content"
-                  value={formData.recycled_content}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Zertifizierungen
-                </label>
-                <input
-                  type="text"
-                  name="certifications"
-                  value={formData.certifications}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="z. B. FSC, LEED"
-                />
-              </div>
             </div>
 
             <div className="flex gap-6 mt-4">
@@ -1728,6 +1716,155 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
                 <span className="text-sm text-gray-700">Biologisch abbaubar</span>
               </label>
+            </div>
+          </div>
+
+          <div className="border-t pt-4">
+            <h3 className="text-sm font-medium text-gray-900 mb-1">EPD-Daten (EN 15804)</h3>
+            <p className="text-xs text-gray-400 mb-3">Werte aus einer Umweltproduktdeklaration — alle Felder optional</p>
+            {(() => {
+              const f = parseFloat(formData.gwp_fossil);
+              const b = parseFloat(formData.gwp_biogenic);
+              const l = parseFloat(formData.gwp_luluc);
+              const hasAny = formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '';
+              const total = (isNaN(f) ? 0 : f) + (isNaN(b) ? 0 : b) + (isNaN(l) ? 0 : l);
+              return hasAny ? (
+                <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-xs text-green-800">
+                  <span className="font-semibold">GWP total =</span>
+                  <span className="font-mono font-bold">{total.toLocaleString('de-DE', { maximumFractionDigits: 4 })} kg CO₂e</span>
+                  <span className="text-green-600">(fossil {isNaN(f)?'–':f} + biogen {isNaN(b)?'–':b} + luluc {isNaN(l)?'–':l}) → wird als GWP-Wert gespeichert</span>
+                </div>
+              ) : null;
+            })()}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                  Deklarierte Einheit
+                  <span title="Die funktionelle oder deklarierte Einheit aus der EPD — z. B. &#39;1 kg&#39;, &#39;1 m²&#39; oder &#39;1 m³&#39;. Alle Kennwerte beziehen sich auf diese Menge.&#10;&#10;Wo in der EPD: Titelseite oder Abschnitt &#39;Systemgrenze&#39; / &#39;Declared Unit&#39; — oft direkt unter dem Produktnamen angegeben." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                </label>
+                <input
+                  type="text"
+                  name="declared_unit"
+                  value={formData.declared_unit}
+                  onChange={handleChange}
+                  placeholder="z. B. 1 kg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                  Systemgrenze
+                  <span title="Gibt an, welche Lebenszyklusphasen die EPD abdeckt. A1–A3: Rohstoffgewinnung bis Werkstor. A1–A5: zusätzlich Transport und Einbau. A1–D: inkl. Rückbau und Wiederverwendungspotenzial (Modul D).&#10;&#10;Wo in der EPD: Titelseite oder Abschnitt &#39;Systemgrenze&#39; / &#39;System Boundary&#39; — als Spanne wie &#39;A1-A3&#39; oder als Tabellenkopf der Wirkungskategorien-Tabelle angegeben." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                </label>
+                <select
+                  name="lifecycle_scope"
+                  value={formData.lifecycle_scope}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                >
+                  <option value="">— nicht angegeben —</option>
+                  <option value="A1-A3">A1–A3 (Herstellung)</option>
+                  <option value="A1-A5">A1–A5 (Herstellung + Einbau)</option>
+                  <option value="A1-D">A1–D (inkl. Wiederverwendungspotenzial)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                  GWP fossil (kg CO₂e)
+                  <span title="Global Warming Potential aus fossilen Quellen (Kohle, Öl, Gas). Haupttreiber des Treibhausgaseffekts bei energieintensiven Materialien. Positiv = Emission, negativ = Bindung.&#10;&#10;Wo in der EPD: Tabelle &#39;Ergebnisse der Ökobilanz&#39; / &#39;Environmental Performance&#39; → Zeile &#39;GWP-fossil&#39; oder &#39;GWP fossil fuels&#39; → Spalte für deine Systemgrenze (z. B. A1-A3). Einheit: kg CO₂-Äq." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name="gwp_fossil"
+                  value={formData.gwp_fossil}
+                  onChange={handleChange}
+                  placeholder="z. B. 2.4"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                  GWP biogen (kg CO₂e)
+                  <span title="Treibhausgaspotenzial aus biogenen Quellen (nachwachsende Rohstoffe). Oft negativ bei Holz/Bambus, da während des Wachstums CO₂ gebunden wurde. Wird bei Verbrennung wieder freigesetzt.&#10;&#10;Wo in der EPD: Gleiche Tabelle → Zeile &#39;GWP-biogenic&#39; oder &#39;GWP biogen&#39; → selbe Systemgrenze-Spalte. Bei Holzprodukten häufig stark negativ (gespeichertes CO₂)." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name="gwp_biogenic"
+                  value={formData.gwp_biogenic}
+                  onChange={handleChange}
+                  placeholder="z. B. -0.1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                  GWP luluc (kg CO₂e)
+                  <span title="Land Use and Land Use Change — Treibhausgasemissionen durch Landnutzungsänderungen (z. B. Rodung für Rohstoffanbau). Oft klein, aber relevant bei Agrarprodukten und Holz aus bestimmten Regionen.&#10;&#10;Wo in der EPD: Gleiche Tabelle → Zeile &#39;GWP-luluc&#39; oder &#39;GWP land use&#39;. Manchmal fehlt diese Zeile in älteren EPDs (vor EN 15804:2019)." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name="gwp_luluc"
+                  value={formData.gwp_luluc}
+                  onChange={handleChange}
+                  placeholder="z. B. 0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                  ADP fossil (MJ)
+                  <span title="Abiotic Depletion Potential fossil — nicht erneuerbare fossile Primärenergie (Öl, Gas, Kohle). Zeigt den gesamten fossilen Energieverbrauch für Herstellung und Transport.&#10;&#10;Wo in der EPD: Tabelle &#39;Ergebnisse&#39; → Abschnitt &#39;Ressourcen&#39; oder &#39;Ressourceneinsatz&#39; → Zeile &#39;ADP-fossil&#39; oder &#39;PENRE&#39; (Primärenergie nicht erneuerbar). Einheit: MJ." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name="adp_fossil"
+                  value={formData.adp_fossil}
+                  onChange={handleChange}
+                  placeholder="z. B. 45"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                  ADP elements (kg Sb-Äq.)
+                  <span title="Abiotic Depletion Potential elements — Verbrauch nicht erneuerbarer mineralischer Ressourcen (Metalle, Mineralien), in kg Antimon-Äquivalent. Relevant bei seltenen Erden und Metallen.&#10;&#10;Wo in der EPD: Gleiche Ressourcentabelle → Zeile &#39;ADP-elements&#39; oder &#39;Abiotischer Ressourcenverbrauch (Elemente)&#39;. Werte oft sehr klein (E-05 bis E-07). Einheit: kg Sb-Äq." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name="adp_elements"
+                  value={formData.adp_elements}
+                  onChange={handleChange}
+                  placeholder="z. B. 0.00012"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                  Wasserverbrauch (m³)
+                  <span title="Netto-Wasserverbrauch über den Lebenszyklus (Water Deprivation Potential / WDP). Berücksichtigt Wasserentnahme und -rückgabe, gewichtet nach regionaler Wasserknappheit.&#10;&#10;Wo in der EPD: Tabelle &#39;Ergebnisse&#39; → Abschnitt &#39;Wirkungskategorien&#39; → Zeile &#39;WDP&#39; oder &#39;Wasserverbrauch&#39; oder &#39;Water use&#39;. Manchmal auch als &#39;Fresh water&#39; im Ressourcenteil. Einheit: m³ Wasser-Äq." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  name="water_consumption"
+                  value={formData.water_consumption}
+                  onChange={handleChange}
+                  placeholder="z. B. 0.003"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
+                />
+              </div>
             </div>
           </div>
 

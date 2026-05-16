@@ -277,9 +277,13 @@ export default function ProjectDetail() {
               Materialien &amp; Zutaten
             </h2>
             {typeof project.total_gwp_value === 'number' && project.total_gwp_value > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-1 text-xs font-semibold text-green-800">
+              <span
+                title={`Global Warming Potential (GWP total) des Projekts.&#10;Berechnung: Summe aller Materialien × Menge × GWP-Wert des Materials.&#10;Die GWP-Werte der Materialien stammen aus EPD-Daten (fossil + biogen + luluc) oder werden manuell gepflegt.&#10;Einheit: ${project.total_gwp_unit || 'kg CO₂e'}`}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-1 text-xs font-semibold text-green-800 cursor-help"
+              >
                 <Leaf className="w-3.5 h-3.5 text-green-600" />
-                GWP: {project.total_gwp_value.toFixed(3)} {project.total_gwp_unit || 'kg CO₂e'}
+                GWP total: {project.total_gwp_value.toFixed(3)} {project.total_gwp_unit || 'kg CO₂e'}
+                <span className="text-green-500">ⓘ</span>
               </span>
             )}
           </div>
@@ -292,7 +296,7 @@ export default function ProjectDetail() {
                   key={material.id}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                 >
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <span className="font-medium text-gray-900">{material.material_name}</span>
                     <span className="text-gray-500 ml-2">
                       {material.quantity} {material.unit || 'Stk.'}
@@ -301,6 +305,14 @@ export default function ProjectDetail() {
                       <span className="ml-2 text-xs text-gray-400">({material.category})</span>
                     )}
                   </div>
+                  {material.gwp_value != null && material.quantity != null && (
+                    <span
+                      title={`GWP-Beitrag dieses Materials: ${material.quantity} ${material.unit || 'Stk.'} × ${material.gwp_value} ${material.gwp_unit || 'kg CO₂e'} = ${(Number(material.quantity) * Number(material.gwp_value)).toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg CO₂e`}
+                      className="ml-3 flex-shrink-0 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-0.5 font-mono cursor-help"
+                    >
+                      {(Number(material.quantity) * Number(material.gwp_value)).toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg CO₂e
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

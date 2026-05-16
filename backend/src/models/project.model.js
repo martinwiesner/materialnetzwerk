@@ -29,7 +29,7 @@ const Project = {
     project.images = db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(id);
     project.files  = db.prepare('SELECT * FROM project_files  WHERE project_id = ? ORDER BY created_at ASC').all(id);
     project.materials = db.prepare(`
-      SELECT pm.*, m.name as material_name, m.category, m.gwp_value, m.unit
+      SELECT pm.*, m.name as material_name, m.category, m.gwp_value, m.gwp_unit, m.unit
       FROM project_materials pm JOIN materials m ON pm.material_id = m.id WHERE pm.project_id = ?
     `).all(id);
     project.total_gwp_value = (project.materials||[]).reduce((s,r)=>s+Number(r.quantity||0)*Number(r.gwp_value||0),0);

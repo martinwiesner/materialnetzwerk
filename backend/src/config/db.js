@@ -415,6 +415,16 @@ const ensureColumns = () => {
     addCol('materials', 'passport_type', "passport_type TEXT DEFAULT 'construction'");
     addCol('materials', 'passport_data', "passport_data TEXT DEFAULT '{}'");
     addCol('projects',  'material_id',   'material_id TEXT');
+
+    // EPD / Ökobilanz-Grunddaten (EN 15804)
+    addCol('materials', 'declared_unit',    'declared_unit TEXT');
+    addCol('materials', 'gwp_fossil',        'gwp_fossil REAL');
+    addCol('materials', 'gwp_biogenic',      'gwp_biogenic REAL');
+    addCol('materials', 'gwp_luluc',         'gwp_luluc REAL');
+    addCol('materials', 'adp_fossil',        'adp_fossil REAL');
+    addCol('materials', 'adp_elements',      'adp_elements REAL');
+    addCol('materials', 'lifecycle_scope',   'lifecycle_scope TEXT');
+    addCol('materials', 'water_consumption', 'water_consumption REAL');
     addCol('actors',    'material_id',   'material_id TEXT');
     addCol('inventory', 'material_id_code', 'material_id_code TEXT');
 

@@ -59,7 +59,9 @@ export default function GesuchDetail() {
     setShowEdit(true);
   };
 
-  const isOwner = isAuthenticated && gesuch && (user?.id === gesuch.owner_id || user?.is_admin);
+  const isOwner = isAuthenticated && gesuch && (
+    user?.id === gesuch.user_id || user?.id === gesuch.owner_id || user?.is_admin
+  );
 
   if (isLoading) {
     return (

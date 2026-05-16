@@ -533,28 +533,50 @@ export default function ProjectForm({ project, onClose }) {
               </p>
             ) : (
               <div className="space-y-2">
-                {formData.materials.map((mat, i) => (
-                  <div key={i} className="flex gap-2 items-start">
-                    <select value={mat.material_id} onChange={(e) => updateMaterial(i, 'material_id', e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
-                      <option value="">Material wählen</option>
-                      {availableMaterials.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
-                      ))}
-                    </select>
-                    <input type="number" step="0.01" min="0" value={mat.quantity}
-                      onChange={(e) => updateMaterial(i, 'quantity', parseFloat(e.target.value) || 0)}
-                      placeholder="Menge" required
-                      className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-                    <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, 'unit', e.target.value)}
-                      placeholder="Einheit"
-                      className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-                    <button type="button" onClick={() => removeMaterial(i)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                {formData.materials.map((mat, i) => {
+                  const selectedMat = availableMaterials.find(m => m.id === mat.material_id);
+                  const gwpVal = selectedMat?.gwp_value;
+                  const gwpUnit = selectedMat?.gwp_unit;
+                  const denominator = gwpUnit?.split('/')?.[1]?.trim(); // e.g. "kg" from "kg CO2e/kg"
+                  const unitMismatch = denominator && mat.unit && mat.unit.trim() !== denominator;
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="flex gap-2 items-center">
+                        <select value={mat.material_id} onChange={(e) => updateMaterial(i, 'material_id', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
+                          <option value="">Material wählen</option>
+                          {availableMaterials.map((m) => (
+                            <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
+                          ))}
+                        </select>
+                        <input type="number" step="0.01" min="0" value={mat.quantity}
+                          onChange={(e) => updateMaterial(i, 'quantity', parseFloat(e.target.value) || 0)}
+                          placeholder="Menge" required
+                          className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
+                        <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, 'unit', e.target.value)}
+                          placeholder="Einheit"
+                          className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
+                        <button type="button" onClick={() => removeMaterial(i)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {mat.material_id && gwpVal != null && gwpUnit && (
+                        <div className={`text-xs flex items-center gap-1 pl-1 ${unitMismatch ? 'text-amber-600' : 'text-gray-400'}`}>
+                          {unitMismatch
+                            ? <>⚠ GWP-Bezug: <span className="font-medium">{gwpUnit}</span> — Menge sollte in <span className="font-medium">{denominator}</span> angegeben sein (eingetragen: {mat.unit || '?'})</>
+                            : <>ℹ GWP: <span className="font-medium">{gwpVal} {gwpUnit}</span>{denominator ? <> — Menge in <span className="font-medium">{denominator}</span></> : null}</>
+                          }
+                        </div>
+                      )}
+                      {mat.material_id && (gwpVal == null || gwpVal === 0) && selectedMat && (
+                        <div className="text-xs text-gray-300 pl-1">
+                          ℹ Kein GWP-Wert für dieses Material hinterlegt — fließt nicht in die Ökobilanz ein
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>)}

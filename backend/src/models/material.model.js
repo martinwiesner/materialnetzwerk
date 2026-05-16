@@ -24,6 +24,8 @@ const NEW_FIELDS = [
   'latitude','longitude','location_name','address',
   // Digital Product Passport (Phase 1)
   'material_id','passport_type','passport_data',
+  // EPD / Ökobilanz-Grunddaten (EN 15804)
+  'declared_unit','gwp_fossil','gwp_biogenic','gwp_luluc','adp_fossil','adp_elements','lifecycle_scope','water_consumption',
 ];
 
 const BOOL_FIELDS = new Set(['is_reusable','is_transferable','is_giftable','use_indoor','use_outdoor','cert_epd','cert_cradle_to_cradle','cert_fsc_pefc']);
@@ -101,6 +103,15 @@ const Material = {
       generateMaterialId('materials'),
       getPassportType(data.category),
       '{}',
+      // EPD / Ökobilanz-Grunddaten
+      data.declared_unit||null,
+      data.gwp_fossil??null,
+      data.gwp_biogenic??null,
+      data.gwp_luluc??null,
+      data.adp_fossil??null,
+      data.adp_elements??null,
+      data.lifecycle_scope||null,
+      data.water_consumption??null,
     ];
     const ph = cols.map(()=>'?').join(', ');
     db.prepare(`INSERT INTO materials (${cols.join(', ')}) VALUES (${ph})`).run(...vals);

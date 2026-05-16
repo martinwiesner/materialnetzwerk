@@ -70,7 +70,7 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
     enabled: Boolean(inventoryId),
   });
 
-  const isOwner = isAuthenticated && item && user && item.owner_id === user.id;
+  const isOwner = isAuthenticated && item && user && (item.user_id === user.id || item.owner_id === user.id);
 
   function handleRequestClick() {
     if (!isAuthenticated) {

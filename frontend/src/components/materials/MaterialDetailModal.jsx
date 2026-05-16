@@ -347,6 +347,127 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
               </div>
             </Section>
 
+            {(material.gwp_fossil != null || material.gwp_biogenic != null || material.gwp_luluc != null ||
+              material.adp_fossil != null || material.adp_elements != null || material.water_consumption != null ||
+              material.declared_unit || material.lifecycle_scope) && (
+              <Section title="EPD-Daten (EN 15804)" icon={Info}>
+                <div className="space-y-3">
+                  {(material.declared_unit || material.lifecycle_scope) && (
+                    <div className="flex flex-wrap gap-4">
+                      {material.declared_unit && (
+                        <div>
+                          <div className="text-xs text-gray-500 flex items-center gap-1">
+                            Deklarierte Einheit
+                            <span title="Die funktionelle oder deklarierte Einheit aus der EPD. Alle Kennwerte beziehen sich auf diese Menge." className="cursor-help text-gray-400">ⓘ</span>
+                          </div>
+                          <div className="text-sm font-mono font-medium text-gray-900 mt-0.5">{material.declared_unit}</div>
+                        </div>
+                      )}
+                      {material.lifecycle_scope && (
+                        <div>
+                          <div className="text-xs text-gray-500 flex items-center gap-1">
+                            Systemgrenze
+                            <span title="Lebenszyklusphasen der EPD: A1–A3 = Herstellung, A1–A5 = inkl. Einbau, A1–D = inkl. Wiederverwendungspotenzial." className="cursor-help text-gray-400">ⓘ</span>
+                          </div>
+                          <div className="text-sm font-medium text-gray-900 mt-0.5">{material.lifecycle_scope}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(material.gwp_fossil != null || material.gwp_biogenic != null || material.gwp_luluc != null) && (
+                    <div>
+                      <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
+                        Treibhausgaspotenzial (GWP)
+                        <span title="Global Warming Potential — misst den Beitrag zum Klimawandel in kg CO₂-Äquivalent pro deklarierter Einheit. GWP total = fossil + biogen + luluc." className="cursor-help text-gray-400">ⓘ</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {[
+                          { key: 'gwp_fossil',   label: 'fossil',   tip: 'Emissionen aus Kohle, Öl und Gas. Haupttreiber bei energieintensiven Materialien.' },
+                          { key: 'gwp_biogenic', label: 'biogen',   tip: 'Aus nachwachsenden Rohstoffen. Oft negativ bei Holz (gespeichertes CO₂).' },
+                          { key: 'gwp_luluc',    label: 'luluc',    tip: 'Landnutzungsänderungen (z. B. Rodung). Relevant bei Agrarprodukten und Holz.' },
+                        ].map(({ key, label, tip }) => material[key] != null && (
+                          <div key={key} className="bg-gray-50 rounded-xl border border-gray-200 p-2.5">
+                            <div className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                              GWP {label} <span title={tip} className="cursor-help text-gray-400">ⓘ</span>
+                            </div>
+                            <div className="text-sm font-mono font-semibold text-gray-900 mt-0.5">
+                              {Number(material[key]).toLocaleString('de-DE', { maximumFractionDigits: 4 })}
+                              <span className="text-[10px] font-normal text-gray-500 ml-1">kg CO₂e</span>
+                            </div>
+                          </div>
+                        ))}
+                        {(() => {
+                          const f = material.gwp_fossil ?? 0;
+                          const b = material.gwp_biogenic ?? 0;
+                          const l = material.gwp_luluc ?? 0;
+                          const hasAny = material.gwp_fossil != null || material.gwp_biogenic != null || material.gwp_luluc != null;
+                          if (!hasAny) return null;
+                          const total = Number(f) + Number(b) + Number(l);
+                          return (
+                            <div className="bg-green-50 rounded-xl border border-green-200 p-2.5">
+                              <div className="text-[10px] text-green-700 flex items-center gap-0.5">
+                                GWP total <span title="Summe aller GWP-Komponenten = fossil + biogen + luluc." className="cursor-help text-green-500">ⓘ</span>
+                              </div>
+                              <div className="text-sm font-mono font-bold text-green-900 mt-0.5">
+                                {total.toLocaleString('de-DE', { maximumFractionDigits: 4 })}
+                                <span className="text-[10px] font-normal text-green-700 ml-1">kg CO₂e</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {(material.adp_fossil != null || material.adp_elements != null) && (
+                    <div>
+                      <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
+                        Abiotische Ressourcen (ADP)
+                        <span title="Abiotic Depletion Potential — Verbrauch nicht erneuerbarer Ressourcen." className="cursor-help text-gray-400">ⓘ</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {material.adp_fossil != null && (
+                          <div className="bg-gray-50 rounded-xl border border-gray-200 p-2.5">
+                            <div className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                              ADP fossil <span title="Nicht erneuerbare fossile Primärenergie (Öl, Gas, Kohle). Einheit: MJ." className="cursor-help text-gray-400">ⓘ</span>
+                            </div>
+                            <div className="text-sm font-mono font-semibold text-gray-900 mt-0.5">
+                              {Number(material.adp_fossil).toLocaleString('de-DE', { maximumFractionDigits: 4 })}
+                              <span className="text-[10px] font-normal text-gray-500 ml-1">MJ</span>
+                            </div>
+                          </div>
+                        )}
+                        {material.adp_elements != null && (
+                          <div className="bg-gray-50 rounded-xl border border-gray-200 p-2.5">
+                            <div className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                              ADP elements <span title="Mineralische und metallische Rohstoffe. Einheit: kg Sb-Äq. (Antimon-Äquivalent). Werte oft sehr klein (E-05 bis E-07)." className="cursor-help text-gray-400">ⓘ</span>
+                            </div>
+                            <div className="text-sm font-mono font-semibold text-gray-900 mt-0.5">
+                              {Number(material.adp_elements).toExponential(2)}
+                              <span className="text-[10px] font-normal text-gray-500 ml-1">kg Sb-Äq.</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {material.water_consumption != null && (
+                    <div className="bg-gray-50 rounded-xl border border-gray-200 p-2.5 inline-flex flex-col">
+                      <div className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                        Wasserverbrauch (WDP) <span title="Net water consumption — Netto-Wasserverbrauch über den Lebenszyklus, gewichtet nach regionaler Wasserknappheit. Einheit: m³ Wasser-Äq." className="cursor-help text-gray-400">ⓘ</span>
+                      </div>
+                      <div className="text-sm font-mono font-semibold text-gray-900 mt-0.5">
+                        {Number(material.water_consumption).toLocaleString('de-DE', { maximumFractionDigits: 5 })}
+                        <span className="text-[10px] font-normal text-gray-500 ml-1">m³</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
+
             <Section title="Weiterführende Informationen" icon={ExternalLink}>
               {envLinks.length ? (
                 <div className="space-y-2">
