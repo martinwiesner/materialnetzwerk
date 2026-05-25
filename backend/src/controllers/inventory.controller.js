@@ -355,6 +355,20 @@ export const getInventoryImages = (req, res) => {
   }
 };
 
+export const updateInventoryImage = (req, res) => {
+  try {
+    const inventory = Inventory.findById(req.params.id);
+    if (!inventory) return res.status(404).json({ message: 'Inventory entry not found' });
+    if (inventory.user_id !== req.user.id) return res.status(403).json({ message: 'Not authorized' });
+    const updates = {};
+    if (Object.hasOwn(req.body, 'credit')) updates.credit = req.body.credit;
+    Inventory.updateImageMeta(req.params.imageId, updates);
+    res.json(Inventory.getImages(req.params.id));
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update image', error: error.message });
+  }
+};
+
 export const deleteInventoryImage = (req, res) => {
   try {
     const inventory = Inventory.findById(req.params.id);

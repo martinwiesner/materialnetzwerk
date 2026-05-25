@@ -116,11 +116,18 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
           <div className="px-6 pb-6">
             {/* Cover Image */}
             {coverImage ? (
-              <img
-                src={imageUrl(coverImage)}
-                alt={item.material_name}
-                className="w-full h-56 object-cover rounded-xl mt-4 mb-4"
-              />
+              <div className="relative mt-4 mb-4">
+                <img
+                  src={imageUrl(coverImage)}
+                  alt={item.material_name}
+                  className="w-full h-56 object-cover rounded-xl"
+                />
+                {coverImage.credit && (
+                  <span className="absolute bottom-2 right-2 text-[10px] font-light text-white/70 tracking-wide leading-none [writing-mode:vertical-rl] rotate-180 select-none pointer-events-none">
+                    {coverImage.credit}
+                  </span>
+                )}
+              </div>
             ) : (
               <div className="w-full h-32 bg-gray-100 rounded-xl mt-4 mb-4 flex items-center justify-center">
                 <Package className="w-10 h-10 text-gray-300" />

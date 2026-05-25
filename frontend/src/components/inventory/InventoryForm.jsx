@@ -205,6 +205,13 @@ export default function InventoryForm({ item, editingItem, onClose }) {
     setLocalImages(prev => prev.filter(i => i.id !== imageId));
   };
 
+  const handleImageCredit = async (imageId, credit) => {
+    const id = editItem?.id || savedId;
+    if (!id) return;
+    const updated = await inventoryService.updateImage(id, imageId, { credit });
+    if (Array.isArray(updated)) setLocalImages(updated);
+  };
+
   const handleFileUpload = async (files) => {
     const id = editItem?.id || savedId;
     if (!id) { setError('Bitte zuerst speichern, dann Dateien hinzufügen'); return; }
@@ -468,6 +475,7 @@ export default function InventoryForm({ item, editingItem, onClose }) {
             images={localImages}
             onUpload={handleImageUpload}
             onDelete={handleImageDelete}
+            onSetCredit={handleImageCredit}
             apiBase={API_BASE}
             showSteps={true}
             label="Bilder (erstes = Cover)"

@@ -13,6 +13,7 @@ import {
   getCategories,
   uploadMaterialImages,
   getMaterialImages,
+  updateMaterialImage,
   deleteMaterialImage,
   uploadMaterialFilesCtrl,
   getMaterialFiles,
@@ -232,6 +233,7 @@ export default router;
 // Image routes
 router.post('/:id/images', protect, multerMatImages.array('images', 10), (req, res) => uploadMaterialImages(req, res));
 router.get('/:id/images', optionalAuth, (req, res) => getMaterialImages(req, res));
+router.patch('/:id/images/:imageId', protect, (req, res) => updateMaterialImage(req, res));
 router.delete('/:id/images/:imageId', protect, (req, res) => deleteMaterialImage(req, res));
 
 // File routes (manufacturing/technical data)

@@ -63,11 +63,18 @@ function ImageGallery({ images, name }) {
 
   return (
     <div className="mb-5">
-      <img
-        src={imgUrl(images[active])}
-        alt={name}
-        className="w-full h-64 object-cover rounded-2xl border border-gray-100"
-      />
+      <div className="relative">
+        <img
+          src={imgUrl(images[active])}
+          alt={name}
+          className="w-full h-64 object-cover rounded-2xl border border-gray-100"
+        />
+        {images[active]?.credit && (
+          <span className="absolute bottom-2 right-2 text-[10px] font-light text-white/70 tracking-wide leading-none [writing-mode:vertical-rl] rotate-180 select-none pointer-events-none">
+            {images[active].credit}
+          </span>
+        )}
+      </div>
       {images.length > 1 && (
         <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
           {images.map((img, i) => (

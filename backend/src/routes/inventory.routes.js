@@ -19,6 +19,7 @@ import {
   acceptTransfer,
   uploadInventoryImages,
   getInventoryImages,
+  updateInventoryImage,
   deleteInventoryImage,
   uploadInventoryFiles,
   getInventoryFiles,
@@ -333,6 +334,7 @@ export default router;
 // Image routes
 router.post('/:id/images', protect, multerInvImages.array('images', 10), (req, res) => uploadInventoryImages(req, res));
 router.get('/:id/images', optionalAuth, (req, res) => getInventoryImages(req, res));
+router.patch('/:id/images/:imageId', protect, (req, res) => updateInventoryImage(req, res));
 router.delete('/:id/images/:imageId', protect, (req, res) => deleteInventoryImage(req, res));
 
 // File routes (manufacturing/technical data)

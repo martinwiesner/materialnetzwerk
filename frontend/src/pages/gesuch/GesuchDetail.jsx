@@ -206,8 +206,13 @@ export default function GesuchDetail() {
                   .map((img) => {
                     const url = `${MEDIA_BASE}${img.file_path?.startsWith('/') ? img.file_path : '/' + img.file_path}`;
                     return (
-                      <div key={img.id} className="rounded-xl overflow-hidden border border-gray-200">
+                      <div key={img.id} className="relative rounded-xl overflow-hidden border border-gray-200">
                         <img src={url} alt={img.original_name || 'Bild'} className="w-full h-32 object-cover" />
+                        {img.credit && (
+                          <span className="absolute bottom-1.5 right-1.5 text-[9px] font-light text-white/70 tracking-wide leading-none [writing-mode:vertical-rl] rotate-180 select-none pointer-events-none">
+                            {img.credit}
+                          </span>
+                        )}
                       </div>
                     );
                   })}

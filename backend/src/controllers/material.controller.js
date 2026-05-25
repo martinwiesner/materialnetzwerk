@@ -195,6 +195,20 @@ export const getMaterialImages = (req, res) => {
   }
 };
 
+export const updateMaterialImage = (req, res) => {
+  try {
+    const material = Material.findById(req.params.id);
+    if (!material) return res.status(404).json({ message: 'Material not found' });
+    if (material.created_by !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    const updates = {};
+    if (Object.hasOwn(req.body, 'credit')) updates.credit = req.body.credit;
+    Material.updateImageMeta(req.params.imageId, updates);
+    res.json(Material.getImages(req.params.id));
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update image', error: error.message });
+  }
+};
+
 export const deleteMaterialImage = (req, res) => {
   try {
     const material = Material.findById(req.params.id);

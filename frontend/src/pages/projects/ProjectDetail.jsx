@@ -23,6 +23,11 @@ function ImageCarousel({ images, apiBase }) {
           alt={images[idx].original_name || `Bild ${idx + 1}`}
           className="w-full h-72 object-cover"
         />
+        {images[idx].credit && (
+          <span className="absolute bottom-2 right-2 text-[10px] font-light text-white/70 tracking-wide leading-none [writing-mode:vertical-rl] rotate-180 select-none pointer-events-none">
+            {images[idx].credit}
+          </span>
+        )}
         {images.length > 1 && (
           <>
             <button

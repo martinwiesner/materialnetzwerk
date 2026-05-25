@@ -110,6 +110,20 @@ export const removeActorLink = (req, res) => {
   }
 };
 
+export const updateActorImage = (req, res) => {
+  try {
+    const actor = Actor.findById(req.params.id);
+    if (!actor) return res.status(404).json({ message: 'Not found' });
+    if (!isOwnerOrAdmin(req.user, actor)) return res.status(403).json({ message: 'Forbidden' });
+    const updates = {};
+    if (Object.hasOwn(req.body, 'credit')) updates.credit = req.body.credit;
+    Actor.updateImageMeta(req.params.imageId, updates);
+    res.json({ message: 'Updated' });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
 export const deleteActorImage = (req, res) => {
   try {
     const actor = Actor.findById(req.params.id);

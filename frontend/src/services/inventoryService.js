@@ -73,6 +73,11 @@ export const inventoryService = {
     return response.data;
   },
 
+  updateImage: async (id, imageId, data) => {
+    const response = await api.patch(`/inventory/${id}/images/${imageId}`, data);
+    return response.data;
+  },
+
   deleteImage: async (id, imageId) => {
     const response = await api.delete(`/inventory/${id}/images/${imageId}`);
     return response.data;

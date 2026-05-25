@@ -35,6 +35,11 @@ export const actorService = {
     return response.data;
   },
 
+  updateImage: async (id, imageId, data) => {
+    const response = await api.patch(`/actors/${id}/images/${imageId}`, data);
+    return response.data;
+  },
+
   deleteImage: async (id, imageId) => {
     const response = await api.delete(`/actors/${id}/images/${imageId}`);
     return response.data;

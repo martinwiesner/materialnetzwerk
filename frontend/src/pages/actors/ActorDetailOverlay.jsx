@@ -72,7 +72,14 @@ export default function ActorDetailOverlay({ actor, isOwner, onClose, onEdit, on
         {/* Image header */}
         <div className="relative w-full h-56 bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
           {coverSrc ? (
-            <img src={coverSrc} alt={actor.name} className="w-full h-full object-cover" />
+            <>
+              <img src={coverSrc} alt={actor.name} className="w-full h-full object-cover" />
+              {cover?.credit && (
+                <span className="absolute bottom-2 right-2 text-[10px] font-light text-white/70 tracking-wide leading-none [writing-mode:vertical-rl] rotate-180 select-none pointer-events-none">
+                  {cover.credit}
+                </span>
+              )}
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <TypeIcon className="w-16 h-16 text-gray-300" />

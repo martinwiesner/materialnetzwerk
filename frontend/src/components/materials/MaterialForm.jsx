@@ -1947,6 +1947,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               await materialImageService.delete(id, imageId);
               setLocalImages(prev => prev.filter(i => i.id !== imageId));
             }}
+            onSetCredit={async (imageId, credit) => {
+              const id = material?.id || savedId;
+              if (!id) return;
+              const { materialImageService } = await import('../../services/materialService');
+              const updated = await materialImageService.updateMeta(id, imageId, { credit });
+              if (Array.isArray(updated)) setLocalImages(updated);
+            }}
             apiBase={API_BASE}
             showSteps={true}
             label={pendingImages.length > 0 ? 'Weitere Bilder hinzufügen' : 'Bilder (erstes = Cover)'}

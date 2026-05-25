@@ -313,19 +313,34 @@ export default function ActorForm({ actor, onClose }) {
             {images.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
                 {images.map(img => (
-                  <div key={img.id} className="relative group">
-                    <img
-                      src={imgUrl(img)}
-                      alt=""
-                      className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                  <div key={img.id} className="flex flex-col w-24">
+                    <div className="relative group">
+                      <img
+                        src={imgUrl(img)}
+                        alt=""
+                        className="w-24 h-24 object-cover rounded-t-xl border border-b-0 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => deleteImageMutation.mutate({ actorId: actor.id, imageId: img.id })}
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="© Credit"
+                      defaultValue={img.credit || ''}
+                      onBlur={async (e) => {
+                        const val = e.target.value;
+                        if (val !== (img.credit || '')) {
+                          await actorService.updateImage(actor.id, img.id, { credit: val });
+                          setImages(prev => prev.map(i => i.id === img.id ? { ...i, credit: val } : i));
+                        }
+                      }}
+                      className="w-full text-[10px] px-1.5 py-1 border border-t-0 border-gray-200 rounded-b-xl focus:outline-none focus:ring-1 focus:ring-actor-300 bg-white text-gray-500 placeholder-gray-300"
                     />
-                    <button
-                      type="button"
-                      onClick={() => deleteImageMutation.mutate({ actorId: actor.id, imageId: img.id })}
-                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
                   </div>
                 ))}
               </div>

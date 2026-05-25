@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import protect from '../middleware/auth.middleware.js';
 import {
   getActors, getActor, createActor, updateActor, deleteActor,
-  uploadActorImage, deleteActorImage,
+  uploadActorImage, updateActorImage, deleteActorImage,
   addActorLink, removeActorLink,
 } from '../controllers/actor.controller.js';
 
@@ -38,6 +38,7 @@ router.post('/', protect, createActor);
 router.put('/:id', protect, updateActor);
 router.delete('/:id', protect, deleteActor);
 router.post('/:id/images', protect, upload.array('images', 5), uploadActorImage);
+router.patch('/:id/images/:imageId', protect, updateActorImage);
 router.delete('/:id/images/:imageId', protect, deleteActorImage);
 router.post('/:id/links', protect, addActorLink);
 router.delete('/:id/links/:linkId', protect, removeActorLink);

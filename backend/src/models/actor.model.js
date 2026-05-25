@@ -93,6 +93,20 @@ const Actor = {
     return db.prepare('SELECT * FROM actor_images WHERE id = ?').get(id);
   },
 
+  updateImageMeta: (imageId, updates) => {
+    const db = getDB();
+    const allowed = ['credit'];
+    const fields = [], values = [];
+    for (const f of allowed) {
+      if (!(f in updates)) continue;
+      fields.push(`${f} = ?`);
+      values.push(updates[f] ?? null);
+    }
+    if (fields.length === 0) return;
+    values.push(imageId);
+    db.prepare(`UPDATE actor_images SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  },
+
   deleteImage: (imageId) => {
     const db = getDB();
     const img = db.prepare('SELECT * FROM actor_images WHERE id = ?').get(imageId);

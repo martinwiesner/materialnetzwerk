@@ -401,8 +401,11 @@ const ensureColumns = () => {
     addCol('projects', 'references', '"references" TEXT');
     // projects – license declaration
     addCol('projects', 'license', 'license TEXT');
-    // project_images – image credit
-    addCol('project_images', 'credit', 'credit TEXT');
+    // image credit for all image types
+    addCol('project_images',   'credit', 'credit TEXT');
+    addCol('material_images',  'credit', 'credit TEXT');
+    addCol('inventory_images', 'credit', 'credit TEXT');
+    addCol('actor_images',     'credit', 'credit TEXT');
 
     // materials – location fields
     addCol('materials', 'latitude', 'latitude REAL');

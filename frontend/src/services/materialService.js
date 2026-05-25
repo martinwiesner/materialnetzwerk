@@ -47,6 +47,12 @@ export const materialImageService = {
     return response.data;
   },
 
+  updateMeta: async (id, imageId, data) => {
+    const { default: api } = await import('./api');
+    const response = await api.patch(`/materials/${id}/images/${imageId}`, data);
+    return response.data;
+  },
+
   delete: async (id, imageId) => {
     const { default: api } = await import('./api');
     const response = await api.delete(`/materials/${id}/images/${imageId}`);
