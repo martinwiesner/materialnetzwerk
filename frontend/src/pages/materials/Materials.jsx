@@ -14,6 +14,7 @@ import GeoMap from '../../components/maps/GeoMap';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import RzzDecoration from '../../components/ui/RzzDecoration';
+import { useT } from '../../i18n/useT';
 import { MEDIA_BASE } from '../../services/api';
 
 function getMaterialImage(material) {
@@ -41,6 +42,7 @@ function formatApproxQty(qty, unit) {
 
 export default function Materials() {
   const navigate = useNavigate();
+  const t = useT();
   const { isAuthenticated, token, user } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
 
@@ -184,7 +186,7 @@ export default function Materials() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-primary-700 rounded-t-2xl">
               <div className="flex items-center gap-2 text-white">
                 <Info className="w-5 h-5" />
-                <h2 className="text-lg font-bold">Was darf eingetragen werden?</h2>
+                <h2 className="text-lg font-bold">{t('materials.guideTitle')}</h2>
               </div>
               <button onClick={() => setShowGuide(false)} className="p-1.5 text-white/70 hover:text-white rounded-lg transition-colors">
                 <X className="w-5 h-5" />
@@ -201,7 +203,7 @@ export default function Materials() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-5 h-5 text-project-600 flex-shrink-0" />
-                  <h3 className="font-semibold text-gray-900">Erlaubt & erwünscht</h3>
+                  <h3 className="font-semibold text-gray-900">{t('materials.guideAllowed')}</h3>
                 </div>
                 <ul className="space-y-2">
                   {[
@@ -224,7 +226,7 @@ export default function Materials() {
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <XCircle className="w-5 h-5 text-actor-600 flex-shrink-0" />
-                  <h3 className="font-semibold text-gray-900">Nicht erlaubt</h3>
+                  <h3 className="font-semibold text-gray-900">{t('materials.guideNotAllowed')}</h3>
                 </div>
                 <ul className="space-y-2">
                   {[
@@ -257,7 +259,7 @@ export default function Materials() {
                 onClick={() => setShowGuide(false)}
                 className="px-5 py-2 text-sm font-semibold bg-primary-700 hover:bg-primary-800 text-white rounded-xl transition-colors"
               >
-                Verstanden
+                {t('materials.guideClose')}
               </button>
             </div>
           </div>
@@ -270,28 +272,27 @@ export default function Materials() {
         <div className="relative px-8 py-12 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 text-white text-sm font-medium mb-4">
             <FlaskConical className="w-4 h-4" />
-            Materialbibliothek
+            {t('materials.label')}
           </div>
           <h1 className="font-display text-4xl font-extrabold text-white mb-4 leading-tight">
-            Materialien für die Kreislaufwirtschaft.<br />
-            <span className="text-primary-100">Erfasse Materialien und stelle sie bereit.</span>
+            {t('materials.heroHeading')}<br />
+            <span className="text-primary-100">{t('materials.heroSubheading')}</span>
           </h1>
           <p className="text-lg text-white/80 mb-3 max-w-xl">
-            Für Materialforschende, Urban Miner und alle, die Sekundärmaterialien zugänglich machen wollen:
-            Lege Materialien mit Herkunft und Eigenschaften an und mache sie für die Community verfügbar.
+            {t('materials.heroBody')}
           </p>
           <div className="flex flex-wrap gap-4 text-sm text-white/70 mb-8">
             <span className="flex items-center gap-1.5">
               <FlaskConical className="w-4 h-4" />
-              GWP-Werte & Ökobilanzdaten
+              {t('materials.heroBadgeGwp')}
             </span>
             <span className="flex items-center gap-1.5">
               <Database className="w-4 h-4" />
-              Offene Materialdatenbank
+              {t('materials.heroBadgeDb')}
             </span>
             <span className="flex items-center gap-1.5">
               <Recycle className="w-4 h-4" />
-              Urban Mining & Sekundärmaterialien
+              {t('materials.heroBadgeUrban')}
             </span>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -300,28 +301,28 @@ export default function Materials() {
               className="inline-flex items-center gap-2 bg-white text-primary-700 hover:bg-primary-50 px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm"
             >
               <Plus className="w-5 h-5" />
-              Material dokumentieren
+              {t('materials.ctaDocument')}
             </button>
             <button
               onClick={() => { if (!requireAuth()) return; setFormInitialMode('offer-only'); setShowForm(true); }}
               className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white px-5 py-3 rounded-xl font-medium text-base transition-colors"
             >
               <Store className="w-5 h-5" />
-              Angebot eintragen
+              {t('materials.ctaOffer')}
             </button>
             <button
               onClick={() => { if (!requireAuth()) return; setFormInitialMode('gesuch'); setShowForm(true); }}
               className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-white px-5 py-3 rounded-xl font-medium text-base transition-colors"
             >
               <BookMarked className="w-5 h-5" />
-              Gesuch eintragen
+              {t('materials.ctaWanted')}
             </button>
             <button
               onClick={() => setShowGuide(true)}
               className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white/70 px-4 py-3 rounded-xl font-medium text-base transition-colors"
             >
               <Info className="w-5 h-5" />
-              Was ist erlaubt?
+              {t('materials.ctaWhatAllowed')}
             </button>
           </div>
         </div>
@@ -329,8 +330,8 @@ export default function Materials() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Materialien</h2>
-          <p className="text-gray-600">Nachhaltige Materialbibliothek</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t('materials.title')}</h2>
+          <p className="text-gray-600">{t('materials.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden bg-white">
@@ -340,10 +341,10 @@ export default function Materials() {
                 'px-3 py-2 text-sm font-medium inline-flex items-center gap-2',
                 viewMode === 'list' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'
               )}
-              title="Liste"
+              title={t('common.list')}
             >
               <List className="w-4 h-4" />
-              Liste
+              {t('common.list')}
             </button>
             <button
               onClick={() => setViewMode('map')}
@@ -351,10 +352,10 @@ export default function Materials() {
                 'px-3 py-2 text-sm font-medium inline-flex items-center gap-2',
                 viewMode === 'map' ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'
               )}
-              title="Karte"
+              title={t('common.map')}
             >
               <MapPinned className="w-4 h-4" />
-              Karte
+              {t('common.map')}
             </button>
           </div>
 
@@ -362,7 +363,7 @@ export default function Materials() {
             <button
               onClick={() => exportMaterialsToCSV(materials)}
               disabled={materials.length === 0}
-              title="Als CSV exportieren"
+              title={t('materials.csvExport')}
               className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
             >
               <Download className="w-4 h-4" />
@@ -370,7 +371,7 @@ export default function Materials() {
             <button
               onClick={() => exportMaterialsToPDF(materials)}
               disabled={materials.length === 0}
-              title="Als PDF exportieren"
+              title={t('materials.pdfExport')}
               className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
             >
               <FileText className="w-4 h-4" />
@@ -383,7 +384,7 @@ export default function Materials() {
               className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
             >
               <Plus className="w-5 h-5" />
-              Material hinzufügen
+              {t('materials.ctaAdd')}
             </button>
           </div>
         </div>
@@ -396,7 +397,7 @@ export default function Materials() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Materialien suchen…"
+              placeholder={t('materials.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -407,7 +408,7 @@ export default function Materials() {
             onChange={(e) => setCategory(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           >
-            <option value="">Alle Kategorien</option>
+            <option value="">{t('materials.allCategories')}</option>
             {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
@@ -418,7 +419,7 @@ export default function Materials() {
               filterAvailable ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-300 text-orange-600 hover:bg-orange-50'
             }`}
           >
-            Nur verfügbare
+            {t('materials.filterAvailable')}
           </button>
           <button
             onClick={() => { setFilterOnlyGesuch(v => !v); setFilterAvailable(false); }}
@@ -427,7 +428,7 @@ export default function Materials() {
             }`}
           >
             <BookMarked className="w-4 h-4" />
-            Nur Gesuche
+            {t('materials.filterWanted')}
           </button>
         </div>
       </div>
@@ -479,7 +480,7 @@ export default function Materials() {
               {!filterOnlyGesuch && (
                 <h3 className="text-base font-semibold text-purple-800 mb-3 flex items-center gap-2">
                   <BookMarked className="w-4 h-4" />
-                  Materialgesuche ({filteredGesuche.length})
+                  {t('materials.wanted')} ({filteredGesuche.length})
                 </h3>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -499,7 +500,7 @@ export default function Materials() {
                       <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
                         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600/90 text-white text-xs font-medium shadow-sm">
                           <BookMarked className="w-3.5 h-3.5" />
-                          Materialgesuch
+                          {t('materials.wanted')}
                         </div>
                         {(gesuch.quantity || gesuch.unit) && (
                           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-xs text-gray-700 shadow-sm">

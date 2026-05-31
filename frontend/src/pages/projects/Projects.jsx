@@ -14,8 +14,10 @@ import RzzDecoration from '../../components/ui/RzzDecoration';
 import { useToast } from '../../store/toastStore';
 import { OwnerLine } from '../../components/shared/ContactButton';
 import { formatDate } from '../../utils/dates';
+import { useT } from '../../i18n/useT';
 
 export default function Projects() {
+  const t = useT();
   const { isAuthenticated, token, user } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
 
@@ -141,31 +143,28 @@ export default function Projects() {
         <div className="relative px-8 py-12 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 text-white text-sm font-medium mb-4">
             <FolderOpen className="w-4 h-4" />
-            Nachhaltige Projekte
+            {t('projects.subtitle')}
           </div>
           <h1 className="font-display text-4xl font-extrabold text-white mb-4 leading-tight">
-            Baue deine eigenen<br />
-            nachhaltigen Projekte.
+            {t('projects.heroHeading')}
           </h1>
           <p className="text-lg text-white/80 mb-8 max-w-xl">
-            Entdecke umweltfreundliche Projekte von Makern aus der ganzen Welt.
-            Erhalte 3D-Modelle, Skizzen und Schritt-für-Schritt-Anleitungen –
-            oder teile dein eigenes Projekt mit der Community.
+            {t('projects.heroBody')}
           </p>
           <button
             onClick={() => { if (!requireAuth()) return; setShowForm(true); }}
             className="inline-flex items-center gap-2 bg-white text-project-700 hover:bg-project-50 px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm"
           >
             <Plus className="w-5 h-5" />
-            Jetzt Projekt anlegen
+            {t('projects.ctaAdd')}
           </button>
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Projekt-Artikel</h2>
-          <p className="text-gray-600">Teile, was du mit Materialien gebaut hast</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t('projects.title')}</h2>
+          <p className="text-gray-600">{t('projects.subtitle2')}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden bg-white">
@@ -177,7 +176,7 @@ export default function Projects() {
               )}
             >
               <List className="w-4 h-4" />
-              Liste
+              {t('common.list')}
             </button>
             <button
               onClick={() => setViewMode('map')}
@@ -187,7 +186,7 @@ export default function Projects() {
               )}
             >
               <MapPinned className="w-4 h-4" />
-              Karte
+              {t('common.map')}
             </button>
           </div>
 
@@ -195,7 +194,7 @@ export default function Projects() {
             <button
               onClick={() => exportProjectsToCSV(projects)}
               disabled={!projects?.length}
-              title="Als CSV exportieren"
+              title={t('materials.csvExport')}
               className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
             >
               <Download className="w-4 h-4" />
@@ -203,7 +202,7 @@ export default function Projects() {
             <button
               onClick={() => exportProjectsToPDF(projects)}
               disabled={!projects?.length}
-              title="Als PDF exportieren"
+              title={t('materials.pdfExport')}
               className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30"
             >
               <FileText className="w-4 h-4" />
@@ -217,7 +216,7 @@ export default function Projects() {
                 className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors"
               >
                 <Plus className="w-5 h-5" />
-                Neuer Artikel
+                {t('projects.ctaAdd')}
               </button>
             )}
           </div>
@@ -237,7 +236,7 @@ export default function Projects() {
             )}
           >
             <FolderOpen className="w-4 h-4" />
-            Meine Artikel ({myProjects.length})
+            {t('projects.filterMy')} ({myProjects.length})
           </button>
         )}
         <button
@@ -250,7 +249,7 @@ export default function Projects() {
           )}
         >
           <Globe className="w-4 h-4" />
-          Öffentliche Artikel ({publicProjects.length})
+          {t('projects.filterAll')} ({publicProjects.length})
         </button>
       </div>
 
@@ -261,7 +260,7 @@ export default function Projects() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Artikel suchen…"
+              placeholder={t('projects.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
@@ -273,11 +272,11 @@ export default function Projects() {
               onChange={(e) => setStatus(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
             >
-              <option value="">Alle Status</option>
-              <option value="draft">Entwurf</option>
-              <option value="active">Veröffentlicht</option>
-              <option value="completed">Abgeschlossen</option>
-              <option value="archived">Archiviert</option>
+              <option value="">{t('projects.filterStatus')}</option>
+              <option value="draft">{t('projects.statusDraft')}</option>
+              <option value="active">{t('projects.statusPublished')}</option>
+              <option value="completed">{t('projects.statusDone')}</option>
+              <option value="archived">{t('projects.statusArchived')}</option>
             </select>
           )}
           <button
@@ -286,7 +285,7 @@ export default function Projects() {
               filterAvailable ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-300 text-orange-600 hover:bg-orange-50'
             }`}
           >
-            Nur verfügbare
+            {t('projects.filterAvailable')}
           </button>
         </div>
       </div>
@@ -300,8 +299,8 @@ export default function Projects() {
         ) : mapPoints.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
             <Leaf className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Projekte mit Standort</h3>
-            <p className="text-gray-600">Füge einem Projekt Koordinaten hinzu, um es auf der Karte zu sehen.</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('projects.noLocation')}</h3>
+            <p className="text-gray-600">{t('projects.noLocationHint')}</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3">

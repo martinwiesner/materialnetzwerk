@@ -274,6 +274,7 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
             </Section>
 
             <Section title="Technische Daten" icon={Ruler}>
+              <CadButton material={material} />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
                   <div className="text-xs text-gray-500">Verfügbare Materialstärken</div>
@@ -529,5 +530,68 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
         />
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CAD-Konfigurator Button
+// ---------------------------------------------------------------------------
+
+const CAD_APP_URL = 'https://martinwiesner.github.io/cad-app/';
+
+function parseDimensions(dimStr) {
+  if (!dimStr) return {};
+  // Erkennt Muster wie "1200x600", "100 x 200", "1200×600"
+  const m = dimStr.match(/(\d+(?:[.,]\d+)?)\s*[xX×]\s*(\d+(?:[.,]\d+)?)/);
+  if (!m) return {};
+  return {
+    width: parseFloat(m[1].replace(',', '.')),
+    height: parseFloat(m[2].replace(',', '.')),
+  };
+}
+
+function parseThickness(thickStr) {
+  if (!thickStr) return undefined;
+  // Erstes Vorkommen einer Zahl extrahieren, z.B. "10mm, 20mm" → 10
+  const m = thickStr.match(/(\d+(?:[.,]\d+)?)/);
+  return m ? parseFloat(m[1].replace(',', '.')) : undefined;
+}
+
+function CadButton({ material }) {
+  const dims      = parseDimensions(material.tech_dimensions);
+  const thickness = parseThickness(material.tech_thicknesses);
+
+  const params = new URLSearchParams();
+  params.set('material', material.name ?? '');
+  if (dims.width)  params.set('width',  String(dims.width));
+  if (dims.height) params.set('height', String(dims.height));
+  if (thickness)   params.set('thickness', String(thickness));
+  if (material.tech_density) params.set('density', material.tech_density);
+  params.set('mode', 'configurator');
+
+  const url = `${CAD_APP_URL}?${params.toString()}`;
+
+  const hasAnyDim = dims.width || dims.height || thickness;
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 mb-4 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors w-fit"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+        <line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+      Im CAD-Konfigurator öffnen
+      {hasAnyDim && (
+        <span className="ml-1 text-xs text-blue-500">
+          {[dims.width && `${dims.width}mm`, dims.height && `${dims.height}mm`, thickness && `${thickness}mm Stärke`]
+            .filter(Boolean).join(' × ')}
+        </span>
+      )}
+    </a>
   );
 }

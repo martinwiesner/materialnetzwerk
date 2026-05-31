@@ -24,6 +24,7 @@ import ActorForm from '../../components/actors/ActorForm';
 
 import { MEDIA_BASE } from '../../services/api';
 import { exportGesuchPoster, exportAngebotPoster } from '../../utils/exportUtils';
+import { useT } from '../../i18n/useT';
 
 const API_BASE = MEDIA_BASE;
 
@@ -440,6 +441,7 @@ function getConnectionsForSelection(selected, allEntities) {
 }
 
 export default function Explore() {
+  const t = useT();
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, token, user } = useAuthStore();
@@ -455,7 +457,7 @@ export default function Explore() {
     },
   });
   const handleDeleteActorFromExplore = (id) => {
-    if (window.confirm('Akteur wirklich löschen?')) deleteActorMutation.mutate(id);
+    if (window.confirm(t('actors.deleteConfirm'))) deleteActorMutation.mutate(id);
   };
 
   const requireAuth = () => {
@@ -620,14 +622,14 @@ export default function Explore() {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Globe className="w-4 h-4 text-gray-700 flex-shrink-0" />
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Entdecken</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{t('explore.title')}</h1>
             <button
               data-onboarding="guidelines-button"
               onClick={openGuidelines}
               className="hidden sm:inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2.5 py-1 transition-colors hover:bg-gray-50 flex-shrink-0"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              Info &amp; Spielregeln
+              {t('explore.infoRules')}
             </button>
           </div>
 
@@ -638,8 +640,8 @@ export default function Explore() {
             className="inline-flex items-center gap-1.5 bg-primary-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-primary-800 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span className="hidden xs:inline">Jetzt eintragen</span>
-            <span className="xs:hidden">Eintragen</span>
+            <span className="hidden xs:inline">{t('explore.addEntry')}</span>
+            <span className="xs:hidden">{t('explore.addBtn')}</span>
           </button>
 
           {createMenuOpen && (
@@ -654,8 +656,8 @@ export default function Explore() {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50"
               >
                 <Package className="w-4 h-4" />
-                Material
-                <span className="ml-auto text-xs text-gray-400">(+ Angebot o. Gesuch)</span>
+                {t('nav.materials')}
+                <span className="ml-auto text-xs text-gray-400">{t('explore.materialWithOffer')}</span>
               </button>
               <button
                 onClick={() => {
@@ -666,7 +668,7 @@ export default function Explore() {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50"
               >
                 <FolderOpen className="w-4 h-4" />
-                Projekt
+                {t('nav.projects')}
               </button>
               <button
                 onClick={() => {
@@ -677,7 +679,7 @@ export default function Explore() {
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-50 border-t border-gray-100"
               >
                 <Users className="w-4 h-4" />
-                Akteur
+                {t('nav.actors')}
               </button>
               <div className="border-t border-gray-100">
                 <button
@@ -685,7 +687,7 @@ export default function Explore() {
                   className="w-full flex items-center gap-3 px-4 py-3 text-xs text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition-colors"
                 >
                   <BookOpen className="w-4 h-4" />
-                  Was darf ich eintragen?
+                  {t('explore.whatCanIAdd')}
                 </button>
               </div>
             </div>
@@ -695,21 +697,25 @@ export default function Explore() {
         {/* Row 2: description + mobile info button */}
         <div className="flex items-center gap-2">
           <span className="text-xs sm:text-sm text-gray-500 leading-snug">
-            <span className="sm:hidden">Die{' '}
-              <a href="https://www.reallabor-zekiwa-zeitz.de" target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors">
-                RZZ
-                <svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              </a>
-              -Plattform für Materialien, Projekte und Akteure.</span>
+            <span className="sm:hidden">
+              {t('explore.subtitle').split('RZZ').map((part, i, arr) =>
+                i < arr.length - 1 ? (
+                  <span key={i}>{part}<a href="https://www.reallabor-zekiwa-zeitz.de" target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors">
+                    RZZ<svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a></span>
+                ) : <span key={i}>{part}</span>
+              )}
+            </span>
             <span className="hidden sm:inline">
-              Die regionale Plattform des{' '}
-              <a href="https://www.reallabor-zekiwa-zeitz.de" target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors">
-                RZZ
-                <svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              </a>
-              , auf der Materialien, Projekte und Beteiligte zusammenfinden.
+              {t('explore.subtitleLong').split('RZZ').map((part, i, arr) =>
+                i < arr.length - 1 ? (
+                  <span key={i}>{part}<a href="https://www.reallabor-zekiwa-zeitz.de" target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 hover:text-gray-700 transition-colors">
+                    RZZ<svg className="w-3 h-3 opacity-40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a></span>
+                ) : <span key={i}>{part}</span>
+              )}
             </span>
           </span>
           <button
@@ -718,7 +724,7 @@ export default function Explore() {
             className="sm:hidden inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-2 py-1 transition-colors hover:bg-gray-50 flex-shrink-0"
           >
             <BookOpen className="w-3 h-3" />
-            Info
+            {t('explore.info')}
           </button>
         </div>
       </div>
@@ -732,7 +738,7 @@ export default function Explore() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Suchen (Name, Ort, Notizen…)"
+              placeholder={t('explore.searchPlaceholder')}
               className="w-full pl-10 pr-10 py-1.5 sm:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
             />
             {search ? (
@@ -758,7 +764,7 @@ export default function Explore() {
                     : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
                 )}
               >
-                {filterMode === 'available' ? 'Nur verfügbare' : filterMode === 'gesuche' ? 'Nur Gesuche' : 'Filter'}
+                {filterMode === 'available' ? t('explore.filterAvailable') : filterMode === 'gesuche' ? t('explore.filterWanted') : t('common.filter')}
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
               </button>
               {filterDropdownOpen && (
@@ -767,7 +773,7 @@ export default function Explore() {
                   <div className="absolute top-full mt-1 left-0 sm:left-auto sm:right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 w-56 py-1 text-sm">
                     {/* Ansicht-Filter */}
                     {[
-                      { value: 'all', label: 'Alle anzeigen' },
+                      { value: 'all', label: t('explore.filterModeAll') },
                     ].map(({ value, label }) => (
                       <button
                         key={value}
@@ -784,11 +790,11 @@ export default function Explore() {
 
                     {/* Typ-Toggles (immer sichtbar, Mehrfachauswahl) */}
                     <div className="border-t border-gray-100 px-3 pt-2 pb-1">
-                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Typen</p>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">{t('explore.types')}</p>
                       {[
-                        { key: 'materials', label: 'Materialien', color: '#0033FF', active: showMaterials, toggle: () => setShowMaterials((v) => !v) },
-                        { key: 'projects',  label: 'Projekte',    color: '#639530', active: showProjects,  toggle: () => setShowProjects((v) => !v) },
-                        { key: 'actors',    label: 'Akteure',     color: '#FF3B36', active: showActors,    toggle: () => setShowActors((v) => !v) },
+                        { key: 'materials', label: t('explore.filterMaterials'), color: '#0033FF', active: showMaterials, toggle: () => setShowMaterials((v) => !v) },
+                        { key: 'projects',  label: t('explore.filterProjects'),   color: '#639530', active: showProjects,  toggle: () => setShowProjects((v) => !v) },
+                        { key: 'actors',    label: t('explore.filterActors'),     color: '#FF3B36', active: showActors,    toggle: () => setShowActors((v) => !v) },
                       ].map(({ key, label, color, active, toggle }) => (
                         <button
                           key={key}
@@ -804,8 +810,8 @@ export default function Explore() {
                     {/* Weitere Filter */}
                     <div className="border-t border-gray-100 pt-1">
                       {[
-                        { value: 'available', label: 'Nur verfügbare Angebote' },
-                        { value: 'gesuche',   label: 'Nur Gesuche' },
+                        { value: 'available', label: t('explore.filterAvailableOffers') },
+                        { value: 'gesuche',   label: t('explore.filterWanted') },
                       ].map(({ value, label }) => (
                         <button
                           key={value}
@@ -834,10 +840,10 @@ export default function Explore() {
                   'inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium transition-colors',
                   showMap ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                 )}
-                title="Kartensicht"
+                title={t('explore.mapView')}
               >
                 <MapIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                Karte
+                {t('common.map')}
               </button>
               <button
                 onClick={() => setShowMap(false)}
@@ -845,10 +851,10 @@ export default function Explore() {
                   'inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium transition-colors border-l border-gray-200',
                   !showMap ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                 )}
-                title="Kartenansicht ausblenden"
+                title={t('explore.mapHide')}
               >
                 <LayoutList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                Liste
+                {t('common.list')}
               </button>
             </div>
           </div>
@@ -883,8 +889,8 @@ export default function Explore() {
         <div data-onboarding="entity-list" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <div>
-              <div className="font-semibold text-gray-900">Deine Umgebung</div>
-              <div className="text-xs text-gray-500">{filteredEntities.length} Einträge</div>
+              <div className="font-semibold text-gray-900">{t('explore.surroundings')}</div>
+              <div className="text-xs text-gray-500">{filteredEntities.length} {t('explore.entries')}</div>
             </div>
           </div>
 
@@ -894,7 +900,7 @@ export default function Explore() {
                 <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
               </div>
             ) : filteredEntities.length === 0 ? (
-              <div className="text-center py-10 text-gray-500">Keine Treffer.</div>
+              <div className="text-center py-10 text-gray-500">{t('explore.empty')}</div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {filteredEntities.map((e) => (

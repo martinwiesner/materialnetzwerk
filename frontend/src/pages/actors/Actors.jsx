@@ -13,10 +13,12 @@ import { imgUrl, TYPE_ICONS, TYPE_COLORS } from './ActorDetailOverlay';
 import RzzDecoration from '../../components/ui/RzzDecoration';
 import { useToast } from '../../store/toastStore';
 import { OwnerLine } from '../../components/shared/ContactButton';
+import { useT } from '../../i18n/useT';
 
 // ── Actor Card ────────────────────────────────────────────────────────────────
 
 function ActorCard({ actor, onOpenDetail, onEdit, onDelete, isOwner }) {
+  const t = useT();
   const coverSrc = imgUrl(actor.images?.[0]);
   const TypeIcon = TYPE_ICONS[actor.type] || Building2;
   const typeColor = TYPE_COLORS[actor.type] || TYPE_COLORS['Sonstiges'];
@@ -79,7 +81,7 @@ function ActorCard({ actor, onOpenDetail, onEdit, onDelete, isOwner }) {
         )}
 
         <div className="mt-4 flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-actor-600">Details anzeigen →</span>
+          <span className="text-sm font-medium text-actor-600">{t('actors.viewDetails')}</span>
           {!isOwner && actor.owner_id && (
             <OwnerLine
               ownerId={actor.owner_id}
@@ -98,6 +100,7 @@ function ActorCard({ actor, onOpenDetail, onEdit, onDelete, isOwner }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Actors() {
+  const t = useT();
   const { isAuthenticated, token, user } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
   const queryClient = useQueryClient();
@@ -163,23 +166,20 @@ export default function Actors() {
         <div className="relative px-8 py-12 max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 text-white text-sm font-medium mb-4">
             <Users className="w-4 h-4" />
-            Akteure
+            {t('actors.label')}
           </div>
           <h1 className="font-display text-4xl font-extrabold text-white mb-4 leading-tight">
-            Wer macht mit?<br />
-            Menschen & Organisationen der Kreislaufwirtschaft.
+            {t('actors.heroHeading')}
           </h1>
           <p className="text-lg text-white/80 mb-8 max-w-xl">
-            Makerspaces, Repair Cafés, verarbeitende Betriebe, Urban Miner und Kreativwerkstätten –
-            hier präsentieren sich alle, die Materialien ein zweites Leben geben.
-            Lege deine eigene Visitenkarte an.
+            {t('actors.heroBody')}
           </p>
           <button
             onClick={() => { if (!requireAuth()) return; setEditing(null); setShowForm(true); }}
             className="inline-flex items-center gap-2 bg-white text-actor-700 hover:bg-actor-50 px-6 py-3 rounded-xl font-semibold text-base transition-colors shadow-sm"
           >
             <Plus className="w-5 h-5" />
-            Akteur eintragen
+            {t('actors.ctaAdd')}
           </button>
         </div>
       </div>
@@ -192,7 +192,7 @@ export default function Actors() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Name, Ort oder Typ…"
+            placeholder={t('actors.searchPlaceholder')}
             className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-400 focus:border-transparent outline-none"
           />
           {search && (
@@ -209,23 +209,23 @@ export default function Actors() {
               !typeFilter ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
             }`}
           >
-            Alle
+            {t('common.all')}
           </button>
-          {allTypes.map(t => (
+          {allTypes.map(typeName => (
             <button
-              key={t}
-              onClick={() => setTypeFilter(t === typeFilter ? '' : t)}
+              key={typeName}
+              onClick={() => setTypeFilter(typeName === typeFilter ? '' : typeName)}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                typeFilter === t ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                typeFilter === typeName ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
               }`}
             >
-              {t}
+              {typeName}
             </button>
           ))}
         </div>
 
         <span className="text-sm text-gray-500 ml-auto">
-          {!isLoading && `${actors.length} Akteure`}
+          {!isLoading && `${actors.length} ${t('actors.title')}`}
         </span>
       </div>
 
@@ -237,14 +237,14 @@ export default function Actors() {
       ) : actors.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
           <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Noch keine Akteure eingetragen</h3>
-          <p className="text-gray-500 mb-6">Sei der Erste!</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('actors.empty')}</h3>
+          <p className="text-gray-500 mb-6">{t('actors.emptyHint')}</p>
           <button
             onClick={() => { if (!requireAuth()) return; setEditing(null); setShowForm(true); }}
             className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Akteur eintragen
+            {t('actors.ctaAdd')}
           </button>
         </div>
       ) : (

@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../store/toastStore';
 import GeolocateButton from '../shared/GeolocateButton';
 import { MEDIA_BASE } from '../../services/api';
+import { useT } from '../../i18n/useT';
 
 const ACTOR_TYPES = [
   'Hersteller',
@@ -38,6 +39,7 @@ const EMPTY = {
 };
 
 export default function ActorForm({ actor, onClose }) {
+  const t = useT();
   const { token } = useAuthStore();
   const queryClient = useQueryClient();
   const imageInputRef = useRef(null);
@@ -123,7 +125,7 @@ export default function ActorForm({ actor, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
-    if (!form.name.trim()) { setError('Name ist erforderlich.'); return; }
+    if (!form.name.trim()) { setError(t('actorForm.nameRequired')); return; }
     const payload = {
       ...form,
       latitude: form.latitude !== '' ? parseFloat(form.latitude) : null,
@@ -135,13 +137,13 @@ export default function ActorForm({ actor, onClose }) {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    if (!isEdit) { setError('Bitte erst speichern, dann Bilder hochladen.'); return; }
+    if (!isEdit) { setError(t('actorForm.imagesHint')); return; }
     setUploadingImage(true);
     try {
       const result = await actorService.uploadImages(actor.id, files);
       setImages(prev => [...prev, ...(result.images || [])]);
     } catch {
-      setError('Bild-Upload fehlgeschlagen.');
+      setError(t('actorForm.uploading'));
     } finally {
       setUploadingImage(false);
       if (imageInputRef.current) imageInputRef.current.value = '';
@@ -159,7 +161,7 @@ export default function ActorForm({ actor, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">
-            {isEdit ? 'Akteur bearbeiten' : 'Akteur eintragen'}
+            {isEdit ? t('actorForm.titleEdit') : t('actorForm.titleNew')}
           </h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
             <X className="w-5 h-5" />
@@ -175,48 +177,48 @@ export default function ActorForm({ actor, onClose }) {
           {/* Name + Type */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name / Organisation *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelName')}</label>
               <input
                 type="text"
                 value={form.name}
                 onChange={set('name')}
-                placeholder="z.B. Zeitz Recycling GmbH"
+                placeholder={t('actorForm.placeholderName')}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Typ</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelType')}</label>
               <select
                 value={form.type}
                 onChange={set('type')}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
               >
-                <option value="">— Bitte wählen —</option>
-                {ACTOR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                <option value="">{t('actorForm.chooseType')}</option>
+                {ACTOR_TYPES.map(tp => <option key={tp} value={tp}>{tp}</option>)}
               </select>
             </div>
           </div>
 
           {/* Tagline */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kurzslogan</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelTagline')}</label>
             <input
               type="text"
               value={form.tagline}
               onChange={set('tagline')}
-              placeholder="Ein kurzer Satz, der euch beschreibt"
+              placeholder={t('actorForm.placeholderTagline')}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
             />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelDescription')}</label>
             <textarea
               value={form.description}
               onChange={set('description')}
               rows={3}
-              placeholder="Was macht ihr? Womit beschäftigt ihr euch?"
+              placeholder={t('actorForm.placeholderDescription')}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none resize-none"
             />
           </div>
@@ -224,7 +226,7 @@ export default function ActorForm({ actor, onClose }) {
           {/* Contact */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.website')}</label>
               <input
                 type="url"
                 value={form.website}
@@ -234,7 +236,7 @@ export default function ActorForm({ actor, onClose }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.email')}</label>
               <input
                 type="email"
                 value={form.email}
@@ -244,7 +246,7 @@ export default function ActorForm({ actor, onClose }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelPhone')}</label>
               <input
                 type="tel"
                 value={form.phone}
@@ -254,21 +256,21 @@ export default function ActorForm({ actor, onClose }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Standort *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelLocation')}</label>
               <input
                 type="text"
                 value={form.location_name}
                 onChange={set('location_name')}
-                placeholder="z.B. Zeitz, Deutschland"
+                placeholder={t('actorForm.placeholderLocation')}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
               />
-              <p className="text-xs text-gray-400 mt-1">Koordinaten werden automatisch aus dem Standortnamen ermittelt</p>
+              <p className="text-xs text-gray-400 mt-1">{t('actorForm.coordsHint')}</p>
             </div>
           </div>
 
           {/* Address */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.address')}</label>
             <input
               type="text"
               value={form.address}
@@ -281,7 +283,7 @@ export default function ActorForm({ actor, onClose }) {
           {/* Coordinates */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">Koordinaten</label>
+              <label className="block text-sm font-medium text-gray-700">{t('actorForm.labelCoords')}</label>
               <GeolocateButton onLocate={(lat, lon) => setForm(f => ({ ...f, latitude: lat, longitude: lon }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -290,7 +292,7 @@ export default function ActorForm({ actor, onClose }) {
                 step="any"
                 value={form.latitude}
                 onChange={set('latitude')}
-                placeholder="Breitengrad (lat)"
+                placeholder={t('actorForm.placeholderLat')}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
               />
               <input
@@ -298,7 +300,7 @@ export default function ActorForm({ actor, onClose }) {
                 step="any"
                 value={form.longitude}
                 onChange={set('longitude')}
-                placeholder="Längengrad (lon)"
+                placeholder={t('actorForm.placeholderLon')}
                 className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
               />
             </div>
@@ -306,9 +308,9 @@ export default function ActorForm({ actor, onClose }) {
 
           {/* Images — only available in edit mode */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Bilder</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('actorForm.labelImages')}</label>
             {!isEdit && (
-              <p className="text-xs text-gray-500 mb-2">Bilder können nach dem ersten Speichern hochgeladen werden.</p>
+              <p className="text-xs text-gray-500 mb-2">{t('actorForm.imagesHint')}</p>
             )}
             {images.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
@@ -356,8 +358,8 @@ export default function ActorForm({ actor, onClose }) {
                   onChange={handleImageUpload}
                 />
                 {uploadingImage
-                  ? <span>Hochladen…</span>
-                  : <><Upload className="w-4 h-4" /> Bild hinzufügen</>
+                  ? <span>{t('actorForm.uploading')}</span>
+                  : <><Upload className="w-4 h-4" /> {t('actorForm.uploadImage')}</>
                 }
               </label>
             )}
@@ -368,10 +370,10 @@ export default function ActorForm({ actor, onClose }) {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Link2 className="w-4 h-4 text-actor-600" />
-                <label className="block text-sm font-medium text-gray-700">Verknüpfungen</label>
+                <label className="block text-sm font-medium text-gray-700">{t('actorForm.labelLinks')}</label>
               </div>
               <p className="text-xs text-gray-500 mb-3">
-                Verknüpfe Materialien und Projekte mit diesem Akteur. Die Verbindungen werden in der Explore-Karte als Linien angezeigt.
+                {t('actorForm.linksHint')}
               </p>
 
               {/* Linked materials */}
@@ -396,7 +398,7 @@ export default function ActorForm({ actor, onClose }) {
                     className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-actor-400 outline-none"
                     defaultValue=""
                   >
-                    <option value="">+ Material verknüpfen…</option>
+                    <option value="">{t('actorForm.linkMaterial')}</option>
                     {availableMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 )}
@@ -424,7 +426,7 @@ export default function ActorForm({ actor, onClose }) {
                     className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-actor-400 outline-none"
                     defaultValue=""
                   >
-                    <option value="">+ Projekt verknüpfen…</option>
+                    <option value="">{t('actorForm.linkProject')}</option>
                     {availableProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 )}
@@ -440,7 +442,7 @@ export default function ActorForm({ actor, onClose }) {
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
           >
-            Abbrechen
+            {t('common.cancel')}
           </button>
           <button
             type="submit"
@@ -448,7 +450,7 @@ export default function ActorForm({ actor, onClose }) {
             disabled={saveMutation.isPending}
             className="px-5 py-2 text-sm font-semibold bg-actor-600 hover:bg-actor-700 text-white rounded-xl transition-colors disabled:opacity-50"
           >
-            {saveMutation.isPending ? 'Speichern…' : isEdit ? 'Änderungen speichern' : 'Akteur anlegen'}
+            {saveMutation.isPending ? t('common.saving') : isEdit ? t('actorForm.btnSave') : t('actorForm.btnCreate')}
           </button>
         </div>
       </div>

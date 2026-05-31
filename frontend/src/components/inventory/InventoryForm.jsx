@@ -8,26 +8,11 @@ import FileUploader from '../shared/FileUploader';
 import GeolocateButton from '../shared/GeolocateButton';
 
 import { MEDIA_BASE } from '../../services/api';
+import { useT } from '../../i18n/useT';
 const API_BASE = MEDIA_BASE;
-
-const VALUE_TYPE_OPTIONS = [
-  { value: '', label: 'Gegenwert wählen…' },
-  { value: 'swap', label: 'Tausch' },
-  { value: 'free', label: 'Kostenlose Abgabe' },
-  { value: 'loan', label: 'Entleihe' },
-  { value: 'negotiable', label: 'Verhandlungsbasis' },
-  { value: 'fixed', label: 'Fixer Preis' },
-];
 
 const TRANSACTION_OPTIONS = ['Verkauf', 'Vermietung', 'Leasing', 'Tausch', 'Kooperation'];
 const LOGISTICS_OPTIONS = ['Selbstabholung', 'Lieferung möglich'];
-const CONDITION_OPTIONS = [
-  { value: '', label: 'Zustand wählen…' },
-  { value: 'new', label: 'Neu' },
-  { value: 'used', label: 'Gebraucht' },
-  { value: 'damaged', label: 'Beschädigt' },
-  { value: 'tested', label: 'Geprüft' },
-];
 
 const initialFormState = {
   material_id: '',
@@ -90,8 +75,25 @@ function CheckboxGroup({ options, value = [], onChange }) {
 }
 
 export default function InventoryForm({ item, editingItem, onClose }) {
+  const t = useT();
   const editItem = item || editingItem;
   const queryClient = useQueryClient();
+
+  const VALUE_TYPE_OPTIONS = [
+    { value: '', label: t('inventoryForm.valueTypeChoose') },
+    { value: 'swap', label: t('inventoryForm.valueTypeSwap') },
+    { value: 'free', label: t('inventoryForm.valueTypeFree') },
+    { value: 'loan', label: t('inventoryForm.valueTypeLoan') },
+    { value: 'negotiable', label: t('inventoryForm.valueTypeNegotiable') },
+    { value: 'fixed', label: t('inventoryForm.valueTypeFixed') },
+  ];
+  const CONDITION_OPTIONS = [
+    { value: '', label: t('inventoryForm.chooseCondition') },
+    { value: 'new', label: t('inventoryForm.conditionNew') },
+    { value: 'used', label: t('inventoryForm.conditionUsed') },
+    { value: 'damaged', label: t('inventoryForm.conditionDamaged') },
+    { value: 'tested', label: t('inventoryForm.conditionTested') },
+  ];
   const [formData, setFormData] = useState(initialFormState);
   const [error, setError] = useState('');
   const [savedId, setSavedId] = useState(null);
@@ -159,13 +161,13 @@ export default function InventoryForm({ item, editingItem, onClose }) {
   const createMutation = useMutation({
     mutationFn: inventoryService.create,
     onSuccess: (data) => { setSavedId(data.id); invalidate(); },
-    onError: (err) => setError(err.response?.data?.error || 'Fehler beim Erstellen'),
+    onError: (err) => setError(err.response?.data?.error || err.message),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => inventoryService.update(id, data),
     onSuccess: () => { invalidate(); onClose(); },
-    onError: (err) => setError(err.response?.data?.error || 'Fehler beim Aktualisieren'),
+    onError: (err) => setError(err.response?.data?.error || err.message),
   });
 
   const handleSubmit = (e) => {
@@ -193,7 +195,7 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
   const handleImageUpload = async (files, options) => {
     const id = editItem?.id || savedId;
-    if (!id) { setError('Bitte zuerst speichern, dann Bilder hinzufügen'); return; }
+    if (!id) { setError(t('inventoryForm.saveFirstImages')); return; }
     const result = await inventoryService.uploadImages(id, files, options);
     setLocalImages(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
   };
@@ -214,7 +216,7 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
   const handleFileUpload = async (files) => {
     const id = editItem?.id || savedId;
-    if (!id) { setError('Bitte zuerst speichern, dann Dateien hinzufügen'); return; }
+    if (!id) { setError(t('inventoryForm.saveFirstFiles')); return; }
     const result = await inventoryService.uploadFiles(id, files);
     setLocalFiles(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
   };
@@ -234,7 +236,7 @@ export default function InventoryForm({ item, editingItem, onClose }) {
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold text-gray-900">
-            {editItem ? 'Materialangebot bearbeiten' : 'Neues Materialangebot'}
+            {editItem ? t('inventoryForm.titleEdit') : t('inventoryForm.titleNew')}
           </h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
             <X className="w-5 h-5" />
@@ -246,22 +248,22 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
           {/* Material */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Material *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('inventoryForm.labelMaterial')}</label>
             <select name="material_id" value={formData.material_id} onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
-              <option value="">Material wählen</option>
+              <option value="">{t('inventoryForm.chooseMaterial')}</option>
               {materials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Menge *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('inventoryForm.labelQuantity')}</label>
               <input type="number" step="0.01" name="quantity" value={formData.quantity} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Einheit *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('inventoryForm.labelUnit')}</label>
               <select name="unit" value={formData.unit} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
                 {['kg','g','lb','m','m2','m3','unit','piece','Stück','Liter'].map(u => <option key={u} value={u}>{u}</option>)}
@@ -271,7 +273,7 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
           {/* Condition */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Zustand</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('inventoryForm.labelCondition')}</label>
             <select name="condition" value={formData.condition} onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
               {CONDITION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -280,14 +282,14 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
           {/* Location */}
           <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <SectionTitle>📍 Standort</SectionTitle>
+            <SectionTitle>📍 {t('inventoryForm.sectionLocation')}</SectionTitle>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ortsname</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('inventoryForm.labelLocationName')}</label>
               <input type="text" name="location_name" value={formData.location_name} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. Lager A" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.address')}</label>
               <input type="text" name="address" value={formData.address} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
             </div>
@@ -298,12 +300,12 @@ export default function InventoryForm({ item, editingItem, onClose }) {
               />
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Breitengrad</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.labelLat')}</label>
                   <input type="number" step="0.000001" name="latitude" value={formData.latitude} onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. 51.05" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Längengrad</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.labelLon')}</label>
                   <input type="number" step="0.000001" name="longitude" value={formData.longitude} onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. 12.13" />
                 </div>
@@ -313,50 +315,50 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
           {/* Availability */}
           <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <SectionTitle>📅 Verfügbarkeit</SectionTitle>
+            <SectionTitle>📅 {t('inventoryForm.sectionAvailability')}</SectionTitle>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" name="is_available" checked={formData.is_available} onChange={handleChange} className="w-4 h-4 text-primary-500 rounded" />
-              <span className="text-sm text-gray-700">Verfügbar (global)</span>
+              <span className="text-sm text-gray-700">{t('inventoryForm.availableGlobal')}</span>
             </label>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" name="is_immediately_available" checked={formData.is_immediately_available} onChange={handleChange} className="w-4 h-4 text-primary-500 rounded" />
-              <span className="text-sm text-gray-700">Sofort verfügbar</span>
+              <span className="text-sm text-gray-700">{t('inventoryForm.availableNow')}</span>
             </label>
 
             {!formData.is_immediately_available && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Verfügbar ab Datum</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.availableFromDate')}</label>
                 <input type="date" name="available_from_date" value={formData.available_from_date} onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Mindestabnahmemenge</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.minOrder')}</label>
               <input type="number" step="0.01" name="min_order_quantity" value={formData.min_order_quantity} onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="optional" />
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder={t('common.optional')} />
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" name="is_regularly_available" checked={formData.is_regularly_available} onChange={handleChange} className="w-4 h-4 text-primary-500 rounded" />
-              <span className="text-sm text-gray-700">Regelmäßig verfügbar</span>
+              <span className="text-sm text-gray-700">{t('inventoryForm.regularlyAvailable')}</span>
             </label>
             {formData.is_regularly_available && (
               <div className="pl-6 grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Zeitraum</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.period')}</label>
                   <input type="text" name="regular_availability_period" value={formData.regular_availability_period} onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. Quartal 1" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Intervall</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.interval')}</label>
                   <select name="regular_availability_type" value={formData.regular_availability_type} onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
-                    <option value="">Wählen…</option>
-                    <option value="monthly">Monatlich</option>
-                    <option value="yearly">Jährlich</option>
+                    <option value="">{t('inventoryForm.intervalChoose')}</option>
+                    <option value="monthly">{t('inventoryForm.intervalMonthly')}</option>
+                    <option value="yearly">{t('inventoryForm.intervalYearly')}</option>
                   </select>
                 </div>
               </div>
@@ -364,12 +366,12 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Saison von</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.seasonFrom')}</label>
                 <input type="text" name="season_from" value={formData.season_from} onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="MM-TT" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Saison bis</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.seasonTo')}</label>
                 <input type="text" name="season_to" value={formData.season_to} onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="MM-TT" />
               </div>
@@ -378,10 +380,10 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
           {/* Pricing & Value */}
           <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <SectionTitle>💰 Preis & Gegenwert</SectionTitle>
+            <SectionTitle>💰 {t('inventoryForm.sectionPricing')}</SectionTitle>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Gegenwert</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('inventoryForm.labelValueType')}</label>
               <select name="value_type" value={formData.value_type} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
                 {VALUE_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -391,12 +393,12 @@ export default function InventoryForm({ item, editingItem, onClose }) {
             {formData.value_type === 'fixed' && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Preis</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.labelPrice')}</label>
                   <input type="number" step="0.01" name="price" value={formData.price} onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Preiseinheit</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.labelPriceUnit')}</label>
                   <input type="text" name="price_unit" value={formData.price_unit} onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="€" />
                 </div>
@@ -405,41 +407,41 @@ export default function InventoryForm({ item, editingItem, onClose }) {
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" name="is_negotiable" checked={formData.is_negotiable} onChange={handleChange} className="w-4 h-4 text-primary-500 rounded" />
-              <span className="text-sm text-gray-700">Verhandelbar</span>
+              <span className="text-sm text-gray-700">{t('inventoryForm.negotiable')}</span>
             </label>
           </div>
 
           {/* Transactions & Logistics */}
           <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <SectionTitle>🔄 Transaktionsoptionen</SectionTitle>
+            <SectionTitle>🔄 {t('inventoryForm.sectionTransactions')}</SectionTitle>
             <CheckboxGroup options={TRANSACTION_OPTIONS} value={formData.transaction_options}
               onChange={v => setFormData(f => ({ ...f, transaction_options: v }))} />
           </div>
 
           <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <SectionTitle>🚚 Logistik</SectionTitle>
+            <SectionTitle>🚚 {t('inventoryForm.sectionLogistics')}</SectionTitle>
             <CheckboxGroup options={LOGISTICS_OPTIONS} value={formData.logistics_options}
               onChange={v => setFormData(f => ({ ...f, logistics_options: v }))} />
             {formData.logistics_options.includes('Lieferung möglich') && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Transportkosten</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">{t('inventoryForm.labelTransportCosts')}</label>
                 <input type="text" name="transport_costs" value={formData.transport_costs} onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. nach Vereinbarung" />
               </div>
             )}
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" name="is_mobile" checked={formData.is_mobile} onChange={handleChange} className="w-4 h-4 text-primary-500 rounded" />
-              <span className="text-sm text-gray-700">Mobil / transportfähig</span>
+              <span className="text-sm text-gray-700">{t('inventoryForm.mobile')}</span>
             </label>
           </div>
 
           {/* Availability mode */}
           <div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <SectionTitle>📋 Verfügbarkeitsart</SectionTitle>
+            <SectionTitle>📋 {t('inventoryForm.sectionAvailabilityMode')}</SectionTitle>
             <div className="space-y-2">
               {[
-                { value: 'negotiable', label: 'Über diese Plattform verhandelbar' },
-                { value: 'external', label: 'Über externe Webseite' },
+                { value: 'negotiable', label: t('inventoryForm.modeNegotiable') },
+                { value: 'external', label: t('inventoryForm.modeExternal') },
               ].map(opt => (
                 <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
                   <input type="radio" name="availability_mode" value={opt.value} checked={formData.availability_mode === opt.value} onChange={handleChange} className="w-4 h-4 text-primary-500" />
@@ -454,18 +456,18 @@ export default function InventoryForm({ item, editingItem, onClose }) {
             </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" name="swap_possible" checked={formData.swap_possible} onChange={handleChange} className="w-4 h-4 text-primary-500 rounded" />
-              <span className="text-sm text-gray-700">Tausch möglich</span>
+              <span className="text-sm text-gray-700">{t('inventoryForm.swapPossible')}</span>
             </label>
             {formData.swap_possible && (
               <input type="text" name="swap_against" value={formData.swap_against} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ml-6"
-                placeholder="Tausch gegen …" />
+                placeholder={t('inventoryForm.swapAgainstPlaceholder')} />
             )}
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.notes')}</label>
             <textarea name="notes" value={formData.notes} onChange={handleChange} rows={2}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
           </div>
@@ -478,7 +480,7 @@ export default function InventoryForm({ item, editingItem, onClose }) {
             onSetCredit={handleImageCredit}
             apiBase={API_BASE}
             showSteps={true}
-            label="Bilder (erstes = Cover)"
+            label={t('inventoryForm.imagesLabel')}
           />
 
           {/* Files */}
@@ -487,23 +489,23 @@ export default function InventoryForm({ item, editingItem, onClose }) {
             onUpload={handleFileUpload}
             onDelete={handleFileDelete}
             apiBase={API_BASE}
-            label="Fertigungsdaten & Dateien"
+            label={t('inventoryForm.filesLabel')}
           />
 
           {savedId && !editItem?.id && (
             <p className="text-xs text-primary-700 bg-primary-50 px-3 py-2 rounded-lg">
-              ✓ Angebot gespeichert – du kannst jetzt Bilder und Dateien hinzufügen.
+              {t('inventoryForm.savedNotice')}
             </p>
           )}
 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button type="button" onClick={onClose}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-              Abbrechen
+              {t('common.cancel')}
             </button>
             <button type="submit" disabled={isPending}
               className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50">
-              {isPending ? 'Speichern…' : editItem ? 'Aktualisieren' : 'Erstellen'}
+              {isPending ? t('common.saving') : editItem ? t('inventoryForm.btnUpdate') : t('inventoryForm.btnCreate')}
             </button>
           </div>
         </form>

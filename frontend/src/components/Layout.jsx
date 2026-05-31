@@ -33,6 +33,8 @@ import { useAuthOverlayStore } from '../store/authOverlayStore';
 import { useGuidelinesStore } from '../store/guidelinesStore';
 import { useAgbStore } from '../store/agbStore';
 import { useToast } from '../store/toastStore';
+import { useT } from '../i18n/useT';
+import LanguageSwitch from './shared/LanguageSwitch';
 import { usePush } from '../hooks/usePush';
 import AuthOverlay from './auth/AuthOverlay';
 import ToastContainer from './shared/ToastContainer';
@@ -45,18 +47,19 @@ import { messageService } from '../services/messageService';
 import { materialRequestService } from '../services/materialRequestService';
 import { authService } from '../services/authService';
 
-const navigation = [
-  { name: 'Entdecken', href: '/', icon: Globe },
-  { name: 'Projekte', href: '/projects', icon: FolderOpen },
-  { name: 'Materialien', href: '/materials', icon: Package },
-  { name: 'Akteure', href: '/actors', icon: Users },
-  { name: 'Nachrichten', href: '/messages', icon: Mail },
+const NAV_ITEMS = [
+  { key: 'discover', href: '/', icon: Globe },
+  { key: 'projects', href: '/projects', icon: FolderOpen },
+  { key: 'materials', href: '/materials', icon: Package },
+  { key: 'actors', href: '/actors', icon: Users },
+  { key: 'messages', href: '/messages', icon: Mail },
 ];
 
 // ── Logo ──────────────────────────────────────────────────────────────────────
 
 function Logo() {
   const openGuidelines = useGuidelinesStore((s) => s.open);
+  const t = useT();
   return (
     <Link to="/" className="flex items-center gap-2" data-onboarding="logo">
       <div className="bg-primary-700 p-2 rounded-xl">
@@ -72,10 +75,10 @@ function Logo() {
             title="Beta-Version — Spielregeln ansehen"
             className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200 transition-colors"
           >
-            Beta
+            {t('layout.beta')}
           </button>
         </div>
-        <div className="hidden sm:block text-[11px] text-gray-500">Materialien • Projekte • Akteure</div>
+        <div className="hidden sm:block text-[11px] text-gray-500">{t('layout.tagline')}</div>
       </div>
     </Link>
   );
@@ -184,6 +187,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const t = useT();
   const { subscribed, permission, loading: pushLoading, enable: enablePush, disable: disablePush, supported: pushSupported } = usePush(isAuthenticated);
 
   const { data: inboxData } = useQuery({
@@ -277,7 +281,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
               )}
             >
               <User className="w-4 h-4" />
-              Profil
+              {t('layout.profile')}
             </button>
             <button
               onClick={() => setTab('messages')}
@@ -287,7 +291,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
               )}
             >
               <MessageSquare className="w-4 h-4" />
-              Nachrichten
+              {t('nav.messages')}
               {unreadCount > 0 && (
                 <span className="absolute top-2 right-6 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-actor-500 text-white text-[10px] font-bold">
                   {unreadCount}
@@ -306,7 +310,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="text-xs text-gray-500 mb-1 block">Vorname</label>
+                          <label className="text-xs text-gray-500 mb-1 block">{t('layout.firstName')}</label>
                           <input
                             value={form.first_name}
                             onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
@@ -314,7 +318,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                           />
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500 mb-1 block">Nachname</label>
+                          <label className="text-xs text-gray-500 mb-1 block">{t('layout.lastName')}</label>
                           <input
                             value={form.last_name}
                             onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
@@ -329,13 +333,13 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-700 text-white rounded-lg text-xs font-medium hover:bg-primary-800 disabled:opacity-50 transition-colors"
                         >
                           <Check className="w-3.5 h-3.5" />
-                          {updateMutation.isPending ? 'Speichern…' : 'Speichern'}
+                          {updateMutation.isPending ? t('common.saving') : t('common.save')}
                         </button>
                         <button
                           onClick={() => setEditing(false)}
                           className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-100 transition-colors"
                         >
-                          Abbrechen
+                          {t('common.cancel')}
                         </button>
                       </div>
                     </div>
@@ -367,7 +371,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <Package className="w-4 h-4 text-primary-600" />
-                    Meine Materialien
+                    {t('layout.myMaterials')}
                   </Link>
                   <Link
                     to="/projects"
@@ -375,7 +379,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <FolderOpen className="w-4 h-4 text-project-600" />
-                    Meine Projekte
+                    {t('layout.myProjects')}
                   </Link>
                   <Link
                     to="/actors"
@@ -383,7 +387,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <Users className="w-4 h-4 text-actor-600" />
-                    Meine Akteure
+                    {t('layout.myActors')}
                   </Link>
                   <Link
                     to="/favorites"
@@ -391,14 +395,14 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                     className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <Bookmark className="w-4 h-4 text-amber-500" />
-                    Merkliste
+                    {t('layout.bookmarks')}
                   </Link>
                   <button
                     onClick={() => { onClose(); onShowMyRequests(); }}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     <ClipboardList className="w-4 h-4 text-primary-500" />
-                    Meine Anfragen
+                    {t('layout.myRequests')}
                   </button>
                   <button
                     onClick={() => { onClose(); onShowRequests(); }}
@@ -406,7 +410,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                   >
                     <span className="flex items-center gap-3">
                       <Inbox className="w-4 h-4 text-orange-500" />
-                      Eingehende Anfragen
+                      {t('layout.incomingRequests')}
                     </span>
                     {pendingRequestCount > 0 && (
                       <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold">
@@ -421,7 +425,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-primary-700 hover:bg-primary-50 transition-colors font-medium"
                     >
                       <Settings className="w-4 h-4 text-primary-500" />
-                      Admin-Panel
+                      {t('layout.adminPanel')}
                     </Link>
                   )}
                 </div>
@@ -438,11 +442,10 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                       <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
                         <div className="flex items-center gap-2 mb-1">
                           <BellOff className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                          <span className="text-sm font-medium text-amber-800">Push-Benachrichtigungen</span>
+                          <span className="text-sm font-medium text-amber-800">{t('layout.notifications')}</span>
                         </div>
                         <p className="text-xs text-amber-700 leading-relaxed">
-                          Auf iOS nur als App verfügbar: In Safari auf{' '}
-                          <strong>Teilen → Zum Home-Bildschirm</strong> tippen, dann die App öffnen und hier aktivieren.
+                          {t('layout.notificationsIos')}
                         </p>
                       </div>
                     );
@@ -456,10 +459,10 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
                             {subscribed ? <Bell className="w-4 h-4 text-project-600" /> : <BellOff className="w-4 h-4 text-gray-400" />}
-                            Benachrichtigungen
+                            {t('layout.notifications')}
                           </div>
                           <div className="text-xs text-gray-500 mt-0.5">
-                            {subscribed ? 'Aktiv — du wirst bei neuen Nachrichten informiert.' : 'Deaktiviert'}
+                            {subscribed ? t('layout.notificationsActive') : t('layout.notificationsOff')}
                           </div>
                         </div>
                         <button
@@ -477,7 +480,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                         </button>
                       </div>
                       {permission === 'denied' && (
-                        <p className="mt-2 text-xs text-actor-600">Benachrichtigungen sind im Browser blockiert.</p>
+                        <p className="mt-2 text-xs text-actor-600">{t('layout.notificationsBlocked')}</p>
                       )}
                     </div>
                   );
@@ -490,14 +493,14 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                 {unreadCount > 0 && (
                   <div className="flex items-center gap-2 px-3 py-2 bg-actor-50 border border-actor-200 rounded-xl text-xs text-actor-800">
                     <Mail className="w-3.5 h-3.5 flex-shrink-0" />
-                    {unreadCount} ungelesene Nachricht{unreadCount !== 1 ? 'en' : ''}
+                    {unreadCount !== 1 ? t('layout.unreadMultiple', { count: unreadCount }) : t('layout.unreadSingle', { count: unreadCount })}
                   </div>
                 )}
 
                 {recentConversations.length === 0 ? (
                   <div className="text-center py-8 text-sm text-gray-500">
                     <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                    Noch keine Nachrichten
+                    {t('layout.noMessages')}
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -533,7 +536,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
                   className="flex items-center justify-center gap-2 w-full py-2.5 text-sm font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-xl transition-colors"
                 >
                   <Mail className="w-4 h-4" />
-                  Alle Nachrichten anzeigen
+                  {t('layout.allMessages')}
                 </Link>
               </div>
             )}
@@ -546,7 +549,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              Abmelden
+              {t('layout.logout')}
             </button>
           </div>
         </div>
@@ -560,6 +563,7 @@ function AccountDrawer({ open, onClose, user, onLogout, isAuthenticated, token, 
 export default function Layout() {
   const location = useLocation();
   const queryClient = useQueryClient();
+  const t = useT();
   const { user, logout, isAuthenticated, token } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
   const { isOpen: guidelinesOpen, open: openGuidelines, close: closeGuidelines } = useGuidelinesStore();
@@ -601,7 +605,7 @@ export default function Layout() {
     if (isAuthenticated && token) {
       return user?.firstName || user?.username || user?.email?.split('@')[0] || 'User';
     }
-    return 'Gast';
+    return t('layout.guest');
   }, [isAuthenticated, token, user]);
 
   const handleLogout = () => {
@@ -623,9 +627,9 @@ export default function Layout() {
         <div className="bg-gray-50 border-b border-gray-200 text-center py-1 px-4 text-[11px] text-gray-400 flex items-center justify-center gap-1.5 relative">
           <FlaskConical className="w-2.5 h-2.5 flex-shrink-0" />
           <span>
-            Beta-Version —{' '}
+            {t('layout.betaBanner')}{' '}
             <button onClick={openGuidelines} className="underline hover:text-gray-600 transition-colors">
-              Was kann eingetragen werden?
+              {t('layout.whatCanBeAdded')}
             </button>
           </span>
           <button
@@ -662,13 +666,13 @@ export default function Layout() {
               <Logo />
               {/* Desktop nav */}
               <nav className="hidden md:flex items-center gap-1 ml-6">
-                {navigation.map((item) => {
+                {NAV_ITEMS.map((item) => {
                   const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
                   const showBadge = item.href === '/messages' && unreadCount?.count > 0;
                   const onboardingKey = item.href === '/materials' ? 'nav-materials' : item.href === '/messages' ? 'nav-messages' : undefined;
                   return (
                     <Link
-                      key={item.name}
+                      key={item.key}
                       to={item.href}
                       data-onboarding={onboardingKey}
                       className={clsx(
@@ -677,7 +681,7 @@ export default function Layout() {
                       )}
                     >
                       <item.icon className="w-4 h-4" />
-                      {item.name}
+                      {t(`nav.${item.key}`)}
                       {showBadge && (
                         <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-actor-500 text-white text-[11px]">
                           {unreadCount.count}
@@ -691,7 +695,8 @@ export default function Layout() {
 
             {/* Right side actions */}
             <div className="flex items-center gap-2">
-              <div className="hidden lg:block text-sm text-gray-600">Welcome, {displayName}</div>
+              <LanguageSwitch />
+              <div className="hidden lg:block text-sm text-gray-600">{t('layout.welcome')}, {displayName}</div>
 
               {/* Mobile nav toggle */}
               <button
@@ -720,7 +725,7 @@ export default function Layout() {
                 className="relative inline-flex items-center gap-2 rounded-xl bg-gray-900 text-white px-3 py-2 text-sm font-medium hover:bg-gray-800"
               >
                 <User className="w-4 h-4" />
-                <span className="hidden sm:inline">{isAuthenticated && token ? 'Account' : 'Login'}</span>
+                <span className="hidden sm:inline">{isAuthenticated && token ? t('layout.account') : t('layout.login')}</span>
                 <ChevronRight className="w-4 h-4 opacity-80" />
                 {pendingRequestCount > 0 && isAuthenticated && (
                   <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold border-2 border-gray-900">
@@ -740,12 +745,12 @@ export default function Layout() {
           {mobileNavOpen && (
             <div className="md:hidden pb-4">
               <div className="grid grid-cols-1 gap-2 mt-2">
-                {navigation.map((item) => {
+                {NAV_ITEMS.map((item) => {
                   const isActive = location.pathname === item.href || (item.href !== '/' && location.pathname.startsWith(item.href));
                   const showBadge = item.href === '/messages' && unreadCount?.count > 0;
                   return (
                     <Link
-                      key={item.name}
+                      key={item.key}
                       to={item.href}
                       className={clsx(
                         'flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm font-medium',
@@ -754,7 +759,7 @@ export default function Layout() {
                     >
                       <span className="inline-flex items-center gap-2">
                         <item.icon className="w-4 h-4" />
-                        {item.name}
+                        {t(`nav.${item.key}`)}
                       </span>
                       {showBadge && (
                         <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-actor-500 text-white text-[11px]">
@@ -791,14 +796,14 @@ export default function Layout() {
               onClick={() => window.dispatchEvent(new CustomEvent('rzz:restartOnboarding'))}
               className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
             >
-              Einführung
+              {t('layout.intro')}
             </button>
             <button
               onClick={openGuidelines}
               className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
             >
               <BookOpen className="w-3 h-3" />
-              Info &amp; Spielregeln
+              {t('layout.infoRules')}
             </button>
             <a
               href="https://www.hs-anhalt.de/datenschutz.html"
@@ -806,19 +811,19 @@ export default function Layout() {
               rel="noopener noreferrer"
               className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
             >
-              Datenschutz
+              {t('layout.privacy')}
             </a>
             <button
               onClick={openAgb}
               className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
             >
-              AGB
+              {t('layout.agb')}
             </button>
             <button
               onClick={() => setShowImpressum(true)}
               className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
             >
-              Impressum
+              {t('layout.imprint')}
             </button>
           </div>
         </div>

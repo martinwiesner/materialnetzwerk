@@ -9,6 +9,7 @@ import FileUploader from '../shared/FileUploader';
 import GeolocateButton from '../shared/GeolocateButton';
 import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
+import { useT } from '../../i18n/useT';
 
 const API_BASE = MEDIA_BASE;
 
@@ -69,6 +70,7 @@ const emptyForm = {
 };
 
 function StepImageUpload({ stepIndex, onUpload, ensureDraft }) {
+  const t = useT();
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
 
@@ -90,14 +92,15 @@ function StepImageUpload({ stepIndex, onUpload, ensureDraft }) {
     <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-primary-600 hover:text-primary-700 py-1">
       <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleChange} />
       {uploading
-        ? <span className="text-gray-400 animate-pulse">Hochladen…</span>
-        : <><Upload className="w-3.5 h-3.5" /> Bild hochladen</>
+        ? <span className="text-gray-400 animate-pulse">{t('projectForm.uploadingStep')}</span>
+        : <><Upload className="w-3.5 h-3.5" /> {t('projectForm.uploadStep')}</>
       }
     </label>
   );
 }
 
 export default function ProjectForm({ project, onClose }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const toast = useToast();
   const [formData, setFormData] = useState(emptyForm);
@@ -366,14 +369,14 @@ export default function ProjectForm({ project, onClose }) {
             <FileText className="w-5 h-5 text-primary-500" />
             <h2 className="text-lg font-semibold text-gray-900">
               {isEditing
-                ? 'Artikel bearbeiten'
+                ? t('projectForm.titleEdit')
                 : draftCreated
-                  ? 'Artikel (Entwurf)'
+                  ? t('projectForm.titleDraft')
                   : mode === 'offer-only'
-                    ? 'Neues Angebot'
-                    : 'Neuer Artikel'}
+                    ? t('projectForm.titleOffer')
+                    : t('projectForm.titleNew')}
             </h2>
-            {autoSaving && <span className="text-xs text-gray-400 animate-pulse">Entwurf wird gespeichert…</span>}
+            {autoSaving && <span className="text-xs text-gray-400 animate-pulse">{t('projectForm.autoSaving')}</span>}
           </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg">
             <X className="w-5 h-5" />
@@ -391,14 +394,14 @@ export default function ProjectForm({ project, onClose }) {
                   mode === 'project' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}>
                 <Package className="w-3.5 h-3.5" />
-                Projekt anlegen
+                {t('projectForm.modeProject')}
               </button>
               <button type="button" onClick={() => setMode('offer-only')}
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-sm font-medium rounded-lg transition-all ${
                   mode === 'offer-only' ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}>
                 <Tag className="w-3.5 h-3.5" />
-                Nur Angebot
+                {t('projectForm.modeOffer')}
               </button>
             </div>
           )}
@@ -406,32 +409,32 @@ export default function ProjectForm({ project, onClose }) {
           {draftCreated && (
             <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-lg text-sm">
               <Save className="w-4 h-4 inline mr-1" />
-              Entwurf gespeichert – Bilder und Dateien wurden hinzugefügt. Klicke <strong>Aktualisieren</strong> um den Artikel zu veröffentlichen.
+              {t('projectForm.draftNotice')} {t('projectForm.btnUpdateHint')}
             </div>
           )}
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Titel *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelTitle')}</label>
             <input type="text" name="name" value={formData.name} onChange={handleChange}
-              placeholder="Titel des Projekts" required
+              placeholder={t('projectForm.placeholderTitle')} required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
           </div>
 
           {/* Summary */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Kurzbeschreibung</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelDesc')}</label>
             <textarea name="description" value={formData.description} onChange={handleChange} rows={2}
-              placeholder="Kurze Zusammenfassung für die Listenansicht"
+              placeholder={t('projectForm.placeholderDesc')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
           </div>
 
           {/* Content */}
           {mode === 'project' && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Inhalt</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelContent')}</label>
             <textarea name="content" value={formData.content} onChange={handleChange} rows={8}
-              placeholder="Beschreibe dein Projekt – verwendete Materialien, Prozess, Ergebnis…"
+              placeholder={t('projectForm.placeholderContent')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none font-mono text-sm" />
           </div>
           )}
@@ -447,7 +450,7 @@ export default function ProjectForm({ project, onClose }) {
               onSetCredit={handleSetCredit}
               stepCount={mode === 'project' ? formData.steps.length : 0}
               apiBase={API_BASE}
-              label={mode === 'offer-only' ? 'Bilder (optional)' : 'Bilder (Cover + Anleitungsbilder)'}
+              label={mode === 'offer-only' ? t('projectForm.imagesLabelOffer') : t('projectForm.imagesLabel')}
             />
           </div>
 
@@ -458,20 +461,20 @@ export default function ProjectForm({ project, onClose }) {
             onUpload={handleFileUpload}
             onDelete={handleFileDelete}
             apiBase={API_BASE}
-            label="Fertigungsdaten (DXF, STEP, STL, PDF, …)"
+            label={t('projectForm.filesLabel')}
           />
           )}
 
           {/* Sustainability principles */}
           {mode === 'project' && (<div className="border-t pt-4">
-            <div className="text-sm font-semibold text-gray-900 mb-3">Nachhaltigkeit &amp; Kreislaufprinzipien</div>
+            <div className="text-sm font-semibold text-gray-900 mb-3">{t('projectForm.sustainabilityTitle')}</div>
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
               {[
-                { key: 'circular_principles', label: 'Kreislaufprinzipien', options: CIRCULAR_PRINCIPLES_DE },
-                { key: 'principles_sufficiency', label: 'Suffizienz', options: PRINCIPLES.sufficiency },
-                { key: 'principles_consistency', label: 'Konsistenz', options: PRINCIPLES.consistency },
-                { key: 'principles_efficiency', label: 'Effizienz', options: PRINCIPLES.efficiency },
-                { key: 'general_sustainability_principles', label: 'Allgemeine Nachhaltigkeitsprinzipien', options: GENERAL_SUSTAINABILITY },
+                { key: 'circular_principles', label: t('projectForm.circularPrinciples'), options: CIRCULAR_PRINCIPLES_DE },
+                { key: 'principles_sufficiency', label: t('projectForm.sufficiency'), options: PRINCIPLES.sufficiency },
+                { key: 'principles_consistency', label: t('projectForm.consistency'), options: PRINCIPLES.consistency },
+                { key: 'principles_efficiency', label: t('projectForm.efficiency'), options: PRINCIPLES.efficiency },
+                { key: 'general_sustainability_principles', label: t('projectForm.generalSustainability'), options: GENERAL_SUSTAINABILITY },
               ].map(({ key, label, options }) => (
                 <div key={key}>
                   <div className="text-xs font-semibold text-gray-700 mb-2">{label}</div>
@@ -494,7 +497,7 @@ export default function ProjectForm({ project, onClose }) {
           {/* Location */}
           <div className="border-t pt-4">
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">Standort (optional)</label>
+              <label className="block text-sm font-medium text-gray-700">{t('projectForm.labelLocation')}</label>
               <GeolocateButton
                 onLocate={(lat, lon) => setFormData(f => ({ ...f, latitude: lat, longitude: lon }))}
               />
@@ -502,17 +505,17 @@ export default function ProjectForm({ project, onClose }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="md:col-span-2">
                 <input type="text" name="location_name" value={formData.location_name} onChange={handleChange}
-                  placeholder="Ortsname (z.B. Zeitz Lager)"
+                  placeholder={t('projectForm.placeholderLocationName')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
               </div>
               <input type="number" step="0.000001" name="latitude" value={formData.latitude}
-                onChange={handleNumberChange} placeholder="Breitengrad"
+                onChange={handleNumberChange} placeholder={t('projectForm.placeholderLat')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
               <input type="number" step="0.000001" name="longitude" value={formData.longitude}
-                onChange={handleNumberChange} placeholder="Längengrad"
+                onChange={handleNumberChange} placeholder={t('projectForm.placeholderLon')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
               <div className="md:col-span-2">
-                <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="Adresse"
+                <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder={t('common.address')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
               </div>
             </div>
@@ -521,15 +524,15 @@ export default function ProjectForm({ project, onClose }) {
           {/* Materials */}
           {mode === 'project' && (<div className="border-t pt-4">
             <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-medium text-gray-700">Materialien &amp; Mengen</label>
+              <label className="block text-sm font-medium text-gray-700">{t('projectForm.materialsTitle')}</label>
               <button type="button" onClick={addMaterial}
                 className="flex items-center gap-1 px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
-                <Plus className="w-4 h-4" /> Material hinzufügen
+                <Plus className="w-4 h-4" /> {t('projectForm.addMaterial')}
               </button>
             </div>
             {formData.materials.length === 0 ? (
               <p className="text-sm text-gray-500 italic p-3 bg-gray-50 rounded-lg">
-                Noch keine Materialien. Klicke „Material hinzufügen".
+                {t('projectForm.noMaterials')}
               </p>
             ) : (
               <div className="space-y-2">
@@ -544,17 +547,17 @@ export default function ProjectForm({ project, onClose }) {
                       <div className="flex gap-2 items-center">
                         <select value={mat.material_id} onChange={(e) => updateMaterial(i, 'material_id', e.target.value)}
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
-                          <option value="">Material wählen</option>
+                          <option value="">{t('projectForm.chooseMaterial')}</option>
                           {availableMaterials.map((m) => (
                             <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
                           ))}
                         </select>
                         <input type="number" step="0.01" min="0" value={mat.quantity}
                           onChange={(e) => updateMaterial(i, 'quantity', parseFloat(e.target.value) || 0)}
-                          placeholder="Menge" required
+                          placeholder={t('common.quantity')} required
                           className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
                         <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, 'unit', e.target.value)}
-                          placeholder="Einheit"
+                          placeholder={t('common.unit')}
                           className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
                         <button type="button" onClick={() => removeMaterial(i)}
                           className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
@@ -584,31 +587,31 @@ export default function ProjectForm({ project, onClose }) {
           {/* Status + Visibility */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelStatus')}</label>
               <select name="status" value={formData.status} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
-                <option value="draft">Entwurf</option>
-                <option value="active">Veröffentlicht</option>
-                <option value="completed">Abgeschlossen</option>
-                <option value="archived">Archiviert</option>
+                <option value="draft">{t('projects.statusDraft')}</option>
+                <option value="active">{t('projects.statusPublished')}</option>
+                <option value="completed">{t('projects.statusDone')}</option>
+                <option value="archived">{t('projects.statusArchived')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sichtbarkeit</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelVisibility')}</label>
               <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setFormData(f => ({ ...f, is_public: true }))}
                   className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${formData.is_public ? 'bg-project-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
-                  <Globe className="w-3.5 h-3.5" /> Öffentlich
+                  <Globe className="w-3.5 h-3.5" /> {t('common.public')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setFormData(f => ({ ...f, is_public: false }))}
                   className={`px-3 py-2 text-sm flex items-center gap-1.5 border-l border-gray-200 transition-colors ${!formData.is_public ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
-                  <Lock className="w-3.5 h-3.5" /> Privat
+                  <Lock className="w-3.5 h-3.5" /> {t('common.private')}
                 </button>
               </div>
             </div>
@@ -617,20 +620,20 @@ export default function ProjectForm({ project, onClose }) {
                 <input type="checkbox" name="is_available" checked={formData.is_available}
                   onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
                   className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-400" />
-                <span className="text-sm text-gray-700">Als <span className="text-orange-600 font-medium">verfügbar</span> markieren</span>
+                <span className="text-sm text-gray-700">{t('projectForm.markAvailable')}</span>
               </label>
             </div>
           </div>
 
           {/* License */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Lizenz</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelLicense')}</label>
             <select
               value={formData.license}
               onChange={e => setFormData({ ...formData, license: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
             >
-              <option value="">Keine Angabe</option>
+              <option value="">{t('projectForm.noLicense')}</option>
               <option value="CC BY 4.0">CC BY 4.0 – Namensnennung</option>
               <option value="CC BY-SA 4.0">CC BY-SA 4.0 – Namensnennung + Weitergabe</option>
               <option value="CC BY-NC 4.0">CC BY-NC 4.0 – Nicht kommerziell</option>
@@ -643,31 +646,31 @@ export default function ProjectForm({ project, onClose }) {
 
           {/* Execution */}
           {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <p className="text-sm font-semibold text-gray-800">🛠️ Ausführung</p>
+            <p className="text-sm font-semibold text-gray-800">🛠️ {t('projectForm.executionTitle')}</p>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Zeitaufwand</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('projectForm.labelTimeEffort')}</label>
               <input type="text" value={formData.time_effort}
                 onChange={e => setFormData({ ...formData, time_effort: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                placeholder="z.B. 2–4 Stunden" />
+                placeholder={t('projectForm.placeholderTimeEffort')} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Werkzeuge</label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">{t('projectForm.labelTools')}</label>
               <textarea value={formData.tools}
                 onChange={e => setFormData({ ...formData, tools: e.target.value })} rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
-                placeholder="z.B. Säge, Bohrmaschine" />
+                placeholder={t('projectForm.placeholderTools')} />
             </div>
           </div>)}
 
           {/* Steps */}
           {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-800">📋 Schritt-für-Schritt-Anleitung</p>
+              <p className="text-sm font-semibold text-gray-800">📋 {t('projectForm.stepsTitle')}</p>
               <button type="button"
                 onClick={() => setFormData(f => ({ ...f, steps: [...f.steps, { title: '', text: '' }] }))}
                 className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" /> Schritt hinzufügen
+                <Plus className="w-3.5 h-3.5" /> {t('projectForm.addStep')}
               </button>
             </div>
             {formData.steps.map((step, i) => {
@@ -677,7 +680,7 @@ export default function ProjectForm({ project, onClose }) {
               return (
                 <div key={i} className="bg-white rounded-lg border border-gray-200 p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">Schritt {stepIndex}</span>
+                    <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{t('projectForm.step', { n: stepIndex })}</span>
                     <div className="flex items-center gap-0.5 ml-1">
                       <button type="button" onClick={() => moveStep(i, -1)} disabled={i === 0}
                         className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Nach oben">
@@ -707,7 +710,7 @@ export default function ProjectForm({ project, onClose }) {
 
                   {/* Inline images for this step */}
                   <div className="border-t border-gray-100 pt-2 space-y-1.5">
-                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Bilder für Schritt {stepIndex}</p>
+                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{t('projectForm.stepImages', { n: stepIndex })}</p>
                     {stepImgs.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {stepImgs.map(img => {
@@ -745,16 +748,16 @@ export default function ProjectForm({ project, onClose }) {
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
                 <BookOpen className="w-4 h-4 text-gray-500" />
-                Quellen &amp; Referenzen
+                {t('projectForm.refsTitle')}
               </p>
               <button type="button"
                 onClick={() => setFormData(f => ({ ...f, references: [...(f.references || []), ''] }))}
                 className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" /> Quelle hinzufügen
+                <Plus className="w-3.5 h-3.5" /> {t('projectForm.addRef')}
               </button>
             </div>
             {(!formData.references || formData.references.length === 0) ? (
-              <p className="text-xs text-gray-400 italic">Noch keine Quellen. Wissenschaftliche Literatur, URLs oder sonstige Referenzen.</p>
+              <p className="text-xs text-gray-400 italic">{t('projectForm.noRefs')}</p>
             ) : (
               <div className="space-y-2">
                 {formData.references.map((ref, i) => (
@@ -763,7 +766,7 @@ export default function ProjectForm({ project, onClose }) {
                       type="text"
                       value={ref}
                       onChange={e => setFormData(f => ({ ...f, references: f.references.map((r, j) => j === i ? e.target.value : r) }))}
-                      placeholder={`Quelle ${i + 1} (z.B. Autor, Titel, Jahr, URL)`}
+                      placeholder={t('projectForm.refPlaceholder', { n: i + 1 })}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
                     />
                     <button type="button"
@@ -781,7 +784,7 @@ export default function ProjectForm({ project, onClose }) {
           {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-2">
             <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
               <Users className="w-4 h-4 text-gray-500" />
-              Beteiligte Akteure
+              {t('projectForm.actorsTitle')}
             </p>
             {actorIds.map((actorId, idx) => (
               <div key={idx} className="flex items-center gap-2">
@@ -794,7 +797,7 @@ export default function ProjectForm({ project, onClose }) {
                   }}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
                 >
-                  <option value="">— Akteur wählen —</option>
+                  <option value="">{t('projectForm.chooseActor')}</option>
                   {allActors.map((a) => (
                     <option key={a.id} value={a.id}>{a.name}{a.type ? ` (${a.type})` : ''}</option>
                   ))}
@@ -816,7 +819,7 @@ export default function ProjectForm({ project, onClose }) {
               className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium"
             >
               <Plus className="w-4 h-4" />
-              Weiteren Akteur hinzufügen
+              {t('projectForm.addActor')}
             </button>
           </div>)}
 
@@ -824,11 +827,11 @@ export default function ProjectForm({ project, onClose }) {
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button type="button" onClick={onClose}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-              {draftCreated ? 'Schließen' : 'Abbrechen'}
+              {draftCreated ? t('common.close') : t('common.cancel')}
             </button>
             <button type="submit" disabled={isPending}
               className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50">
-              {isPending ? 'Speichern…' : draftCreated || isEditing ? 'Aktualisieren' : mode === 'offer-only' ? 'Angebot erstellen' : 'Erstellen'}
+              {isPending ? t('common.saving') : draftCreated || isEditing ? t('projectForm.btnUpdate') : mode === 'offer-only' ? t('projectForm.btnCreateOffer') : t('common.create')}
             </button>
           </div>
         </form>

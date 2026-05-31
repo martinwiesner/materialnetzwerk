@@ -7,9 +7,11 @@ import { MapPin, X, Plus, Trash2, Users, Tag, Package, Upload, Search } from 'lu
 import GeolocateButton from '../shared/GeolocateButton';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
+import InfoTooltip from '../shared/InfoTooltip';
 
 import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
+import { useT } from '../../i18n/useT';
 const API_BASE = MEDIA_BASE;
 
 function safeJsonParse(value, fallback) {
@@ -121,6 +123,7 @@ const initialFormState = {
 export default function MaterialForm({ material, onClose, enableOfferOnCreate = false, initialMode }) {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const t = useT();
   const [formData, setFormData] = useState(initialFormState);
   const [error, setError] = useState('');
   const [savedId, setSavedId] = useState(null);
@@ -340,11 +343,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       } finally {
         queryClient.invalidateQueries({ queryKey: ['materials'], exact: false });
         queryClient.invalidateQueries({ queryKey: ['material-categories'], exact: false });
-        toast.success('Material erfolgreich angelegt.');
+        toast.success(t('materialForm.toastCreated'));
       }
     },
     onError: (err) => {
-      const msg = err.response?.data?.message || err.response?.data?.error || 'Erstellen fehlgeschlagen.';
+      const msg = err.response?.data?.message || err.response?.data?.error || t('materialForm.errorCreate');
       setError(msg);
       toast.error(msg);
     },
@@ -355,11 +358,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['materials'] });
       queryClient.invalidateQueries({ queryKey: ['material-categories'] });
-      toast.success('Material gespeichert.');
+      toast.success(t('materialForm.toastSaved'));
       onClose();
     },
     onError: (err) => {
-      const msg = err.response?.data?.message || err.response?.data?.error || 'Aktualisieren fehlgeschlagen.';
+      const msg = err.response?.data?.message || err.response?.data?.error || t('materialForm.errorUpdate');
       setError(msg);
       toast.error(msg);
     },
@@ -389,11 +392,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       }
       queryClient.invalidateQueries({ queryKey: ['inventory'], exact: false });
       queryClient.invalidateQueries({ queryKey: ['marketplace-inventory'], exact: false });
-      toast.success('Angebot erfolgreich erstellt.');
+      toast.success(t('materialForm.toastOfferCreated'));
       onClose();
     },
     onError: (err) => {
-      const msg = err.response?.data?.message || err.response?.data?.error || 'Angebot konnte nicht erstellt werden.';
+      const msg = err.response?.data?.message || err.response?.data?.error || t('materialForm.errorOffer');
       setError(msg);
       toast.error(msg);
     },
@@ -435,11 +438,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         queryClient.invalidateQueries({ queryKey: ['materials'], exact: false });
         queryClient.invalidateQueries({ queryKey: ['material-categories'], exact: false });
       }
-      toast.success('Materialgesuch eingetragen.');
+      toast.success(t('materialForm.toastGesuchCreated'));
       onClose();
     },
     onError: (err) => {
-      const msg = err.response?.data?.message || err.response?.data?.error || 'Gesuch konnte nicht eingetragen werden.';
+      const msg = err.response?.data?.message || err.response?.data?.error || t('materialForm.errorGesuch');
       setError(msg);
       toast.error(msg);
     },
@@ -450,14 +453,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     setError('');
 
     if (mode === 'gesuch') {
-      if (gesuchMode === 'existing' && !gesuchMaterialId) { setError('Bitte ein Material auswählen.'); return; }
-      if (gesuchMode === 'new' && !newMaterialData.name.trim()) { setError('Bitte einen Materialnamen eingeben.'); return; }
+      if (gesuchMode === 'existing' && !gesuchMaterialId) { setError(t('materialForm.errorChooseMaterial')); return; }
+      if (gesuchMode === 'new' && !newMaterialData.name.trim()) { setError(t('materialForm.errorEnterName')); return; }
       gesuchMutation.mutate();
       return;
     }
 
     if (mode === 'offer-only') {
-      if (!offerMaterialId) { setError('Bitte ein Material auswählen.'); return; }
+      if (!offerMaterialId) { setError(t('materialForm.errorChooseMaterial')); return; }
       offerOnlyMutation.mutate();
       return;
     }
@@ -550,7 +553,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
-            {material ? 'Material bearbeiten' : mode === 'offer-only' ? 'Neues Angebot' : mode === 'gesuch' ? 'Materialgesuch' : 'Neues Material'}
+            {material ? t('materialForm.titleEdit') : mode === 'offer-only' ? t('materialForm.titleOffer') : mode === 'gesuch' ? t('materialForm.titleGesuch') : t('materialForm.titleNew')}
           </h2>
           <button
             onClick={onClose}
@@ -580,7 +583,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 }`}
               >
                 <Package className="w-3.5 h-3.5" />
-                Material anlegen
+                {t('materialForm.tabMaterial')}
               </button>
               <button
                 type="button"
@@ -592,7 +595,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 }`}
               >
                 <Tag className="w-3.5 h-3.5" />
-                Nur Angebot
+                {t('materialForm.tabOfferOnly')}
               </button>
               <button
                 type="button"
@@ -604,7 +607,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 }`}
               >
                 <Search className="w-3.5 h-3.5" />
-                Gesuch
+                {t('materialForm.tabGesuch')}
               </button>
             </div>
           )}
@@ -613,30 +616,30 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             /* ── Gesuch mode ─────────────────────────────────────────────── */
             <div className="space-y-4">
               <p className="text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
-                Du suchst ein bestimmtes Material? Trag ein Gesuch ein — andere Nutzer:innen können sehen, was gesucht wird.
+                {t('materialForm.gesuchHint')}
               </p>
 
               {/* Material: existing or new */}
               <div className="flex p-1 bg-gray-100 rounded-lg gap-1">
                 <button type="button" onClick={() => setGesuchMode('existing')}
                   className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${gesuchMode === 'existing' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  Bestehendes Material
+                  {t('materialForm.gesuchExisting')}
                 </button>
                 <button type="button" onClick={() => setGesuchMode('new')}
                   className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${gesuchMode === 'new' ? 'bg-white text-purple-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  Neues Material anlegen
+                  {t('materialForm.gesuchNew')}
                 </button>
               </div>
 
               {gesuchMode === 'existing' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Material *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.materialRequired')}</label>
                   <select
                     value={gesuchMaterialId}
                     onChange={e => setGesuchMaterialId(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none"
                   >
-                    <option value="">— Material auswählen —</option>
+                    <option value="">{t('materialForm.materialChoose')}</option>
                     {allMaterials
                       .slice()
                       .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name))
@@ -648,20 +651,20 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 </div>
               ) : (
                 <div className="space-y-3 bg-purple-50 border border-purple-100 rounded-lg p-3">
-                  <p className="text-xs text-purple-600">Ein neues Material wird mit minimalem Steckbrief angelegt und direkt als Gesuch eingetragen.</p>
+                  <p className="text-xs text-purple-600">{t('materialForm.gesuchNewHint')}</p>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Materialname *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.gesuchName')}</label>
                     <input type="text" value={newMaterialData.name}
                       onChange={e => setNewMaterialData(d => ({ ...d, name: e.target.value }))}
                       placeholder="z.B. Ziegelbruch, Hanffaser, Altholz"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Kategorie</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.category')}</label>
                     <select value={newMaterialData.category}
                       onChange={e => setNewMaterialData(d => ({ ...d, category: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
-                      <option value="">— optional —</option>
+                      <option value="">{t('materialForm.categoryOptional')}</option>
                       {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                   </div>
@@ -671,14 +674,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               {/* Quantity + Unit */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Menge (ca.)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.gesuchQty')}</label>
                   <input type="number" step="0.01" value={gesuchData.quantity}
                     onChange={e => setGesuchData(d => ({ ...d, quantity: e.target.value }))}
                     placeholder="optional"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Einheit</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.unitLabel')}</label>
                   <select value={gesuchData.unit} onChange={e => setGesuchData(d => ({ ...d, unit: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none">
                     <option value="kg">kg</option>
@@ -697,7 +700,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               {/* Location */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <MapPin className="w-3.5 h-3.5 inline mr-1" />Standort / Region (optional)
+                  <MapPin className="w-3.5 h-3.5 inline mr-1" />{t('materialForm.locationRegion')}
                 </label>
                 <input type="text" value={gesuchData.location_name}
                   onChange={e => setGesuchData(d => ({ ...d, location_name: e.target.value }))}
@@ -711,14 +714,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Breitengrad</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.latitude')}</label>
                     <input type="number" step="0.000001" value={gesuchData.latitude || ''}
                       onChange={e => setGesuchData(d => ({ ...d, latitude: e.target.value }))}
                       placeholder="z.B. 51.05"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Längengrad</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.longitude')}</label>
                     <input type="number" step="0.000001" value={gesuchData.longitude || ''}
                       onChange={e => setGesuchData(d => ({ ...d, longitude: e.target.value }))}
                       placeholder="z.B. 12.13"
@@ -729,15 +732,15 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Beschreibung / Kontext</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.gesuchDescLabel')}</label>
                 <textarea value={gesuchData.notes} onChange={e => setGesuchData(d => ({ ...d, notes: e.target.value }))} rows={3}
-                  placeholder="Wofür wird das Material benötigt? Besondere Anforderungen?"
+                  placeholder={t('materialForm.gesuchDescPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none" />
               </div>
 
               {/* Images */}
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Bilder (optional)</label>
+                <label className="block text-sm font-medium text-gray-700">{t('materialForm.gesuchImages')}</label>
                 {gesuchPendingImages.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
                     {gesuchPendingImages.map((file, i) => (
@@ -758,7 +761,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 )}
                 <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-purple-600 hover:text-purple-700 border border-dashed border-purple-300 rounded-lg px-3 py-1.5 bg-purple-50 hover:bg-purple-100 transition-colors">
                   <Upload className="w-3 h-3" />
-                  {gesuchPendingImages.length > 0 ? 'Weitere Bilder hinzufügen' : 'Bilder hochladen (optional)'}
+                  {gesuchPendingImages.length > 0 ? t('materialForm.gesuchImagesMore') : t('materialForm.gesuchImagesUpload')}
                   <input type="file" multiple accept="image/*" className="hidden"
                     onChange={e => {
                       const files = Array.from(e.target.files || []);
@@ -777,26 +780,26 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 disabled={isPending || (gesuchMode === 'existing' && !gesuchMaterialId) || (gesuchMode === 'new' && !newMaterialData.name.trim())}
                 className="w-full py-2.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isPending ? 'Wird eingetragen…' : 'Gesuch eintragen'}
+                {isPending ? t('materialForm.gesuchSubmitting') : t('materialForm.gesuchSubmit')}
               </button>
             </div>
           ) : mode === 'offer-only' ? (
             /* ── Offer-only mode ─────────────────────────────────────────── */
             <div className="space-y-4">
               <p className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
-                Es wird kein neues Material angelegt. Wähle ein bestehendes Material und trage die Verfügbarkeit ein.
+                {t('materialForm.offerOnlyHint')}
               </p>
 
               {/* Material selector */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Material *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.materialRequired')}</label>
                 <select
                   value={offerMaterialId}
                   onChange={e => setOfferMaterialId(e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                 >
-                  <option value="">— Material auswählen —</option>
+                  <option value="">{t('materialForm.materialChoose')}</option>
                   {allMaterials
                     .slice()
                     .sort((a, b) => (a.category || '').localeCompare(b.category || '') || a.name.localeCompare(b.name))
@@ -810,13 +813,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               {/* Quantity + Unit */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Menge *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.qtyRequired')}</label>
                   <input type="number" step="0.01" name="quantity" value={offerData.quantity}
                     onChange={handleOfferChange} required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Einheit *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.unitRequired')}</label>
                   <select name="unit" value={offerData.unit} onChange={handleOfferChange} required
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
                     <option value="kg">kg</option>
@@ -833,14 +836,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               {/* Location */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <MapPin className="w-3.5 h-3.5 inline mr-1" />Standortname
+                  <MapPin className="w-3.5 h-3.5 inline mr-1" />{t('materialForm.locationName')}
                 </label>
                 <input type="text" name="location_name" value={offerData.location_name}
                   onChange={handleOfferChange} placeholder="z.B. Lager Zeitz"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.address')}</label>
                 <input type="text" name="address" value={offerData.address}
                   onChange={handleOfferChange} placeholder="Straße, PLZ, Ort"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
@@ -852,13 +855,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Breitengrad</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.latitude')}</label>
                     <input type="number" step="0.000001" name="latitude" value={offerData.latitude}
                       onChange={handleOfferChange} placeholder="z.B. 51.05"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Längengrad</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.longitude')}</label>
                     <input type="number" step="0.000001" name="longitude" value={offerData.longitude}
                       onChange={handleOfferChange} placeholder="z.B. 12.13"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
@@ -871,23 +874,23 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
                   <input type="checkbox" name="is_available" checked={offerData.is_available}
                     onChange={handleOfferChange} className="w-4 h-4 text-orange-500 border-gray-300 rounded" />
-                  Sichtbar
+                  {t('materialForm.visible')}
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
                   <input type="checkbox" name="available_for_transfer" checked={offerData.available_for_transfer}
                     onChange={handleOfferChange} className="w-4 h-4 text-primary-500 border-gray-300 rounded" />
-                  Transfer
+                  {t('materialForm.transfer')}
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
                   <input type="checkbox" name="available_for_gift" checked={offerData.available_for_gift}
                     onChange={handleOfferChange} className="w-4 h-4 text-primary-500 border-gray-300 rounded" />
-                  Schenkung
+                  {t('materialForm.gift')}
                 </label>
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.notes')}</label>
                 <textarea name="notes" value={offerData.notes} onChange={handleOfferChange} rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
               </div>
@@ -899,19 +902,19 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 const coverUrl = coverPath ? `${API_BASE}${coverPath.replace(/^\./, '')}` : null;
                 return (
                   <div className="space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">Abbildung</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('materialForm.offerImageLabel')}</label>
 
                     {/* Standard: material cover image with disclaimer */}
                     {coverUrl && offerPendingImages.length === 0 && (
                       <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                         <img src={coverUrl} alt={mat.name} className="w-full h-36 object-cover opacity-90" />
                         <span className="absolute bottom-2 left-2 text-[10px] text-white bg-black/50 px-2 py-0.5 rounded-full">
-                          Standardbild · Abbildung kann abweichen
+                          {t('materialForm.offerImageDefault')}
                         </span>
                       </div>
                     )}
                     {!coverUrl && offerPendingImages.length === 0 && (
-                      <p className="text-xs text-gray-400 italic">Kein Standardbild verfügbar – du kannst ein eigenes Bild hochladen.</p>
+                      <p className="text-xs text-gray-400 italic">{t('materialForm.offerImageNone')}</p>
                     )}
 
                     {/* Queued custom images */}
@@ -937,7 +940,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                     {/* Upload trigger */}
                     <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-primary-600 hover:text-primary-700 border border-dashed border-primary-300 rounded-lg px-3 py-1.5 bg-primary-50 hover:bg-primary-100 transition-colors">
                       <Upload className="w-3 h-3" />
-                      {offerPendingImages.length > 0 ? 'Weitere Bilder hinzufügen' : 'Eigene Bilder hochladen (ersetzt Standardbild)'}
+                      {offerPendingImages.length > 0 ? t('materialForm.offerImagesMore') : t('materialForm.offerImagesUpload')}
                       <input type="file" multiple accept="image/*" className="hidden"
                         onChange={e => {
                           const files = Array.from(e.target.files || []);
@@ -960,7 +963,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name *
+                {t('materialForm.name')}
               </label>
               <input
                 type="text"
@@ -974,7 +977,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Kategorie *
+                {t('materialForm.category')}
               </label>
               <select
                 name="category"
@@ -985,7 +988,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 disabled={catsLoading}
               >
                 <option value="" disabled>
-                  {catsLoading ? 'Kategorien werden geladen…' : 'Kategorie wählen'}
+                  {catsLoading ? t('materialForm.categoryLoading') : t('materialForm.categoryChoose')}
                 </option>
                 {/* Ensure legacy category appears if editing and not in list */}
                 {material && formData.category && !categories.includes(formData.category) && (
@@ -1000,7 +1003,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Beschreibung
+              {t('materialForm.description')}
             </label>
             <textarea
               name="description"
@@ -1013,70 +1016,70 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           {/* Extended material details */}
           <div className="pt-2">
-            <div className="text-sm font-semibold text-gray-900 mb-2">Materialdetails</div>
+            <div className="text-sm font-semibold text-gray-900 mb-2">{t('materialForm.sectionDetails')}</div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kurzbeschreibung</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.shortDesc')}</label>
                 <textarea
                   name="short_description"
                   value={formData.short_description}
                   onChange={handleChange}
                   rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
-                  placeholder="Kurze, prägnante Beschreibung des Materials"
+                  placeholder={t('materialForm.shortDescPlaceholder')}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Herkunft &amp; Gewinnung</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.originAcquisition')}</label>
                 <textarea
                   name="origin_acquisition"
                   value={formData.origin_acquisition}
                   onChange={handleChange}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
-                  placeholder="Beschreibung der Gewinnung / Herstellung"
+                  placeholder={t('materialForm.originAcquisitionPlaceholder')}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Materialquelle</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.originSource')}</label>
                   <select name="origin_source" value={formData.origin_source}
                     onChange={e => setFormData({...formData, origin_source: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
-                    <option value="">Wählen…</option>
-                    <option value="primary">Primärquelle</option>
-                    <option value="secondary_rückbau">Sekundärquelle – Rückbau</option>
-                    <option value="secondary_überschuss">Sekundärquelle – Überschuss</option>
-                    <option value="secondary_restposten">Sekundärquelle – Restposten</option>
+                    <option value="">{t('materialForm.originChoose')}</option>
+                    <option value="primary">{t('materialForm.originPrimary')}</option>
+                    <option value="secondary_rückbau">{t('materialForm.originSecondaryRueckbau')}</option>
+                    <option value="secondary_überschuss">{t('materialForm.originSecondaryUeberschuss')}</option>
+                    <option value="secondary_restposten">{t('materialForm.originSecondaryRestposten')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vorherige Nutzung</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.previousUse')}</label>
                   <input type="text" name="previous_use" value={formData.previous_use}
                     onChange={e => setFormData({...formData, previous_use: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                    placeholder="z.B. Dachstuhl, Industriehalle"
+                    placeholder={t('materialForm.previousUsePlaceholder')}
                     disabled={!formData.origin_source?.startsWith('secondary')} />
                 </div>
               </div>
 
               <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ähnliche Materialien (IDs)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.similarIds')}</label>
                   <input
                     type="text"
                     name="similar_material_ids_input"
                     value={formData.similar_material_ids_input}
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                    placeholder="z. B. 123, 456 (kommagetrennt)"
+                    placeholder={t('materialForm.similarIdsPlaceholder')}
                   />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grenzen des Materials</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.limitations')}</label>
                 <textarea
                   name="use_limitations"
                   value={formData.use_limitations}
@@ -1087,27 +1090,27 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Anwendungsbereich</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('materialForm.applicationArea')}</label>
                 <div className="flex gap-4 mb-3">
                   <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
                     <input type="checkbox" checked={formData.use_indoor} onChange={e => setFormData({...formData, use_indoor: e.target.checked})} className="w-4 h-4 text-primary-500 rounded" />
-                    Innenbereich
+                    {t('materialForm.indoor')}
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
                     <input type="checkbox" checked={formData.use_outdoor} onChange={e => setFormData({...formData, use_outdoor: e.target.checked})} className="w-4 h-4 text-primary-500 rounded" />
-                    Außenbereich
+                    {t('materialForm.outdoor')}
                   </label>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Geeignet für</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">{t('materialForm.suitableFor')}</label>
                     <textarea name="use_where" value={formData.use_where} onChange={e => setFormData({...formData, use_where: e.target.value})} rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder="Wo kann das Material verwendet werden?" />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder={t('materialForm.suitableForPlaceholder')} />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Nicht geeignet für</label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">{t('materialForm.notSuitable')}</label>
                     <textarea name="use_not_suitable" value={formData.use_not_suitable} onChange={e => setFormData({...formData, use_not_suitable: e.target.value})} rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder="Wo ist es nicht geeignet?" />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" placeholder={t('materialForm.notSuitablePlaceholder')} />
                   </div>
                 </div>
               </div>
@@ -1116,10 +1119,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           {/* Technical data */}
           <div className="pt-2">
-            <div className="text-sm font-semibold text-gray-900 mb-2">Technische Daten</div>
+            <div className="text-sm font-semibold text-gray-900 mb-2">{t('materialForm.sectionTech')}</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Materialstärken</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.techThicknesses')}</label>
                 <input
                   type="text"
                   name="tech_thicknesses"
@@ -1130,7 +1133,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Materialabmessungen</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.techDimensions')}</label>
                 <input
                   type="text"
                   name="tech_dimensions"
@@ -1141,7 +1144,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dichte</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.techDensity')}</label>
                 <input
                   type="text"
                   name="tech_density"
@@ -1152,7 +1155,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Entflammbarkeit</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.techFlammability')}</label>
                 <input
                   type="text"
                   name="tech_flammability"
@@ -1163,7 +1166,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Akustik</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.techAcoustics')}</label>
                 <input
                   type="text"
                   name="tech_acoustics"
@@ -1173,7 +1176,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Wärmeisolation</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.techThermal')}</label>
                 <input
                   type="text"
                   name="tech_thermal_insulation"
@@ -1183,13 +1186,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Druckfestigkeit</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.techCompressive')}</label>
                 <input type="text" name="tech_compressive_strength" value={formData.tech_compressive_strength}
                   onChange={e => setFormData({...formData, tech_compressive_strength: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. 30 N/mm²" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Zugfestigkeit</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.techTensile')}</label>
                 <input type="text" name="tech_tensile_strength" value={formData.tech_tensile_strength}
                   onChange={e => setFormData({...formData, tech_tensile_strength: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. 500 N/mm²" />
@@ -1199,10 +1202,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           {/* Sustainability */}
           <div className="pt-2">
-            <div className="text-sm font-semibold text-gray-900 mb-2">Nachhaltigkeit</div>
+            <div className="text-sm font-semibold text-gray-900 mb-2">{t('materialForm.sectionSustainability')}</div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Einfluss auf Klimawandel (Beschreibung)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.climateDesc')}</label>
                 <textarea
                   name="sust_climate_description"
                   value={formData.sust_climate_description}
@@ -1213,7 +1216,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               </div>
 
               <div className="w-full md:w-1/2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Recyclatanteil (%)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.recyclateContent')}</label>
                 <input
                   type="number"
                   step="0.1"
@@ -1227,7 +1230,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kreislauffähigkeit</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.circularity')}</label>
                   <input
                     type="text"
                     name="circularity"
@@ -1237,7 +1240,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Human Health (z. B. VOC)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.humanHealth')}</label>
                   <input
                     type="text"
                     name="human_health"
@@ -1247,14 +1250,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Recyclingfähigkeit (%)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.recyclingPercent')}</label>
                   <input type="number" step="0.1" min="0" max="100" name="recycling_percentage" value={formData.recycling_percentage}
                     onChange={e => setFormData({...formData, recycling_percentage: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                    placeholder="Anteil der recyclingfähig ist" />
+                    placeholder={t('materialForm.recyclingPercentPlaceholder')} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">VOC-Emissionsklasse</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.vocClass')}</label>
                   <input type="text" name="voc_values" value={formData.voc_values}
                     onChange={e => setFormData({...formData, voc_values: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" placeholder="z.B. A+" />
@@ -1262,7 +1265,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Be- &amp; Verarbeitung</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.processing')}</label>
                 <input
                   type="text"
                   name="processing_sustainability"
@@ -1273,10 +1276,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               </div>
 
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <div className="text-sm font-semibold text-gray-900 mb-3">Ökodesign-Prinzipien</div>
+                <div className="text-sm font-semibold text-gray-900 mb-3">{t('materialForm.sectionEcodesign')}</div>
                 <div className="space-y-4">
                   <div>
-                    <div className="text-xs font-semibold text-gray-700 mb-2">Konsistenz</div>
+                    <div className="text-xs font-semibold text-gray-700 mb-2">{t('materialForm.ecoConsistency')}</div>
                     <div className="flex flex-wrap gap-3">
                       {PRINCIPLES.consistency.map((p) => (
                         <label key={p} className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -1292,7 +1295,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-gray-700 mb-2">Effizienz</div>
+                    <div className="text-xs font-semibold text-gray-700 mb-2">{t('materialForm.ecoEfficiency')}</div>
                     <div className="flex flex-wrap gap-3">
                       {PRINCIPLES.efficiency.map((p) => (
                         <label key={p} className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -1313,10 +1316,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             </div>
 
             <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
-              <div className="text-sm font-semibold text-gray-900 mb-3">Zertifizierungen & Standards</div>
+              <div className="text-sm font-semibold text-gray-900 mb-3">{t('materialForm.sectionCerts')}</div>
               <div className="flex flex-wrap gap-4">
                 {[
-                  { key: 'cert_epd', label: 'Umweltproduktdeklaration (EPD)' },
+                  { key: 'cert_epd', label: t('materialForm.certEpd') },
                   { key: 'cert_cradle_to_cradle', label: 'Cradle-to-Cradle' },
                   { key: 'cert_fsc_pefc', label: 'FSC / PEFC' },
                 ].map(({ key, label }) => (
@@ -1331,10 +1334,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           {/* Further info */}
           <div className="pt-2">
-            <div className="text-sm font-semibold text-gray-900 mb-2">Weiterführende Informationen</div>
+            <div className="text-sm font-semibold text-gray-900 mb-2">{t('materialForm.sectionFurtherInfo')}</div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Links zu Umweltinformationen (z. B. EPDs) – je Zeile ein Link</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.envLinks')}</label>
                 <textarea
                   name="env_links_input"
                   value={formData.env_links_input}
@@ -1346,7 +1349,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Anhang (Quellen, Referenzen, Dokumente)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.appendix')}</label>
                 <textarea
                   name="appendix"
                   value={formData.appendix}
@@ -1362,22 +1365,22 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           <div className="pt-2">
             <div className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
               <MapPin className="w-4 h-4 text-gray-500" />
-              Standort des Materials
+              {t('materialForm.sectionLocation')}
             </div>
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Standortname</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.locationName')}</label>
                 <input
                   type="text"
                   name="location_name"
                   value={formData.location_name}
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="z.B. Lager Zeitz, Werkstatt RZZ"
+                  placeholder={t('materialForm.locationPlaceholder')}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.address')}</label>
                 <input
                   type="text"
                   name="address"
@@ -1389,7 +1392,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Breitengrad</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.latitude')}</label>
                   <input
                     type="number"
                     step="any"
@@ -1401,7 +1404,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Längengrad</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.longitude')}</label>
                   <input
                     type="number"
                     step="any"
@@ -1425,7 +1428,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           <div className="pt-2">
             <div className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
               <Users className="w-4 h-4 text-gray-500" />
-              Beteiligte Akteure
+              {t('materialForm.sectionActors')}
             </div>
             <div className="space-y-2">
               {actorIds.map((actorId, idx) => (
@@ -1439,7 +1442,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                     }}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
                   >
-                    <option value="">— Akteur wählen —</option>
+                    <option value="">{t('materialForm.actorChoose')}</option>
                     {allActors.map((a) => (
                       <option key={a.id} value={a.id}>{a.name}{a.type ? ` (${a.type})` : ''}</option>
                     ))}
@@ -1461,7 +1464,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium"
               >
                 <Plus className="w-4 h-4" />
-                Weiteren Akteur hinzufügen
+                {t('materialForm.actorAdd')}
               </button>
             </div>
           </div>
@@ -1477,8 +1480,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   className="w-5 h-5 text-primary-600 border-gray-300 rounded focus:ring-primary-500 flex-shrink-0"
                 />
                 <div>
-                  <div className="text-sm font-bold text-primary-900">Material als Angebot verfügbar machen</div>
-                  <div className="text-xs text-primary-700 mt-0.5">Aktivieren um Menge, Standort und Verfügbarkeit einzutragen – das Material erscheint dann in der Angebotsübersicht.</div>
+                  <div className="text-sm font-bold text-primary-900">{t('materialForm.offerToggleTitle')}</div>
+                  <div className="text-xs text-primary-700 mt-0.5">{t('materialForm.offerToggleHint')}</div>
                 </div>
               </label>
 
@@ -1486,7 +1489,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Menge *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.qtyRequired')}</label>
                       <input
                         type="number"
                         step="0.01"
@@ -1498,7 +1501,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Einheit *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.unitRequired')}</label>
                       <select
                         name="unit"
                         value={offerData.unit}
@@ -1519,7 +1522,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <MapPin className="w-4 h-4 inline mr-1" /> Standortname
+                      <MapPin className="w-4 h-4 inline mr-1" /> {t('materialForm.locationName')}
                     </label>
                     <input
                       type="text"
@@ -1532,7 +1535,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.address')}</label>
                     <input
                       type="text"
                       name="address"
@@ -1550,7 +1553,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                     />
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Breitengrad</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.latitude')}</label>
                         <input
                           type="number"
                           step="0.000001"
@@ -1562,7 +1565,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Längengrad</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.longitude')}</label>
                         <input
                           type="number"
                           step="0.000001"
@@ -1585,7 +1588,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                         onChange={handleOfferChange}
                         className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
                       />
-                      <span className="text-sm text-gray-700">Sichtbar</span>
+                      <span className="text-sm text-gray-700">{t('materialForm.visible')}</span>
                     </label>
 
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -1596,7 +1599,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                         onChange={handleOfferChange}
                         className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
                       />
-                      <span className="text-sm text-gray-700">Transfer</span>
+                      <span className="text-sm text-gray-700">{t('materialForm.transfer')}</span>
                     </label>
 
                     <label className="flex items-center gap-3 cursor-pointer">
@@ -1607,12 +1610,12 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                         onChange={handleOfferChange}
                         className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
                       />
-                      <span className="text-sm text-gray-700">Gift</span>
+                      <span className="text-sm text-gray-700">{t('materialForm.gift')}</span>
                     </label>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Notizen</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.notes')}</label>
                     <textarea
                       name="notes"
                       value={offerData.notes}
@@ -1629,7 +1632,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hersteller
+                {t('materialForm.manufacturer')}
               </label>
               <input
                 type="text"
@@ -1655,11 +1658,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           </div>
 
           <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Umweltdaten</h3>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">{t('materialForm.sectionEnv')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  GWP total (Projektsumme)
+                  {t('materialForm.gwpTotal')}
                 </label>
                 <input
                   type="number"
@@ -1671,13 +1674,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   placeholder="z. B. 2.5"
                 />
                 {(formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '') && (
-                  <p className="text-[11px] text-amber-600 mt-1">Wird aus EPD-Komponenten (fossil + biogen + luluc) berechnet</p>
+                  <p className="text-[11px] text-amber-600 mt-1">{t('materialForm.gwpCalcHint')}</p>
                 )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  GWP-Einheit
+                  {t('materialForm.gwpUnit')}
                 </label>
                 <select
                   name="gwp_unit"
@@ -1703,7 +1706,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   onChange={handleChange}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
-                <span className="text-sm text-gray-700">Recycelbar</span>
+                <span className="text-sm text-gray-700">{t('materialForm.recyclable')}</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer">
@@ -1714,14 +1717,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   onChange={handleChange}
                   className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                 />
-                <span className="text-sm text-gray-700">Biologisch abbaubar</span>
+                <span className="text-sm text-gray-700">{t('materialForm.biodegradable')}</span>
               </label>
             </div>
           </div>
 
           <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-1">EPD-Daten (EN 15804)</h3>
-            <p className="text-xs text-gray-400 mb-3">Werte aus einer Umweltproduktdeklaration — alle Felder optional</p>
+            <h3 className="text-sm font-medium text-gray-900 mb-1">{t('materialForm.sectionEpd')}</h3>
+            <p className="text-xs text-gray-400 mb-3">{t('materialForm.epdHint')}</p>
             {(() => {
               const f = parseFloat(formData.gwp_fossil);
               const b = parseFloat(formData.gwp_biogenic);
@@ -1739,8 +1742,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  Deklarierte Einheit
-                  <span title="Die funktionelle oder deklarierte Einheit aus der EPD — z. B. &#39;1 kg&#39;, &#39;1 m²&#39; oder &#39;1 m³&#39;. Alle Kennwerte beziehen sich auf diese Menge.&#10;&#10;Wo in der EPD: Titelseite oder Abschnitt &#39;Systemgrenze&#39; / &#39;Declared Unit&#39; — oft direkt unter dem Produktnamen angegeben." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                  {t('materialForm.epdDeclaredUnit')}
+                  <InfoTooltip text={t('materialForm.epdTooltipDeclaredUnit')} />
                 </label>
                 <input
                   type="text"
@@ -1754,8 +1757,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  Systemgrenze
-                  <span title="Gibt an, welche Lebenszyklusphasen die EPD abdeckt. A1–A3: Rohstoffgewinnung bis Werkstor. A1–A5: zusätzlich Transport und Einbau. A1–D: inkl. Rückbau und Wiederverwendungspotenzial (Modul D).&#10;&#10;Wo in der EPD: Titelseite oder Abschnitt &#39;Systemgrenze&#39; / &#39;System Boundary&#39; — als Spanne wie &#39;A1-A3&#39; oder als Tabellenkopf der Wirkungskategorien-Tabelle angegeben." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                  {t('materialForm.epdSystemBoundary')}
+                  <InfoTooltip text={t('materialForm.epdTooltipSystemBoundary')} />
                 </label>
                 <select
                   name="lifecycle_scope"
@@ -1763,17 +1766,17 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
                 >
-                  <option value="">— nicht angegeben —</option>
-                  <option value="A1-A3">A1–A3 (Herstellung)</option>
-                  <option value="A1-A5">A1–A5 (Herstellung + Einbau)</option>
-                  <option value="A1-D">A1–D (inkl. Wiederverwendungspotenzial)</option>
+                  <option value="">{t('materialForm.epdBoundaryNone')}</option>
+                  <option value="A1-A3">{t('materialForm.epdBoundaryA1A3')}</option>
+                  <option value="A1-A5">{t('materialForm.epdBoundaryA1A5')}</option>
+                  <option value="A1-D">{t('materialForm.epdBoundaryA1D')}</option>
                 </select>
               </div>
 
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  GWP fossil (kg CO₂e)
-                  <span title="Global Warming Potential aus fossilen Quellen (Kohle, Öl, Gas). Haupttreiber des Treibhausgaseffekts bei energieintensiven Materialien. Positiv = Emission, negativ = Bindung.&#10;&#10;Wo in der EPD: Tabelle &#39;Ergebnisse der Ökobilanz&#39; / &#39;Environmental Performance&#39; → Zeile &#39;GWP-fossil&#39; oder &#39;GWP fossil fuels&#39; → Spalte für deine Systemgrenze (z. B. A1-A3). Einheit: kg CO₂-Äq." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                  {t('materialForm.epdGwpFossil')}
+                  <InfoTooltip text={t('materialForm.epdTooltipGwpFossil')} />
                 </label>
                 <input
                   type="number"
@@ -1788,8 +1791,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  GWP biogen (kg CO₂e)
-                  <span title="Treibhausgaspotenzial aus biogenen Quellen (nachwachsende Rohstoffe). Oft negativ bei Holz/Bambus, da während des Wachstums CO₂ gebunden wurde. Wird bei Verbrennung wieder freigesetzt.&#10;&#10;Wo in der EPD: Gleiche Tabelle → Zeile &#39;GWP-biogenic&#39; oder &#39;GWP biogen&#39; → selbe Systemgrenze-Spalte. Bei Holzprodukten häufig stark negativ (gespeichertes CO₂)." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                  {t('materialForm.epdGwpBiogenic')}
+                  <InfoTooltip text={t('materialForm.epdTooltipGwpBiogenic')} />
                 </label>
                 <input
                   type="number"
@@ -1804,8 +1807,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  GWP luluc (kg CO₂e)
-                  <span title="Land Use and Land Use Change — Treibhausgasemissionen durch Landnutzungsänderungen (z. B. Rodung für Rohstoffanbau). Oft klein, aber relevant bei Agrarprodukten und Holz aus bestimmten Regionen.&#10;&#10;Wo in der EPD: Gleiche Tabelle → Zeile &#39;GWP-luluc&#39; oder &#39;GWP land use&#39;. Manchmal fehlt diese Zeile in älteren EPDs (vor EN 15804:2019)." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                  {t('materialForm.epdGwpLuluc')}
+                  <InfoTooltip text={t('materialForm.epdTooltipGwpLuluc')} />
                 </label>
                 <input
                   type="number"
@@ -1820,8 +1823,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  ADP fossil (MJ)
-                  <span title="Abiotic Depletion Potential fossil — nicht erneuerbare fossile Primärenergie (Öl, Gas, Kohle). Zeigt den gesamten fossilen Energieverbrauch für Herstellung und Transport.&#10;&#10;Wo in der EPD: Tabelle &#39;Ergebnisse&#39; → Abschnitt &#39;Ressourcen&#39; oder &#39;Ressourceneinsatz&#39; → Zeile &#39;ADP-fossil&#39; oder &#39;PENRE&#39; (Primärenergie nicht erneuerbar). Einheit: MJ." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                  {t('materialForm.epdAdpFossil')}
+                  <InfoTooltip text={t('materialForm.epdTooltipAdpFossil')} />
                 </label>
                 <input
                   type="number"
@@ -1836,8 +1839,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  ADP elements (kg Sb-Äq.)
-                  <span title="Abiotic Depletion Potential elements — Verbrauch nicht erneuerbarer mineralischer Ressourcen (Metalle, Mineralien), in kg Antimon-Äquivalent. Relevant bei seltenen Erden und Metallen.&#10;&#10;Wo in der EPD: Gleiche Ressourcentabelle → Zeile &#39;ADP-elements&#39; oder &#39;Abiotischer Ressourcenverbrauch (Elemente)&#39;. Werte oft sehr klein (E-05 bis E-07). Einheit: kg Sb-Äq." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                  {t('materialForm.epdAdpElements')}
+                  <InfoTooltip text={t('materialForm.epdTooltipAdpElements')} />
                 </label>
                 <input
                   type="number"
@@ -1852,8 +1855,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               <div>
                 <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  Wasserverbrauch (m³)
-                  <span title="Netto-Wasserverbrauch über den Lebenszyklus (Water Deprivation Potential / WDP). Berücksichtigt Wasserentnahme und -rückgabe, gewichtet nach regionaler Wasserknappheit.&#10;&#10;Wo in der EPD: Tabelle &#39;Ergebnisse&#39; → Abschnitt &#39;Wirkungskategorien&#39; → Zeile &#39;WDP&#39; oder &#39;Wasserverbrauch&#39; oder &#39;Water use&#39;. Manchmal auch als &#39;Fresh water&#39; im Ressourcenteil. Einheit: m³ Wasser-Äq." className="cursor-help text-gray-400 hover:text-gray-600">ⓘ</span>
+                  {t('materialForm.epdWater')}
+                  <InfoTooltip text={t('materialForm.epdTooltipWater')} />
                 </label>
                 <input
                   type="number"
@@ -1870,7 +1873,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Quellen-URL
+              {t('materialForm.sourceUrl')}
             </label>
             <input
               type="url"
@@ -1884,7 +1887,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notizen
+              {t('materialForm.notesLabel')}
             </label>
             <textarea
               name="notes"
@@ -1900,13 +1903,13 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           {/* Pending preview — shown before material is saved */}
           {pendingImages.length > 0 && (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-700">Bilder (erstes = Cover)</p>
+              <p className="text-xs font-medium text-gray-700">{t('materialForm.imagesPendingTitle')}</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {pendingImages.map((file, i) => (
                   <div key={i} className="relative rounded-xl overflow-hidden border-2 border-dashed border-primary-300 bg-primary-50">
                     <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-28 object-cover opacity-80" />
                     <span className="absolute top-1 left-1 bg-primary-500 text-white text-[10px] px-2 py-0.5 rounded-full">
-                      {i === 0 ? 'Cover' : `Bild ${i + 1}`}
+                      {i === 0 ? 'Cover' : t('materialForm.imagePicLabel', { n: i + 1 })}
                     </span>
                     <button
                       type="button"
@@ -1921,7 +1924,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 ))}
               </div>
               <p className="text-xs text-primary-600 bg-primary-50 px-3 py-1.5 rounded-lg">
-                Bilder werden automatisch beim Speichern hochgeladen.
+                {t('materialForm.imagesAutoUpload')}
               </p>
             </div>
           )}
@@ -1956,7 +1959,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             }}
             apiBase={API_BASE}
             showSteps={true}
-            label={pendingImages.length > 0 ? 'Weitere Bilder hinzufügen' : 'Bilder (erstes = Cover)'}
+            label={pendingImages.length > 0 ? t('materialForm.imagesLabelMore') : t('materialForm.imagesLabel')}
           />
 
           {/* Files */}
@@ -1982,12 +1985,12 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               setLocalFiles(prev => prev.filter(f => f.id !== fileId));
             }}
             apiBase={API_BASE}
-            label="Fertigungsdaten & Dateien"
+            label={t('materialForm.filesLabel')}
           />
 
           {savedId && !material && (
             <p className="text-xs text-primary-700 bg-primary-50 px-3 py-2 rounded-lg">
-              ✓ Material gespeichert – du kannst jetzt Bilder und Dateien hinzufügen oder schließen.
+              {t('materialForm.savedNotice')}
             </p>
           )}
             </>
@@ -1996,17 +1999,17 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button type="button" onClick={onClose}
               className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-              {savedId && !material ? 'Schließen' : 'Abbrechen'}
+              {savedId && !material ? t('materialForm.btnClose') : t('materialForm.btnCancel')}
             </button>
             <button type="submit" disabled={isPending}
               className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50">
               {isPending
-                ? 'Speichern…'
+                ? t('materialForm.btnSaving')
                 : material
-                  ? 'Material speichern'
+                  ? t('materialForm.btnSave')
                   : mode === 'offer-only'
-                    ? 'Angebot erstellen'
-                    : 'Material anlegen'}
+                    ? t('materialForm.btnCreateOffer')
+                    : t('materialForm.btnCreate')}
             </button>
           </div>
         </form>
