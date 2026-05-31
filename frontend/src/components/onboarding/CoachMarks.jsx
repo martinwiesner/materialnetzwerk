@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useOnboarding } from './useOnboarding';
+import { useT } from '../../i18n/useT';
+import { useLangStore } from '../../store/i18nStore';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const SPOT_PAD   = 10;   // px padding around spotlight target
@@ -138,6 +140,17 @@ function isExplore(pathname) {
 export default function CoachMarks() {
   const { isActive, step, setStep, complete, restart, hasOnboarded } = useOnboarding();
   const location = useLocation();
+  const t = useT();
+  const lang = useLangStore((s) => s.lang);
+  const setLang = useLangStore((s) => s.setLang);
+
+  const translatedSteps = STEPS.map((s) => ({
+    ...s,
+    tag:    t(`onboarding.steps.${s.id}.tag`),
+    title:  t(`onboarding.steps.${s.id}.title`),
+    text:   t(`onboarding.steps.${s.id}.text`),
+    detail: t(`onboarding.steps.${s.id}.detail`),
+  }));
 
   const [spot, setSpot]           = useState(null);
   const [tipPos, setTipPos]       = useState(null);
@@ -147,7 +160,7 @@ export default function CoachMarks() {
   const [infoBtnAnimate, setInfoBtnAnimate] = useState(false);
 
   const waitRef = useRef(null);
-  const currentStep = STEPS[step];
+  const currentStep = translatedSteps[step];
 
   // Show animated info button whenever tour is done
   useEffect(() => {
@@ -177,7 +190,7 @@ export default function CoachMarks() {
 
     if (skipNow) {
       const next = step + 1;
-      if (next >= STEPS.length) complete();
+      if (next >= translatedSteps.length) complete();
       else setStep(next);
       return;
     }
@@ -203,7 +216,7 @@ export default function CoachMarks() {
         // Element not found — skip step
         setSearching(false);
         const next = step + 1;
-        if (next >= STEPS.length) complete();
+        if (next >= translatedSteps.length) complete();
         else setStep(next);
         return;
       }
@@ -252,7 +265,7 @@ export default function CoachMarks() {
   }); // no deps → always latest closures
 
   const handleNext = useCallback(() => {
-    if (step >= STEPS.length - 1) complete();
+    if (step >= translatedSteps.length - 1) complete();
     else setStep((s) => s + 1);
   }, [step, complete, setStep]);
 
@@ -264,7 +277,7 @@ export default function CoachMarks() {
   if (!isActive && !infoBtnVisible) return null;
 
   const isMobileView = typeof window !== 'undefined' && window.innerWidth < 768;
-  const lastStep = step >= STEPS.length - 1;
+  const lastStep = step >= translatedSteps.length - 1;
 
   const tooltipStyle = isMobileView
     ? { position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9995 }
@@ -352,7 +365,7 @@ export default function CoachMarks() {
                   <button
                     onClick={complete}
                     className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
-                    aria-label="Tour überspringen"
+                    aria-label={t('onboarding.ui.skipLabel')}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -362,7 +375,7 @@ export default function CoachMarks() {
                 {searching ? (
                   <div className="flex items-center gap-3 py-4">
                     <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin flex-shrink-0" />
-                    <span className="text-sm text-gray-500">Element wird gesucht …</span>
+                    <span className="text-sm text-gray-500">{t('onboarding.ui.searching')}</span>
                   </div>
                 ) : (
                   <>
@@ -384,8 +397,8 @@ export default function CoachMarks() {
                           className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors"
                         >
                           {showDetail
-                            ? <><ChevronUp className="w-3.5 h-3.5" /> Details ausblenden</>
-                            : <><ChevronDown className="w-3.5 h-3.5" /> + Details anzeigen</>
+                            ? <><ChevronUp className="w-3.5 h-3.5" /> {t('onboarding.ui.hideDetails')}</>
+                            : <><ChevronDown className="w-3.5 h-3.5" /> {t('onboarding.ui.showDetails')}</>
                           }
                         </button>
                         {showDetail && (
@@ -407,7 +420,7 @@ export default function CoachMarks() {
                     <button
                       key={i}
                       onClick={() => setStep(i)}
-                      aria-label={`Schritt ${i + 1} von ${STEPS.length}`}
+                      aria-label={t('onboarding.ui.stepLabel', { n: i + 1, total: translatedSteps.length })}
                       style={{
                         width: i === step ? 20 : 8,
                         height: 8,
@@ -428,8 +441,21 @@ export default function CoachMarks() {
                     onClick={complete}
                     className="text-xs text-gray-400 hover:text-gray-500 transition-colors mr-auto"
                   >
-                    Überspringen
+                    {t('onboarding.ui.skip')}
                   </button>
+
+                  {/* Language switcher */}
+                  <div className="flex items-center gap-0.5 text-[11px] font-medium rounded-lg border border-gray-200 overflow-hidden">
+                    {['de', 'en'].map((l) => (
+                      <button
+                        key={l}
+                        onClick={() => setLang(l)}
+                        className={`px-2 py-1 transition-colors ${lang === l ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                        {l.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
 
                   {step > 0 && (
                     <button
@@ -437,7 +463,7 @@ export default function CoachMarks() {
                       className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <ChevronLeft className="w-4 h-4" />
-                      Zurück
+                      {t('onboarding.ui.back')}
                     </button>
                   )}
 
@@ -446,7 +472,7 @@ export default function CoachMarks() {
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
                     style={{ background: currentStep.tagColor }}
                   >
-                    {lastStep ? 'Loslegen ✦' : <> Nächster <ChevronRight className="w-4 h-4" /> </>}
+                    {lastStep ? t('onboarding.ui.start') : <> {t('onboarding.ui.next')} <ChevronRight className="w-4 h-4" /> </>}
                   </button>
                 </div>
               </div>
@@ -459,8 +485,8 @@ export default function CoachMarks() {
       {!isActive && infoBtnVisible && (
         <button
           onClick={restart}
-          title="Einführungstour wiederholen"
-          aria-label="Einführungstour wiederholen"
+          title={t('onboarding.ui.restartTitle')}
+          aria-label={t('onboarding.ui.restartTitle')}
           className="fixed bottom-5 right-5 w-12 h-12 bg-white rounded-2xl shadow-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-primary-700 hover:border-primary-300 hover:shadow-lg transition-all"
           style={{
             zIndex: 9989,

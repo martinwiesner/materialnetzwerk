@@ -912,6 +912,7 @@ const ensureSettings = () => {
         'Reine Werbeeinträge',
       ]),
       // agb_html is intentionally not seeded — empty means "use hardcoded default"
+      notification_emails: JSON.stringify([]),
     };
 
     const stmt = db.prepare('INSERT OR IGNORE INTO platform_settings (key, value) VALUES (?, ?)');

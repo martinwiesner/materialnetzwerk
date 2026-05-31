@@ -164,6 +164,23 @@ export default function AdminPanel() {
         </div>
       </div>
 
+      {/* ── Benachrichtigungen ─────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
+          Benachrichtigungen
+        </h2>
+        <FieldCard
+          title="Benachrichtigungs-E-Mails"
+          description="Diese Adressen erhalten eine Kopie jeder Nachricht, die über die Plattform gesendet wird"
+        >
+          <ListField
+            settingKey="notification_emails"
+            currentValue={settings?.notification_emails}
+            hint="Eine E-Mail-Adresse pro Zeile. Wird zusätzlich zum eigentlichen Empfänger benachrichtigt."
+          />
+        </FieldCard>
+      </section>
+
       {/* ── Intro-Text ─────────────────────────────────────────────────────── */}
       <section className="space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">

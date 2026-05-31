@@ -8,6 +8,7 @@ import User from '../models/user.model.js';
 import Inventory from '../models/inventory.model.js';
 import { sendPushToUser } from '../services/push.service.js';
 import { sendNewMessageEmail } from '../services/email.service.js';
+import { getDB } from '../config/db.js';
 
 /**
  * Get user's inbox messages
@@ -142,14 +143,37 @@ export const sendMessage = (req, res) => {
       url: '/messages',
     }).catch(() => {});
 
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+
     sendNewMessageEmail({
       toEmail: receiver.email,
       toName: receiverName,
       senderName,
       subject,
       preview: content.slice(0, 100),
-      appUrl: process.env.APP_URL || 'http://localhost:3000',
+      appUrl,
     }).catch(() => {});
+
+    // Also notify configured admin notification emails (skip if already sent to receiver)
+    try {
+      const db = getDB();
+      const row = db.prepare('SELECT value FROM platform_settings WHERE key = ?').get('notification_emails');
+      if (row?.value) {
+        const extraEmails = JSON.parse(row.value);
+        for (const email of extraEmails) {
+          if (email && email !== receiver.email) {
+            sendNewMessageEmail({
+              toEmail: email,
+              toName: email.split('@')[0],
+              senderName,
+              subject,
+              preview: content.slice(0, 100),
+              appUrl,
+            }).catch(() => {});
+          }
+        }
+      }
+    } catch { /* non-critical */ }
 
     res.status(201).json(message);
   } catch (error) {

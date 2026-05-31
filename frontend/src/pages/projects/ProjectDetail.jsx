@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useT } from '../../i18n/useT';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 
 function ImageCarousel({ images, apiBase }) {
+  const t = useT();
   const [idx, setIdx] = useState(0);
   if (!images.length) return null;
   const url = (img) => `${apiBase}${img.file_path?.replace(/^\./, '')}`;
@@ -20,7 +22,7 @@ function ImageCarousel({ images, apiBase }) {
       <div className="relative">
         <img
           src={url(images[idx])}
-          alt={images[idx].original_name || `Bild ${idx + 1}`}
+          alt={images[idx].original_name || t('projectDetail.imageAlt', { n: idx + 1 })}
           className="w-full h-72 object-cover"
         />
         {images[idx].credit && (
@@ -115,6 +117,7 @@ function TagGroup({ title, items }) {
 }
 
 export default function ProjectDetail() {
+  const t = useT();
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -135,7 +138,7 @@ export default function ProjectDetail() {
   });
 
   const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this article?')) {
+    if (window.confirm(t('projectDetail.deleteConfirm'))) {
       deleteMutation.mutate(id);
     }
   };
@@ -151,9 +154,9 @@ export default function ProjectDetail() {
   if (error || !project) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Projekt nicht gefunden.</p>
+        <p className="text-gray-600">{t('projectDetail.notFound')}</p>
         <Link to="/projects" className="text-primary-600 hover:underline mt-2 inline-block">
-          Zurück zur Übersicht
+          {t('projectDetail.backToList')}
         </Link>
       </div>
     );
@@ -167,10 +170,10 @@ export default function ProjectDetail() {
   };
 
   const statusLabels = {
-    draft: 'Entwurf',
-    active: 'Veröffentlicht',
-    completed: 'Abgeschlossen',
-    archived: 'Archiviert',
+    draft: t('projectDetail.status.draft'),
+    active: t('projectDetail.status.active'),
+    completed: t('projectDetail.status.completed'),
+    archived: t('projectDetail.status.archived'),
   };
 
   const circular = safeJsonParse(project.circular_principles, []);
@@ -188,7 +191,7 @@ export default function ProjectDetail() {
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="w-4 h-4" />
-          Zurück zur Übersicht
+          {t('projectDetail.backToList')}
         </Link>
         {isAuthenticated && (project.owner_id === user?.id || user?.is_admin) && (
           <div className="flex gap-2">
@@ -197,14 +200,14 @@ export default function ProjectDetail() {
               className="inline-flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
               <Edit2 className="w-4 h-4" />
-              Bearbeiten
+              {t('projectDetail.editButton')}
             </button>
             <button
               onClick={handleDelete}
               className="inline-flex items-center gap-2 px-3 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
-              Löschen
+              {t('projectDetail.deleteButton')}
             </button>
           </div>
         )}
@@ -220,11 +223,11 @@ export default function ProjectDetail() {
             </span>
             {project.is_public ? (
               <span className="inline-flex items-center gap-1 text-xs text-project-600">
-                <Globe className="w-3 h-3" /> Public
+                <Globe className="w-3 h-3" /> {t('projectDetail.visibility.public')}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-xs text-gray-500">
-                <Lock className="w-3 h-3" /> Private
+                <Lock className="w-3 h-3" /> {t('projectDetail.visibility.private')}
               </span>
             )}
           </div>
@@ -263,13 +266,13 @@ export default function ProjectDetail() {
         {/* Sustainability principles */}
         {(circular.length || suff.length || cons.length || eff.length || gen.length) ? (
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Nachhaltigkeit &amp; Kreislaufprinzipien</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">{t('projectDetail.sections.sustainability')}</h2>
             <div className="space-y-4">
-              <TagGroup title="Kreislaufprinzipien" items={circular} />
-              <TagGroup title="Suffizienz" items={suff} />
-              <TagGroup title="Konsistenz" items={cons} />
-              <TagGroup title="Effizienz" items={eff} />
-              <TagGroup title="Allgemeine Nachhaltigkeitsprinzipien" items={gen} />
+              <TagGroup title={t('projectDetail.labels.circularPrinciples')} items={circular} />
+              <TagGroup title={t('projectDetail.labels.sufficiency')} items={suff} />
+              <TagGroup title={t('projectDetail.labels.consistency')} items={cons} />
+              <TagGroup title={t('projectDetail.labels.efficiency')} items={eff} />
+              <TagGroup title={t('projectDetail.labels.generalSustainability')} items={gen} />
             </div>
           </div>
         ) : null}
@@ -279,11 +282,11 @@ export default function ProjectDetail() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Package className="w-5 h-5 text-primary-500" />
-              Materialien &amp; Zutaten
+              {t('projectDetail.sections.materials')}
             </h2>
             {typeof project.total_gwp_value === 'number' && project.total_gwp_value > 0 && (
               <span
-                title={`Global Warming Potential (GWP total) des Projekts.&#10;Berechnung: Summe aller Materialien × Menge × GWP-Wert des Materials.&#10;Die GWP-Werte der Materialien stammen aus EPD-Daten (fossil + biogen + luluc) oder werden manuell gepflegt.&#10;Einheit: ${project.total_gwp_unit || 'kg CO₂e'}`}
+                title={t('projectDetail.labels.gwpProjectTooltip', { unit: project.total_gwp_unit || 'kg CO₂e' })}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-1 text-xs font-semibold text-green-800 cursor-help"
               >
                 <Leaf className="w-3.5 h-3.5 text-green-600" />
@@ -304,7 +307,7 @@ export default function ProjectDetail() {
                   <div className="flex-1 min-w-0">
                     <span className="font-medium text-gray-900">{material.material_name}</span>
                     <span className="text-gray-500 ml-2">
-                      {material.quantity} {material.unit || 'Stk.'}
+                      {material.quantity} {material.unit || t('projectDetail.labels.unit')}
                     </span>
                     {material.category && (
                       <span className="ml-2 text-xs text-gray-400">({material.category})</span>
@@ -312,7 +315,13 @@ export default function ProjectDetail() {
                   </div>
                   {material.gwp_value != null && material.quantity != null && (
                     <span
-                      title={`GWP-Beitrag dieses Materials: ${material.quantity} ${material.unit || 'Stk.'} × ${material.gwp_value} ${material.gwp_unit || 'kg CO₂e'} = ${(Number(material.quantity) * Number(material.gwp_value)).toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg CO₂e`}
+                      title={t('projectDetail.labels.gwpMaterialTooltip', {
+                        qty: material.quantity,
+                        unit: material.unit || t('projectDetail.labels.unit'),
+                        gwpValue: material.gwp_value,
+                        gwpUnit: material.gwp_unit || 'kg CO₂e',
+                        total: (Number(material.quantity) * Number(material.gwp_value)).toLocaleString('de-DE', { maximumFractionDigits: 3 }),
+                      })}
                       className="ml-3 flex-shrink-0 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-0.5 font-mono cursor-help"
                     >
                       {(Number(material.quantity) * Number(material.gwp_value)).toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg CO₂e
@@ -322,25 +331,23 @@ export default function ProjectDetail() {
               ))}
             </div>
           ) : (
-            <p className="text-gray-400 text-center py-4">
-              Noch keine Materialien eingetragen. Bearbeite diesen Artikel, um Materialien hinzuzufügen.
-            </p>
+            <p className="text-gray-400 text-center py-4">{t('projectDetail.noMaterials')}</p>
           )}
         </div>
 
         {/* Time effort + Tools */}
         {(project.time_effort || project.tools) && (
           <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Ausführung</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">{t('projectDetail.sections.execution')}</h2>
             {project.time_effort && (
               <div className="mb-3">
-                <span className="text-sm font-semibold text-gray-600">Zeitaufwand: </span>
+                <span className="text-sm font-semibold text-gray-600">{t('projectDetail.labels.timeEffort')} </span>
                 <span className="text-sm text-gray-800">{project.time_effort}</span>
               </div>
             )}
             {project.tools && (
               <div>
-                <span className="text-sm font-semibold text-gray-600">Werkzeuge: </span>
+                <span className="text-sm font-semibold text-gray-600">{t('projectDetail.labels.tools')} </span>
                 <span className="text-sm text-gray-800">{project.tools}</span>
               </div>
             )}
@@ -357,7 +364,7 @@ export default function ProjectDetail() {
           const stepImages = (project.images || []).filter(img => img.step_index != null);
           return (
             <div className="bg-white rounded-xl p-6 border border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Schritt-für-Schritt-Anleitung</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">{t('projectDetail.sections.steps')}</h2>
               <ol className="space-y-6">
                 {steps.map((step, i) => {
                   // step_index is 1-based (Schritt 1 = index 1)
@@ -372,7 +379,7 @@ export default function ProjectDetail() {
                           <div className="flex flex-wrap gap-2 mt-2">
                             {stepImgs.map(img => (
                               <img key={img.id} src={`${API_BASE}${img.file_path?.replace(/^\./,'')}`}
-                                alt={step.title||`Schritt ${i+1}`}
+                                alt={step.title || t('projectDetail.stepAlt', { n: i + 1 })}
                                 className="rounded-lg max-h-60 object-cover border border-gray-200" />
                             ))}
                           </div>
@@ -389,7 +396,7 @@ export default function ProjectDetail() {
         {/* Manufacturing files */}
         {project.files?.length > 0 && (
           <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Fertigungsdaten</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">{t('projectDetail.sections.files')}</h2>
             <ul className="space-y-2">
               {project.files.map(f => {
                 // API_BASE is imported at the top of the file

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useT } from '../../i18n/useT';
 import {
   X, MapPin, Globe, Mail, Phone, Edit2, Trash2,
   Building2, Wrench, FlaskConical, Leaf, Store, Recycle, Users,
@@ -46,6 +47,7 @@ export function imgUrl(img) {
 }
 
 export default function ActorDetailOverlay({ actor, isOwner, onClose, onEdit, onDelete }) {
+  const t = useT();
   const [imgIdx, setImgIdx] = useState(0);
   const images = actor.images || [];
   const cover = images[imgIdx];
@@ -190,14 +192,14 @@ export default function ActorDetailOverlay({ actor, isOwner, onClose, onEdit, on
               className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
-              Löschen
+              {t('actorDetail.deleteButton')}
             </button>
             <button
               onClick={() => onEdit(actor)}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-actor-600 hover:bg-actor-700 text-white rounded-xl transition-colors"
             >
               <Edit2 className="w-4 h-4" />
-              Bearbeiten
+              {t('actorDetail.editButton')}
             </button>
           </div>
         )}

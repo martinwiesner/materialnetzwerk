@@ -8,23 +8,9 @@ import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import MaterialRequestModal from '../requests/MaterialRequestModal';
 import IncomingRequestsPanel from '../requests/IncomingRequestsPanel';
 import { exportAngebotPoster } from '../../utils/exportUtils';
+import { useT } from '../../i18n/useT';
 
 const API_BASE = MEDIA_BASE;
-
-const VALUE_TYPE_LABELS = {
-  swap: 'Tausch',
-  free: 'Kostenlose Abgabe',
-  loan: 'Entleihe',
-  negotiable: 'Verhandlungsbasis',
-  fixed: 'Fixer Preis',
-};
-
-const CONDITION_LABELS = {
-  new: 'Neu',
-  used: 'Gebraucht',
-  damaged: 'Beschädigt',
-  tested: 'Geprüft',
-};
 
 function Badge({ children, color = 'gray' }) {
   const colors = {
@@ -59,10 +45,26 @@ function InfoRow({ label, value, className = '' }) {
 }
 
 export default function InventoryDetailModal({ inventoryId, onClose, onContact }) {
+  const t = useT();
   const { user, isAuthenticated } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showIncomingPanel, setShowIncomingPanel] = useState(false);
+
+  const VALUE_TYPE_LABELS = {
+    swap: t('inventoryDetail.valueTypes.swap'),
+    free: t('inventoryDetail.valueTypes.free'),
+    loan: t('inventoryDetail.valueTypes.loan'),
+    negotiable: t('inventoryDetail.valueTypes.negotiable'),
+    fixed: t('inventoryDetail.valueTypes.fixed'),
+  };
+
+  const CONDITION_LABELS = {
+    new: t('inventoryDetail.conditions.new'),
+    used: t('inventoryDetail.conditions.used'),
+    damaged: t('inventoryDetail.conditions.damaged'),
+    tested: t('inventoryDetail.conditions.tested'),
+  };
 
   const { data: item, isLoading } = useQuery({
     queryKey: ['inventory-detail', inventoryId],
@@ -74,7 +76,7 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
 
   function handleRequestClick() {
     if (!isAuthenticated) {
-      openAuth({ tab: 'login', reason: 'Bitte melde dich an, um Material anzufragen.' });
+      openAuth({ tab: 'login', reason: t('inventoryDetail.loginRequired') });
     } else {
       setShowRequestModal(true);
     }
@@ -99,7 +101,7 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
         {/* Header */}
         <div className="sticky top-0 bg-white z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
-            {isLoading ? '…' : item?.material_name || 'Materialangebot'}
+            {isLoading ? '…' : item?.material_name || t('inventoryDetail.defaultTitle')}
           </h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
             <X className="w-5 h-5" />
@@ -111,7 +113,7 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
             <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full" />
           </div>
         ) : !item ? (
-          <p className="p-6 text-gray-500">Angebot nicht gefunden.</p>
+          <p className="p-6 text-gray-500">{t('inventoryDetail.notFound')}</p>
         ) : (
           <div className="px-6 pb-6">
             {/* Cover Image */}
@@ -139,13 +141,13 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
               {item.category && <Badge color="gray">{item.category}</Badge>}
               {item.condition && <Badge color="blue">{CONDITION_LABELS[item.condition] || item.condition}</Badge>}
               {item.value_type && <Badge color="green">{VALUE_TYPE_LABELS[item.value_type] || item.value_type}</Badge>}
-              {item.is_mobile ? <Badge color="orange">Mobil / Transportierbar</Badge> : null}
+              {item.is_mobile ? <Badge color="orange">{t('inventoryDetail.labels.mobile')}</Badge> : null}
             </div>
 
             {/* Core details */}
             <div className="space-y-2">
-              <InfoRow label="Menge" value={item.quantity ? `${item.quantity} ${item.unit || item.material_unit || ''}` : null} />
-              <InfoRow label="Mindestabnahme" value={item.min_order_quantity ? `${item.min_order_quantity} ${item.unit || ''}` : null} />
+              <InfoRow label={t('inventoryDetail.labels.quantity')} value={item.quantity ? `${item.quantity} ${item.unit || item.material_unit || ''}` : null} />
+              <InfoRow label={t('inventoryDetail.labels.minOrder')} value={item.min_order_quantity ? `${item.min_order_quantity} ${item.unit || ''}` : null} />
               {(item.location_name || item.address) && (
                 <div className="flex items-start gap-2 text-sm">
                   <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
@@ -156,41 +158,41 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
 
             {/* Pricing */}
             {(item.value_type || item.price) && (
-              <Section title="Preis & Gegenwert">
+              <Section title={t('inventoryDetail.sections.pricing')}>
                 <div className="space-y-2">
-                  <InfoRow label="Gegenwert" value={VALUE_TYPE_LABELS[item.value_type] || item.value_type} />
-                  {item.price != null && <InfoRow label="Preis" value={`${item.price}${item.price_unit ? ' ' + item.price_unit : ' €'}`} />}
-                  {item.is_negotiable ? <InfoRow label="Verhandelbar" value="Ja" /> : null}
+                  <InfoRow label={t('inventoryDetail.labels.exchangeValue')} value={VALUE_TYPE_LABELS[item.value_type] || item.value_type} />
+                  {item.price != null && <InfoRow label={t('inventoryDetail.labels.price')} value={`${item.price}${item.price_unit ? ' ' + item.price_unit : ' €'}`} />}
+                  {item.is_negotiable ? <InfoRow label={t('inventoryDetail.labels.negotiable')} value={t('inventoryDetail.labels.yes')} /> : null}
                 </div>
               </Section>
             )}
 
             {/* Availability */}
-            <Section title="Verfügbarkeit">
+            <Section title={t('inventoryDetail.sections.availability')}>
               <div className="space-y-2">
                 {item.is_immediately_available ? (
-                  <p className="text-sm text-green-700 font-medium">✓ Sofort verfügbar</p>
+                  <p className="text-sm text-green-700 font-medium">{t('inventoryDetail.immediately')}</p>
                 ) : item.available_from_date ? (
-                  <InfoRow label="Verfügbar ab" value={item.available_from_date} />
+                  <InfoRow label={t('inventoryDetail.labels.availableFrom')} value={item.available_from_date} />
                 ) : null}
                 {item.is_regularly_available && (
                   <InfoRow
-                    label="Regelmäßig"
-                    value={`${item.regular_availability_period || ''} ${item.regular_availability_type === 'monthly' ? '(monatlich)' : item.regular_availability_type === 'yearly' ? '(jährlich)' : ''}`.trim()}
+                    label={t('inventoryDetail.labels.regular')}
+                    value={`${item.regular_availability_period || ''} ${item.regular_availability_type === 'monthly' ? `(${t('inventoryDetail.labels.monthly')})` : item.regular_availability_type === 'yearly' ? `(${t('inventoryDetail.labels.yearly')})` : ''}`.trim()}
                   />
                 )}
                 {(item.season_from || item.season_to) && (
-                  <InfoRow label="Saison" value={`${item.season_from || '?'} – ${item.season_to || '?'}`} />
+                  <InfoRow label={t('inventoryDetail.labels.season')} value={`${item.season_from || '?'} – ${item.season_to || '?'}`} />
                 )}
               </div>
             </Section>
 
             {/* Transaction & Logistics */}
             {(transactionOpts.length > 0 || logisticsOpts.length > 0) && (
-              <Section title="Transaktion & Logistik">
+              <Section title={t('inventoryDetail.sections.transactionLogistics')}>
                 {transactionOpts.length > 0 && (
                   <div className="mb-3">
-                    <p className="text-xs text-gray-500 mb-1.5">Transaktionsoptionen</p>
+                    <p className="text-xs text-gray-500 mb-1.5">{t('inventoryDetail.labels.transactionOptions')}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {transactionOpts.map(o => <Badge key={o} color="purple">{o}</Badge>)}
                     </div>
@@ -198,30 +200,30 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
                 )}
                 {logisticsOpts.length > 0 && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1.5">Logistik</p>
+                    <p className="text-xs text-gray-500 mb-1.5">{t('inventoryDetail.labels.logistics')}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {logisticsOpts.map(o => <Badge key={o} color="blue">{o}</Badge>)}
                     </div>
                   </div>
                 )}
-                {item.transport_costs && <InfoRow label="Transportkosten" value={item.transport_costs} className="mt-2" />}
+                {item.transport_costs && <InfoRow label={t('inventoryDetail.labels.transportCosts')} value={item.transport_costs} className="mt-2" />}
               </Section>
             )}
 
             {/* Notes */}
             {item.notes && (
-              <Section title="Notizen">
+              <Section title={t('inventoryDetail.sections.notes')}>
                 <p className="text-sm text-gray-700 whitespace-pre-wrap">{item.notes}</p>
               </Section>
             )}
 
             {/* Step images */}
             {stepImages.length > 0 && (
-              <Section title="Bilder & Anleitung">
+              <Section title={t('inventoryDetail.sections.imagesGuide')}>
                 <div className="space-y-4">
                   {stepImages.map((img, i) => (
                     <div key={img.id} className="rounded-xl overflow-hidden border border-gray-200">
-                      <img src={imageUrl(img)} alt={img.step_caption || `Schritt ${i + 1}`} className="w-full object-cover max-h-60" />
+                      <img src={imageUrl(img)} alt={img.step_caption || t('inventoryDetail.stepAlt', { n: i + 1 })} className="w-full object-cover max-h-60" />
                       {img.step_caption && (
                         <p className="text-sm text-gray-600 p-3 bg-gray-50">{img.step_caption}</p>
                       )}
@@ -233,7 +235,7 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
 
             {/* Files */}
             {item.files?.length > 0 && (
-              <Section title="Fertigungsdaten & Dateien">
+              <Section title={t('inventoryDetail.sections.files')}>
                 <ul className="space-y-1">
                   {item.files.map(f => (
                     <li key={f.id}>
@@ -255,29 +257,29 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
 
             {/* External URL */}
             {item.external_url && (
-              <Section title="Externer Link">
+              <Section title={t('inventoryDetail.sections.externalLink')}>
                 <a href={item.external_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700">
                   <ExternalLink className="w-4 h-4" />
-                  Zum Angebot
+                  {t('inventoryDetail.labels.toOffer')}
                 </a>
               </Section>
             )}
 
             {/* Owner / Contact */}
-            <Section title="Ansprechpartner">
+            <Section title={t('inventoryDetail.sections.contact')}>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2 text-sm text-gray-700">
                   <User className="w-4 h-4 text-gray-400" />
-                  {item.owner_first_name || item.owner_email?.split('@')[0] || 'Unbekannt'}
+                  {item.owner_first_name || item.owner_email?.split('@')[0] || t('inventoryDetail.labels.unknown')}
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => exportAngebotPoster(item)}
                     className="inline-flex items-center gap-2 border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                    title="Aushang als PDF drucken"
+                    title={t('inventoryDetail.buttons.posterTitle')}
                   >
                     <Printer className="w-4 h-4" />
-                    Aushang
+                    {t('inventoryDetail.buttons.poster')}
                   </button>
                   {onContact && (
                     <button
@@ -285,7 +287,7 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
                       className="inline-flex items-center gap-2 bg-primary-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
                     >
                       <MessageSquare className="w-4 h-4" />
-                      Kontakt aufnehmen
+                      {t('inventoryDetail.buttons.contact')}
                     </button>
                   )}
                   {isOwner ? (
@@ -294,7 +296,7 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
                       className="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
                     >
                       <Inbox className="w-4 h-4" />
-                      Eingehende Anfragen
+                      {t('inventoryDetail.buttons.incomingRequests')}
                     </button>
                   ) : (
                     <button
@@ -302,7 +304,7 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
                       className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                     >
                       <Send className="w-4 h-4" />
-                      Material anfragen
+                      {t('inventoryDetail.buttons.requestMaterial')}
                     </button>
                   )}
                 </div>
