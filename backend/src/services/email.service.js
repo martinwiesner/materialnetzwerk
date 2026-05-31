@@ -1,28 +1,27 @@
 /**
- * Email Service — Brevo (formerly Sendinblue)
+ * Email Service — Brevo SMTP via nodemailer
  * Sends notification emails when a user receives a new internal message.
- * Set BREVO_API_KEY in .env to enable. If missing, emails are silently skipped.
+ * Set BREVO_SMTP_LOGIN and BREVO_SMTP_KEY in .env to enable.
+ * If missing, emails are silently skipped.
  */
 
-let client = null;
+import nodemailer from 'nodemailer';
 
-async function getClient() {
-  if (client) return client;
-  const key = process.env.BREVO_API_KEY;
-  if (!key) return null;
+let transporter = null;
 
-  let Brevo;
-  try {
-    Brevo = await import('@getbrevo/brevo');
-  } catch {
-    console.warn('[Brevo] Package @getbrevo/brevo not installed — emails disabled. Run: npm install');
-    return null;
-  }
+function getTransporter() {
+  if (transporter) return transporter;
+  const user = process.env.BREVO_SMTP_LOGIN;
+  const pass = process.env.BREVO_SMTP_KEY;
+  if (!user || !pass) return null;
 
-  const apiInstance = new Brevo.TransactionalEmailsApi();
-  apiInstance.authentications['api-key'].apiKey = key;
-  client = apiInstance;
-  return client;
+  transporter = nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false,
+    auth: { user, pass },
+  });
+  return transporter;
 }
 
 /**
@@ -37,8 +36,8 @@ async function getClient() {
  * @param {string} opts.appUrl       - base URL of the app (e.g. https://materialnetzwerk.de)
  */
 export async function sendNewMessageEmail({ toEmail, toName, senderName, subject, preview, appUrl }) {
-  const api = await getClient();
-  if (!api) return; // BREVO_API_KEY not set or package missing — skip silently
+  const smtp = getTransporter();
+  if (!smtp) return; // BREVO_SMTP_LOGIN / BREVO_SMTP_KEY not set — skip silently
 
   const fromEmail = process.env.BREVO_FROM_EMAIL || 'no-reply@materialnetzwerk.de';
   const fromName  = process.env.BREVO_FROM_NAME  || 'Materialnetzwerk';
@@ -101,19 +100,16 @@ export async function sendNewMessageEmail({ toEmail, toName, senderName, subject
 </body>
 </html>`;
 
-  const sendSmtpEmail = {
-    sender:      { name: fromName, email: fromEmail },
-    to:          [{ email: toEmail, name: toName }],
-    subject:     emailSubject,
-    htmlContent,
-  };
-
   try {
-    await api.sendTransacEmail(sendSmtpEmail);
-    console.log(`[Brevo] Email sent to ${toEmail}`);
+    await smtp.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to:   `"${toName}" <${toEmail}>`,
+      subject: emailSubject,
+      html: htmlContent,
+    });
+    console.log(`[Email] Sent to ${toEmail}`);
   } catch (err) {
     // Log but never crash the main request
-    const detail = err?.response?.body || err?.response?.text || err.message;
-    console.error('[Brevo] Email error:', typeof detail === 'object' ? JSON.stringify(detail) : detail);
+    console.error('[Email] Send error:', err.message);
   }
 }
