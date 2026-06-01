@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
 import {
   ArrowLeft, Edit2, Trash2, Globe, Lock, Package,
-  Calendar, User, Leaf, ChevronLeft, ChevronRight
+  Calendar, User, Leaf, ChevronLeft, ChevronRight,
+  MapPin, ExternalLink, BookOpen, Users, Tag
 } from 'lucide-react';
 
 function ImageCarousel({ images, apiBase }) {
@@ -386,7 +387,7 @@ export default function ProjectDetail() {
       <article className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {/* Title Section */}
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[project.status] || statusColors.draft}`}>
               {statusLabels[project.status] || 'Draft'}
             </span>
@@ -397,6 +398,11 @@ export default function ProjectDetail() {
             ) : (
               <span className="inline-flex items-center gap-1 text-xs text-gray-500">
                 <Lock className="w-3 h-3" /> {t('projectDetail.visibility.private')}
+              </span>
+            )}
+            {project.is_available == 1 && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-full px-2 py-0.5">
+                {t('projectDetail.labels.available')}
               </span>
             )}
           </div>
@@ -453,7 +459,7 @@ export default function ProjectDetail() {
               <Package className="w-5 h-5 text-primary-500" />
               {t('projectDetail.sections.materials')}
             </h2>
-            {typeof project.total_gwp_value === 'number' && project.total_gwp_value > 0 && (
+            {typeof project.total_gwp_value === 'number' && project.total_gwp_value !== 0 && (
               <span
                 title={t('projectDetail.labels.gwpProjectTooltip', { unit: project.total_gwp_unit || 'kg CO₂e' })}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-1 text-xs font-semibold text-green-800 cursor-help"
@@ -573,6 +579,80 @@ export default function ProjectDetail() {
             </div>
           );
         })()}
+
+        {/* Location */}
+        {(project.location_name || project.address) && (
+          <div className="p-6 border-t border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-3">
+              <MapPin className="w-5 h-5 text-gray-500" />
+              {t('projectDetail.sections.location')}
+            </h2>
+            <div className="space-y-1 text-sm text-gray-700">
+              {project.location_name && <p className="font-medium">{project.location_name}</p>}
+              {project.address && (
+                <p className="text-gray-500">
+                  {t('projectDetail.labels.address')} {project.address}
+                </p>
+              )}
+              {project.latitude && project.longitude && (
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${project.latitude}&mlon=${project.longitude}&zoom=16`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 mt-1"
+                >
+                  <ExternalLink className="w-3 h-3" /> {t('projectDetail.labels.mapsLink')}
+                </a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Actors */}
+        {project.actors?.length > 0 && (
+          <div className="p-6 border-t border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-3">
+              <Users className="w-5 h-5 text-gray-500" />
+              {t('projectDetail.sections.actors')}
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {project.actors.map(actor => (
+                <span key={actor.id} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 border border-gray-200">
+                  {actor.name}
+                  {actor.location_name && <span className="text-gray-400">· {actor.location_name}</span>}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* References + License */}
+        {(project.license || (project.references?.length > 0)) && (
+          <div className="p-6 border-t border-gray-200">
+            {project.license && (
+              <p className="text-sm text-gray-700 mb-2">
+                <span className="font-semibold text-gray-600"><Tag className="w-3.5 h-3.5 inline mr-1" />{t('projectDetail.labels.license')}</span> {project.license}
+              </p>
+            )}
+            {project.references?.length > 0 && (
+              <>
+                <h2 className="text-sm font-semibold text-gray-600 flex items-center gap-1 mb-2">
+                  <BookOpen className="w-4 h-4" /> {t('projectDetail.sections.references')}
+                </h2>
+                <ul className="space-y-1">
+                  {project.references.map((ref, i) => (
+                    <li key={i} className="text-sm text-primary-600">
+                      {ref.startsWith('http') ? (
+                        <a href={ref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
+                          <ExternalLink className="w-3 h-3" /> {ref}
+                        </a>
+                      ) : ref}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Manufacturing files */}
         {project.files?.length > 0 && (

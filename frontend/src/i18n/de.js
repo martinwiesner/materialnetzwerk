@@ -747,11 +747,13 @@ const de = {
     sections: {
       sustainability: 'Nachhaltigkeit & Kreislaufprinzipien', materials: 'Materialien & Zutaten',
       execution: 'Ausführung', steps: 'Schritt-für-Schritt-Anleitung', files: 'Fertigungsdaten',
+      location: 'Standort', actors: 'Beteiligte Akteure', references: 'Quellen & Verweise',
     },
     labels: {
       circularPrinciples: 'Kreislaufprinzipien', sufficiency: 'Suffizienz', consistency: 'Konsistenz',
       efficiency: 'Effizienz', generalSustainability: 'Allgemeine Nachhaltigkeitsprinzipien',
       unit: 'Stk.', timeEffort: 'Zeitaufwand:', tools: 'Werkzeuge:',
+      license: 'Lizenz:', address: 'Adresse:', available: 'Verfügbar', mapsLink: 'Auf Karte ansehen',
       lcaTitle: 'Ökobilanz des Projekts',
       lcaSummary: 'Gesamtbilanz',
       lcaBreakdown: 'Anteil je Material',

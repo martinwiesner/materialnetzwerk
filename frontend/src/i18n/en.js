@@ -749,11 +749,13 @@ const en = {
     sections: {
       sustainability: 'Sustainability & Circular Principles', materials: 'Materials & Ingredients',
       execution: 'Execution', steps: 'Step-by-step Instructions', files: 'Manufacturing Files',
+      location: 'Location', actors: 'Participating Actors', references: 'Sources & References',
     },
     labels: {
       circularPrinciples: 'Circular Principles', sufficiency: 'Sufficiency', consistency: 'Consistency',
       efficiency: 'Efficiency', generalSustainability: 'General Sustainability Principles',
       unit: 'pcs.', timeEffort: 'Time effort:', tools: 'Tools:',
+      license: 'License:', address: 'Address:', available: 'Available', mapsLink: 'View on map',
       lcaTitle: 'Life Cycle Assessment',
       lcaSummary: 'Total overview',
       lcaBreakdown: 'Share per material',
