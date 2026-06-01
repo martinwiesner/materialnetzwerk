@@ -200,16 +200,18 @@ export default function CoachMarks() {
     const maxAttempts = Math.ceil(WAIT_MS / 100);
 
     const tryFind = () => {
-      const el = document.querySelector(currentStep.selector);
+      const candidates = document.querySelectorAll(currentStep.selector);
+      let el = null;
+      for (const c of candidates) {
+        const r = c.getBoundingClientRect();
+        if (r.width > 0 || r.height > 0) { el = c; break; }
+      }
       if (el) {
-        const r = el.getBoundingClientRect();
-        if (r.width > 0 || r.height > 0) {
-          const s = getSpot(el);
-          setSpot(s);
-          setTipPos(getTipPos(s));
-          setSearching(false);
-          return;
-        }
+        const s = getSpot(el);
+        setSpot(s);
+        setTipPos(getTipPos(s));
+        setSearching(false);
+        return;
       }
       attempts++;
       if (attempts >= maxAttempts) {
@@ -231,7 +233,12 @@ export default function CoachMarks() {
   useEffect(() => {
     if (!isActive || !currentStep || searching) return;
     const update = () => {
-      const el = document.querySelector(currentStep.selector);
+      const candidates = document.querySelectorAll(currentStep.selector);
+      let el = null;
+      for (const c of candidates) {
+        const r = c.getBoundingClientRect();
+        if (r.width > 0 || r.height > 0) { el = c; break; }
+      }
       if (!el) return;
       const s = getSpot(el);
       setSpot(s);
