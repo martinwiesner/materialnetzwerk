@@ -125,8 +125,8 @@ function computeContributions(materials, valueField, effectiveField) {
       const contrib = val != null ? Number(m.quantity || 0) * Number(val) : null;
       return { ...m, _contrib: contrib };
     })
-    .filter(m => m._contrib != null && m._contrib > 0)
-    .sort((a, b) => b._contrib - a._contrib);
+    .filter(m => m._contrib != null && m._contrib !== 0)
+    .sort((a, b) => Math.abs(b._contrib) - Math.abs(a._contrib));
 }
 
 const BAR_PALETTE = ['#f59e0b', '#22c55e', '#16a34a', '#10b981', '#0d9488', '#0891b2'];
@@ -135,7 +135,8 @@ function IndicatorChart({ label, unit, items, isPartial, formatVal }) {
   const t = useT();
   if (!items.length) return null;
   const total = items.reduce((s, m) => s + m._contrib, 0);
-  const max = items[0]._contrib;
+  const absMax = Math.abs(items[0]._contrib);
+  const absTotal = items.reduce((s, m) => s + Math.abs(m._contrib), 0);
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -145,10 +146,11 @@ function IndicatorChart({ label, unit, items, isPartial, formatVal }) {
         </span>
       </div>
       {items.map((m, i) => {
-        const pct = total > 0 ? m._contrib / total * 100 : 0;
-        const barW = max > 0 ? Math.max(2, m._contrib / max * 100) : 2;
+        const pct = absTotal > 0 ? Math.abs(m._contrib) / absTotal * 100 : 0;
+        const barW = absMax > 0 ? Math.max(2, Math.abs(m._contrib) / absMax * 100) : 2;
         const isLargest = i === 0 && items.length > 1;
-        const color = BAR_PALETTE[Math.min(i, BAR_PALETTE.length - 1)];
+        const isNegative = m._contrib < 0;
+        const color = isNegative ? '#0891b2' : BAR_PALETTE[Math.min(i, BAR_PALETTE.length - 1)];
         return (
           <div key={m.material_id || m.id}>
             <div className="flex items-center justify-between gap-2 mb-0.5 min-w-0">
@@ -164,7 +166,7 @@ function IndicatorChart({ label, unit, items, isPartial, formatVal }) {
                 )}
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0 text-[11px]">
-                <span className="text-gray-700 font-mono">{formatVal(m._contrib)}</span>
+                <span className={`font-mono ${isNegative ? 'text-cyan-700' : 'text-gray-700'}`}>{formatVal(m._contrib)}</span>
                 <span className="text-gray-400 w-7 text-right">{pct.toFixed(0)}%</span>
               </div>
             </div>
