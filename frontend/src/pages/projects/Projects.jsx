@@ -83,10 +83,8 @@ export default function Projects() {
   const allProjects = Array.isArray(allProjectsData) ? allProjectsData : allProjectsData?.data || [];
   const myProjects = Array.isArray(myProjectsData) ? myProjectsData : myProjectsData?.data || [];
 
-  // Public projects = all projects not owned by current user
-  const publicProjects = isAuthenticated
-    ? allProjects.filter(p => p.owner_id !== user?.id)
-    : allProjects;
+  // Public tab = all projects with is_public=1 (incl. own public ones)
+  const publicProjects = allProjects.filter(p => p.is_public == 1);
 
   const projectsBase = activeTab === 'my-projects' ? myProjects : publicProjects;
   const projects = filterAvailable ? projectsBase.filter(p => p.is_available == 1) : projectsBase;
