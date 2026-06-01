@@ -29,11 +29,24 @@ const Project = {
     project.images = db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(id);
     project.files  = db.prepare('SELECT * FROM project_files  WHERE project_id = ? ORDER BY created_at ASC').all(id);
     project.materials = db.prepare(`
-      SELECT pm.*, m.name as material_name, m.category, m.gwp_value, m.gwp_unit, m.unit
+      SELECT pm.*, m.name as material_name, m.category,
+        m.gwp_value, m.gwp_unit, m.unit,
+        m.gwp_fossil, m.gwp_biogenic, m.gwp_luluc,
+        m.adp_fossil, m.adp_elements, m.water_consumption,
+        m.declared_unit, m.lifecycle_scope,
+        COALESCE(m.gwp_value, COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0)) as effective_gwp_value,
+        CASE WHEN m.gwp_value IS NOT NULL OR m.gwp_fossil IS NOT NULL OR m.gwp_biogenic IS NOT NULL OR m.gwp_luluc IS NOT NULL THEN 1 ELSE 0 END as has_gwp_data,
+        CASE WHEN m.gwp_value IS NULL AND (m.gwp_fossil IS NOT NULL OR m.gwp_biogenic IS NOT NULL OR m.gwp_luluc IS NOT NULL) THEN 1 ELSE 0 END as gwp_from_epd
       FROM project_materials pm JOIN materials m ON pm.material_id = m.id WHERE pm.project_id = ?
     `).all(id);
-    project.total_gwp_value = (project.materials||[]).reduce((s,r)=>s+Number(r.quantity||0)*Number(r.gwp_value||0),0);
-    project.total_gwp_unit = 'kg CO2e';
+    // Aggregate all LCA indicators – only sum materials that actually have the field set
+    const sumIndicator = (field) => (project.materials||[]).reduce((s,r) =>
+      r[field] != null ? s + Number(r.quantity||0) * Number(r[field]) : s, 0);
+    project.total_gwp_value    = (project.materials||[]).reduce((s,r) => s + Number(r.quantity||0)*Number(r.effective_gwp_value||0), 0);
+    project.total_gwp_unit     = 'kg CO₂e';
+    project.total_adp_fossil   = sumIndicator('adp_fossil');
+    project.total_adp_elements = sumIndicator('adp_elements');
+    project.total_water        = sumIndicator('water_consumption');
     project.actors = db.prepare(`
       SELECT a.id, a.name, a.type, a.location_name
       FROM project_actors pa JOIN actors a ON pa.actor_id = a.id
@@ -46,7 +59,7 @@ const Project = {
   findByUser: (userId, filters = {}) => {
     const db = getDB();
     let query = `SELECT p.*,
-      COALESCE((SELECT SUM(pm.quantity*m.gwp_value) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
+      COALESCE((SELECT SUM(pm.quantity*COALESCE(m.gwp_value,COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0))) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
       'kg CO2e' AS total_gwp_unit
       FROM projects p WHERE p.owner_id = ?`;
     const params = [userId];
@@ -63,7 +76,7 @@ const Project = {
   findAll: (filters = {}) => {
     const db = getDB();
     let query = `SELECT p.*, u.first_name as owner_first_name, u.last_name as owner_last_name, u.email as owner_email,
-      COALESCE((SELECT SUM(pm.quantity*m.gwp_value) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
+      COALESCE((SELECT SUM(pm.quantity*COALESCE(m.gwp_value,COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0))) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
       'kg CO2e' AS total_gwp_unit
       FROM projects p JOIN users u ON p.owner_id=u.id WHERE p.is_public = 1`;
     const params = [];
@@ -81,7 +94,7 @@ const Project = {
   findForUser: (userId, filters = {}) => {
     const db = getDB();
     let query = `SELECT p.*, u.first_name as owner_first_name, u.last_name as owner_last_name, u.email as owner_email,
-      COALESCE((SELECT SUM(pm.quantity*m.gwp_value) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
+      COALESCE((SELECT SUM(pm.quantity*COALESCE(m.gwp_value,COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0))) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
       'kg CO2e' AS total_gwp_unit
       FROM projects p JOIN users u ON p.owner_id=u.id WHERE (p.is_public = 1 OR p.owner_id = ?)`;
     const params = [userId];
@@ -98,7 +111,7 @@ const Project = {
   findPublic: (excludeUserId, filters = {}) => {
     const db = getDB();
     let query = `SELECT p.*, u.first_name as owner_first_name, u.last_name as owner_last_name, u.email as owner_email,
-      COALESCE((SELECT SUM(pm.quantity*m.gwp_value) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
+      COALESCE((SELECT SUM(pm.quantity*COALESCE(m.gwp_value,COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0))) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
       'kg CO2e' AS total_gwp_unit
       FROM projects p JOIN users u ON p.owner_id=u.id WHERE p.is_public=1 AND p.owner_id != ?`;
     const params = [excludeUserId];

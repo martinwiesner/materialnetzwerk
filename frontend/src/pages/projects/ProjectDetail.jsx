@@ -116,6 +116,173 @@ function TagGroup({ title, items }) {
   );
 }
 
+// ── Helpers for LCA computation ─────────────────────────────────────────────
+
+function computeContributions(materials, valueField, effectiveField) {
+  return (materials || [])
+    .map(m => {
+      const val = effectiveField ? m[effectiveField] : m[valueField];
+      const contrib = val != null ? Number(m.quantity || 0) * Number(val) : null;
+      return { ...m, _contrib: contrib };
+    })
+    .filter(m => m._contrib != null && m._contrib > 0)
+    .sort((a, b) => b._contrib - a._contrib);
+}
+
+const BAR_PALETTE = ['#f59e0b', '#22c55e', '#16a34a', '#10b981', '#0d9488', '#0891b2'];
+
+function IndicatorChart({ label, unit, items, isPartial, formatVal }) {
+  const t = useT();
+  if (!items.length) return null;
+  const total = items.reduce((s, m) => s + m._contrib, 0);
+  const max = items[0]._contrib;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">{label}</span>
+        <span className="text-[11px] font-bold text-gray-800 font-mono">
+          Σ {formatVal(total)} <span className="font-normal text-gray-500">{unit}</span>
+        </span>
+      </div>
+      {items.map((m, i) => {
+        const pct = total > 0 ? m._contrib / total * 100 : 0;
+        const barW = max > 0 ? Math.max(2, m._contrib / max * 100) : 2;
+        const isLargest = i === 0 && items.length > 1;
+        const color = BAR_PALETTE[Math.min(i, BAR_PALETTE.length - 1)];
+        return (
+          <div key={m.material_id || m.id}>
+            <div className="flex items-center justify-between gap-2 mb-0.5 min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                <span className="text-[11px] text-gray-700 truncate">{m.material_name}</span>
+                {m.gwp_from_epd && label.startsWith('GWP') ? (
+                  <span className="text-[9px] text-blue-500 bg-blue-50 border border-blue-100 rounded px-1 flex-shrink-0">EPD</span>
+                ) : null}
+                {isLargest && (
+                  <span className="text-[9px] font-semibold flex-shrink-0" style={{ color }}>
+                    ↑ {t('projectDetail.labels.largestContributor')}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0 text-[11px]">
+                <span className="text-gray-700 font-mono">{formatVal(m._contrib)}</span>
+                <span className="text-gray-400 w-7 text-right">{pct.toFixed(0)}%</span>
+              </div>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${barW}%`, background: color }} />
+            </div>
+          </div>
+        );
+      })}
+      {isPartial && (
+        <p className="text-[10px] text-gray-400 mt-1">{t('projectDetail.labels.lcaPartialHint')}</p>
+      )}
+    </div>
+  );
+}
+
+function OekobilanzSection({ project }) {
+  const t = useT();
+  const mats = project.materials || [];
+
+  const gwpItems  = computeContributions(mats, null, 'effective_gwp_value');
+  const adpFItems = computeContributions(mats, 'adp_fossil');
+  const adpEItems = computeContributions(mats, 'adp_elements');
+  const wdpItems  = computeContributions(mats, 'water_consumption');
+
+  const hasAnyData = gwpItems.length || adpFItems.length || adpEItems.length || wdpItems.length;
+  if (!hasAnyData) return null;
+
+  const fmt3  = (v) => v.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+  const fmtE  = (v) => Number(v).toExponential(2);
+  const fmt4  = (v) => v.toLocaleString('de-DE', { maximumFractionDigits: 4 });
+
+  // "partial" = not ALL materials have data for that indicator
+  const partial = (items) => items.length < mats.length;
+
+  const withoutData = mats.filter(m => !m.has_gwp_data && m.adp_fossil == null && m.adp_elements == null && m.water_consumption == null);
+
+  return (
+    <div className="p-6 border-t border-gray-200">
+      <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-5">
+        <Leaf className="w-5 h-5 text-green-600" />
+        {t('projectDetail.labels.lcaTitle')}
+      </h2>
+
+      {/* Summary row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+        {gwpItems.length > 0 && (
+          <div className="bg-green-50 border border-green-100 rounded-xl p-3">
+            <p className="text-[10px] text-green-700 font-semibold uppercase tracking-wider mb-1">GWP</p>
+            <p className="text-sm font-bold text-green-900 font-mono leading-tight">
+              {fmt3(gwpItems.reduce((s, m) => s + m._contrib, 0))}
+            </p>
+            <p className="text-[10px] text-green-600">kg CO₂e</p>
+          </div>
+        )}
+        {adpFItems.length > 0 && (
+          <div className="bg-orange-50 border border-orange-100 rounded-xl p-3">
+            <p className="text-[10px] text-orange-700 font-semibold uppercase tracking-wider mb-1">ADP fossil</p>
+            <p className="text-sm font-bold text-orange-900 font-mono leading-tight">
+              {fmt3(adpFItems.reduce((s, m) => s + m._contrib, 0))}
+            </p>
+            <p className="text-[10px] text-orange-600">MJ</p>
+          </div>
+        )}
+        {adpEItems.length > 0 && (
+          <div className="bg-purple-50 border border-purple-100 rounded-xl p-3">
+            <p className="text-[10px] text-purple-700 font-semibold uppercase tracking-wider mb-1">ADP elements</p>
+            <p className="text-sm font-bold text-purple-900 font-mono leading-tight">
+              {fmtE(adpEItems.reduce((s, m) => s + m._contrib, 0))}
+            </p>
+            <p className="text-[10px] text-purple-600">kg Sb-Äq.</p>
+          </div>
+        )}
+        {wdpItems.length > 0 && (
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+            <p className="text-[10px] text-blue-700 font-semibold uppercase tracking-wider mb-1">WDP</p>
+            <p className="text-sm font-bold text-blue-900 font-mono leading-tight">
+              {fmt4(wdpItems.reduce((s, m) => s + m._contrib, 0))}
+            </p>
+            <p className="text-[10px] text-blue-600">m³</p>
+          </div>
+        )}
+      </div>
+
+      {/* Per-indicator breakdown charts */}
+      <div className="space-y-5">
+        <IndicatorChart
+          label={t('projectDetail.labels.lcaGwp')}
+          unit="kg CO₂e" items={gwpItems}
+          isPartial={partial(gwpItems)} formatVal={fmt3}
+        />
+        <IndicatorChart
+          label={t('projectDetail.labels.lcaAdpFossil')}
+          unit="MJ" items={adpFItems}
+          isPartial={partial(adpFItems)} formatVal={fmt3}
+        />
+        <IndicatorChart
+          label={t('projectDetail.labels.lcaAdpElements')}
+          unit="kg Sb-Äq." items={adpEItems}
+          isPartial={partial(adpEItems)} formatVal={fmtE}
+        />
+        <IndicatorChart
+          label={t('projectDetail.labels.lcaWater')}
+          unit="m³" items={wdpItems}
+          isPartial={partial(wdpItems)} formatVal={fmt4}
+        />
+      </div>
+
+      {/* Materials completely without any data */}
+      {withoutData.length > 0 && (
+        <p className="mt-4 text-[11px] text-gray-400">
+          {t('projectDetail.labels.noGwpData')}: {withoutData.map(m => m.material_name).join(', ')}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function ProjectDetail() {
   const t = useT();
   const { id } = useParams();
@@ -298,42 +465,54 @@ export default function ProjectDetail() {
 
           {/* Materials List */}
           {project.materials && project.materials.length > 0 ? (
-            <div className="space-y-2">
-              {project.materials.map((material) => (
-                <div
-                  key={material.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-gray-900">{material.material_name}</span>
-                    <span className="text-gray-500 ml-2">
-                      {material.quantity} {material.unit || t('projectDetail.labels.unit')}
-                    </span>
-                    {material.category && (
-                      <span className="ml-2 text-xs text-gray-400">({material.category})</span>
-                    )}
-                  </div>
-                  {material.gwp_value != null && material.quantity != null && (
-                    <span
-                      title={t('projectDetail.labels.gwpMaterialTooltip', {
-                        qty: material.quantity,
-                        unit: material.unit || t('projectDetail.labels.unit'),
-                        gwpValue: material.gwp_value,
-                        gwpUnit: material.gwp_unit || 'kg CO₂e',
-                        total: (Number(material.quantity) * Number(material.gwp_value)).toLocaleString('de-DE', { maximumFractionDigits: 3 }),
-                      })}
-                      className="ml-3 flex-shrink-0 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-0.5 font-mono cursor-help"
+            <>
+              <div className="space-y-2">
+                {project.materials.map((material) => {
+                  const effGwp = material.effective_gwp_value ?? material.gwp_value;
+                  const contrib = effGwp != null && material.quantity != null
+                    ? Number(material.quantity) * Number(effGwp)
+                    : null;
+                  return (
+                    <div
+                      key={material.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                     >
-                      {(Number(material.quantity) * Number(material.gwp_value)).toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg CO₂e
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-gray-900">{material.material_name}</span>
+                        <span className="text-gray-500 ml-2">
+                          {material.quantity} {material.unit || t('projectDetail.labels.unit')}
+                        </span>
+                        {material.category && (
+                          <span className="ml-2 text-xs text-gray-400">({material.category})</span>
+                        )}
+                      </div>
+                      {contrib != null && material.has_gwp_data ? (
+                        <span
+                          title={t('projectDetail.labels.gwpMaterialTooltip', {
+                            qty: material.quantity,
+                            unit: material.unit || t('projectDetail.labels.unit'),
+                            gwpValue: effGwp,
+                            gwpUnit: material.gwp_unit || 'kg CO₂e',
+                            total: contrib.toLocaleString('de-DE', { maximumFractionDigits: 3 }),
+                          })}
+                          className="ml-3 flex-shrink-0 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-0.5 font-mono cursor-help"
+                        >
+                          {contrib.toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg CO₂e
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+
+            </>
           ) : (
             <p className="text-gray-400 text-center py-4">{t('projectDetail.noMaterials')}</p>
           )}
         </div>
+
+        {/* Ökobilanz / LCA Section */}
+        <OekobilanzSection project={project} />
 
         {/* Time effort + Tools */}
         {(project.time_effort || project.tools) && (
