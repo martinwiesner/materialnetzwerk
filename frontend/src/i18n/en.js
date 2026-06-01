@@ -763,6 +763,106 @@ const en = {
 
   actorDetail: { deleteButton: 'Delete', editButton: 'Edit' },
 
+  guidelines: {
+    title: 'Info & Rules',
+    subtitle: 'What is this platform — and what can I add?',
+    closeLabel: 'Close',
+    rulesHeading: 'Rules — What goes where?',
+    entities: {
+      materials: { name: 'Materials', desc: 'Building materials, recyclates, renewable resources' },
+      projects:  { name: 'Projects',  desc: 'Construction, design and research projects' },
+      actors:    { name: 'Actors',    desc: 'Manufacturers, workshops, initiatives' },
+    },
+    loginHintStrong: 'No account needed',
+    loginHintSuffix: ' to browse everything. To add entries, request materials or send messages, a free account is required — registration takes only a few seconds.',
+    sections: {
+      materials: 'Materials', projects: 'Projects', actors: 'Actors',
+      noLoginTitle: 'What can I see without logging in?',
+      betaTitle: 'Beta Version — Work in Progress',
+    },
+    subHeadings: {
+      yes: 'What belongs here', no: 'What does NOT belong here',
+      quality: 'Quality notes', valuable: 'Especially valuable',
+      noLogin: 'Without login (guest)', withAccount: 'With free account',
+    },
+    noLoginItems: [
+      'Browse all materials, projects and actors',
+      'Use the network map with connection lines',
+      'Filter, search, view detail pages',
+    ],
+    withAccountItems: [
+      'Add your own materials, projects & actors',
+      'Request materials and manage offers',
+      'Send and receive messages',
+      'Enable push notifications',
+    ],
+    qualityHints: [
+      'Use a descriptive name and description',
+      'Photos are very helpful (but not required)',
+      'Technical data (density, acoustics, fire behaviour …) welcome if available',
+      'Indicate sustainability principles where applicable',
+      'Location / geo data helps with map placement',
+    ],
+    valuableItems: [
+      'Link to materials from the database',
+      'Link to participating actors',
+      'Documentation of work steps with photos',
+      'Indication of circular principles (design for disassembly, modular design …)',
+    ],
+    betaItems: [
+      '<strong>New features</strong> are continuously added',
+      '<strong>Bugs and errors</strong> may occur — please bear with us',
+      '<strong>Your feedback is invaluable</strong> — feel free to write to us',
+    ],
+    betaIntro: 'This platform is in active development as part of the ZEKIWA Zeitz Real Lab.',
+    betaFeedback: 'Contact / Feedback:',
+    footer: { agb: 'Terms of Use & T&Cs', submit: 'Add entry →', confirm: 'Got it' },
+    defaults: {
+      intro: 'A digital tool of the ZEKIWA Zeitz Real Lab. The platform connects materials, projects and actors in the region and makes material cycles visible — for a functioning circular economy on the grounds of the former pram factory in Zeitz.\n\nThe platform is currently in beta — features may change and we welcome your feedback!',
+      materialsYes: [
+        '<strong>Building and construction materials</strong> in the context of sustainable, circular building',
+        '<strong>Renewable raw materials</strong>: wood, hemp, straw, clay, flax, wool, reed, cork and more',
+        '<strong>Recycled and secondary raw materials</strong>: recyclates, reclaimed building materials, processed materials',
+        '<strong>Innovative materials</strong>: e.g. mycelium materials, textile concrete, materials from invasive plants',
+        '<strong>Conventional building materials</strong> that can be kept in circulation (e.g. bricks from deconstruction)',
+        'Materials with a <strong>regional connection</strong> — especially welcome, but not required',
+        '<strong>Leftover materials and surpluses</strong> that could be reused',
+      ],
+      materialsNo: [
+        'Finished consumer products (furniture, electronics, clothing)',
+        'Materials unrelated to construction, design or circular economy',
+        'Pure sales ads / commercial advertising',
+        'Hazardous materials or materials whose transfer is legally prohibited',
+      ],
+      projectsYes: [
+        '<strong>Construction and design projects</strong> that use materials from the database',
+        '<strong>Research projects</strong> on materials, circular economy or sustainable building',
+        '<strong>Prototypes and experiments</strong>: e.g. acoustic absorbers from wheat straw',
+        '<strong>Ongoing and planned projects</strong> — projects do not need to be completed',
+        'Projects can be saved as <strong>drafts</strong> (visible only to you)',
+      ],
+      projectsNo: [
+        'Pure job listings or employment offers',
+        'Projects without material connection (pure software projects, events without construction context)',
+      ],
+      actorsYes: [
+        '<strong>Manufacturers</strong> of sustainable building or construction materials',
+        '<strong>Suppliers / dealers</strong> of recycled or bio-based building materials',
+        '<strong>Research / laboratories</strong> working on material innovations',
+        '<strong>Recycling / processing companies</strong> and urban mining initiatives',
+        '<strong>Makerspaces, repair cafés, upcycling workshops</strong>',
+        '<strong>Associations and initiatives</strong> for circular economy or sustainable building',
+        '<strong>Companies</strong> in construction / design with a circular approach',
+        'Focus is on the region — non-regional actors with a relevant connection welcome',
+      ],
+      actorsNo: [
+        'Individuals as private persons (this is about organisations and initiatives)',
+        'Companies with no recognisable connection to materials, construction or circular economy',
+        'Pure advertising entries',
+      ],
+    },
+  },
+
   auth: {
     loginTitle: 'Login',
     registerTitle: 'Register',

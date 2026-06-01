@@ -761,6 +761,106 @@ const de = {
 
   actorDetail: { deleteButton: 'Löschen', editButton: 'Bearbeiten' },
 
+  guidelines: {
+    title: 'Info & Spielregeln',
+    subtitle: 'Was ist diese Plattform — und was kann ich eintragen?',
+    closeLabel: 'Schließen',
+    rulesHeading: 'Spielregeln — Was gehört wohin?',
+    entities: {
+      materials: { name: 'Materialien', desc: 'Baustoffe, Rezyklate, nachwachsende Rohstoffe' },
+      projects:  { name: 'Projekte',    desc: 'Bau-, Gestaltungs- und Forschungsvorhaben' },
+      actors:    { name: 'Akteure',     desc: 'Hersteller, Werkstätten, Initiativen' },
+    },
+    loginHintStrong: 'Kein Account nötig',
+    loginHintSuffix: ' um alles anzusehen. Zum Eintragen, Anfragen und Nachrichten senden ist ein kostenloser Account erforderlich — Registrierung dauert nur wenige Sekunden.',
+    sections: {
+      materials: 'Materialien', projects: 'Projekte', actors: 'Akteure',
+      noLoginTitle: 'Was kann ich ohne Login sehen?',
+      betaTitle: 'Beta-Version — Work in Progress',
+    },
+    subHeadings: {
+      yes: 'Was gehört hierher', no: 'Was gehört NICHT hierher',
+      quality: 'Hinweise zur Qualität', valuable: 'Besonders wertvoll',
+      noLogin: 'Ohne Login (Gast)', withAccount: 'Mit kostenlosem Account',
+    },
+    noLoginItems: [
+      'Alle Materialien, Projekte und Akteure durchstöbern',
+      'Netzwerk-Karte mit Verbindungslinien nutzen',
+      'Filtern, Suchen, Detailseiten ansehen',
+    ],
+    withAccountItems: [
+      'Eigene Materialien, Projekte & Akteure eintragen',
+      'Materialien anfragen und Angebote verwalten',
+      'Nachrichten senden und empfangen',
+      'Push-Benachrichtigungen aktivieren',
+    ],
+    qualityHints: [
+      'Möglichst aussagekräftiger Name und Beschreibung',
+      'Fotos sind sehr hilfreich (aber nicht zwingend)',
+      'Technische Daten (Dichte, Akustik, Brandverhalten …) wenn vorhanden willkommen',
+      'Nachhaltigkeitsprinzipien angeben wenn zutreffend',
+      'Standort / Geo-Daten helfen bei der Verortung auf der Karte',
+    ],
+    valuableItems: [
+      'Verknüpfung mit Materialien aus der Datenbank',
+      'Verknüpfung mit beteiligten Akteuren',
+      'Dokumentation von Arbeitsschritten mit Fotos',
+      'Angabe von zirkulären Prinzipien (Design für Demontage, Modulares Design …)',
+    ],
+    betaItems: [
+      '<strong>Neue Funktionen</strong> werden laufend ergänzt',
+      '<strong>Bugs und Fehler</strong> können auftreten — bitte hab Verständnis',
+      '<strong>Dein Feedback ist Gold wert</strong> — schreib uns gerne direkt',
+    ],
+    betaIntro: 'Diese Plattform befindet sich in aktiver Entwicklung im Rahmen des Reallabors ZEKIWA Zeitz.',
+    betaFeedback: 'Kontakt / Feedback:',
+    footer: { agb: 'Nutzungsbedingungen & AGB', submit: 'Jetzt eintragen →', confirm: 'Verstanden' },
+    defaults: {
+      intro: 'Ein digitales Werkzeug des Reallabors ZEKIWA Zeitz. Die Plattform vernetzt Materialien, Projekte und Akteure der Region und macht Stoffkreisläufe sichtbar — für eine funktionierende Kreislaufwirtschaft auf dem Gelände der ehemaligen Kinderwagenfabrik in Zeitz.\n\nPlattform befindet sich in der Beta-Phase — Funktionen können sich ändern, und wir freuen uns über jedes Feedback!',
+      materialsYes: [
+        '<strong>Bau- und Werkstoffe</strong> im Kontext von nachhaltigem, zirkulärem Bauen',
+        '<strong>Nachwachsende Rohstoffe</strong>: Holz, Hanf, Stroh, Lehm, Flachs, Wolle, Schilf, Kork u.&nbsp;v.&nbsp;m.',
+        '<strong>Recycling- und Sekundärrohstoffe</strong>: Rezyklate, rückgebaute Baustoffe, aufbereitete Materialien',
+        '<strong>Innovative Materialien</strong>: z.&nbsp;B. Myzel-Werkstoffe, Textilbeton, Materialien aus invasiven Pflanzen',
+        '<strong>Konventionelle Baustoffe</strong>, die im Kreislauf geführt werden können (z.&nbsp;B. Ziegel aus Rückbau)',
+        'Materialien mit <strong>regionalem Bezug</strong> — besonders willkommen, aber keine Pflicht',
+        '<strong>Restmaterialien und Überschüsse</strong>, die weiterverwendet werden könnten',
+      ],
+      materialsNo: [
+        'Fertige Konsumprodukte (Möbel, Elektrogeräte, Kleidung)',
+        'Materialien ohne Bezug zu Bau, Gestaltung oder Kreislaufwirtschaft',
+        'Reine Verkaufsanzeigen / kommerzielle Werbung',
+        'Gefahrstoffe oder Materialien, deren Weitergabe rechtlich unzulässig ist',
+      ],
+      projectsYes: [
+        '<strong>Bau- und Gestaltungsprojekte</strong>, die Materialien aus der Datenbank nutzen',
+        '<strong>Forschungsprojekte</strong> zu Materialien, Kreislaufwirtschaft oder nachhaltigem Bauen',
+        '<strong>Prototypen und Experimente</strong>: z.&nbsp;B. Akustikabsorber aus Weizenspreu',
+        '<strong>Laufende und geplante Vorhaben</strong> — Projekte müssen nicht abgeschlossen sein',
+        'Projekte können als <strong>Entwurf</strong> gespeichert werden (nur für dich sichtbar)',
+      ],
+      projectsNo: [
+        'Reine Stellenanzeigen oder Jobangebote',
+        'Projekte ohne Materialbezug (reine Software-Projekte, Events ohne Baubezug)',
+      ],
+      actorsYes: [
+        '<strong>Hersteller</strong> von nachhaltigen Bau- oder Werkstoffen',
+        '<strong>Lieferanten / Händler</strong> von Recycling- oder Bio-Baustoffen',
+        '<strong>Forschung / Labore</strong>, die an Materialinnovationen arbeiten',
+        '<strong>Recycling- / Verwertungsbetriebe</strong> und Urban-Mining-Initiativen',
+        '<strong>Makerspaces, Repair Cafés, Upcycling-Werkstätten</strong>',
+        '<strong>Vereine und Initiativen</strong> für Kreislaufwirtschaft oder nachhaltiges Bauen',
+        '<strong>Unternehmen</strong> aus Bau / Gestaltung mit zirkulärem Ansatz',
+        'Fokus liegt auf der Region — überregionale Akteure mit Bezug willkommen',
+      ],
+      actorsNo: [
+        'Privatpersonen als Einzelpersonen (es geht um Organisationen und Initiativen)',
+        'Unternehmen ohne erkennbaren Bezug zu Materialien, Bau oder Kreislaufwirtschaft',
+        'Reine Werbeeinträge',
+      ],
+    },
+  },
+
   auth: {
     loginTitle: 'Anmelden',
     registerTitle: 'Registrieren',

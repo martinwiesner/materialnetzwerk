@@ -4,51 +4,7 @@ import { useGuidelinesStore } from '../../store/guidelinesStore';
 import { useAgbStore } from '../../store/agbStore';
 import { useAuthStore } from '../../store/authStore';
 import { useSettings } from '../../hooks/useSettings';
-
-// ── defaults (fallback when settings are not yet loaded) ──────────────────────
-const DEFAULT_INTRO = 'Ein digitales Werkzeug des Reallabors ZEKIWA Zeitz. Die Plattform vernetzt Materialien, Projekte und Akteure der Region und macht Stoffkreisläufe sichtbar — für eine funktionierende Kreislaufwirtschaft auf dem Gelände der ehemaligen Kinderwagenfabrik in Zeitz.\n\nPlattform befindet sich in der Beta-Phase — Funktionen können sich ändern, und wir freuen uns über jedes Feedback!';
-
-const DEFAULT_MATERIALS_YES = [
-  '<strong>Bau- und Werkstoffe</strong> im Kontext von nachhaltigem, zirkulärem Bauen',
-  '<strong>Nachwachsende Rohstoffe</strong>: Holz, Hanf, Stroh, Lehm, Flachs, Wolle, Schilf, Kork u.&nbsp;v.&nbsp;m.',
-  '<strong>Recycling- und Sekundärrohstoffe</strong>: Rezyklate, rückgebaute Baustoffe, aufbereitete Materialien',
-  '<strong>Innovative Materialien</strong>: z.&nbsp;B. Myzel-Werkstoffe, Textilbeton, Materialien aus invasiven Pflanzen',
-  '<strong>Konventionelle Baustoffe</strong>, die im Kreislauf geführt werden können (z.&nbsp;B. Ziegel aus Rückbau)',
-  'Materialien mit <strong>regionalem Bezug</strong> — besonders willkommen, aber keine Pflicht',
-  '<strong>Restmaterialien und Überschüsse</strong>, die weiterverwendet werden könnten',
-];
-const DEFAULT_MATERIALS_NO = [
-  'Fertige Konsumprodukte (Möbel, Elektrogeräte, Kleidung)',
-  'Materialien ohne Bezug zu Bau, Gestaltung oder Kreislaufwirtschaft',
-  'Reine Verkaufsanzeigen / kommerzielle Werbung',
-  'Gefahrstoffe oder Materialien, deren Weitergabe rechtlich unzulässig ist',
-];
-const DEFAULT_PROJECTS_YES = [
-  '<strong>Bau- und Gestaltungsprojekte</strong>, die Materialien aus der Datenbank nutzen',
-  '<strong>Forschungsprojekte</strong> zu Materialien, Kreislaufwirtschaft oder nachhaltigem Bauen',
-  '<strong>Prototypen und Experimente</strong>: z.&nbsp;B. Akustikabsorber aus Weizenspreu',
-  '<strong>Laufende und geplante Vorhaben</strong> — Projekte müssen nicht abgeschlossen sein',
-  'Projekte können als <strong>Entwurf</strong> gespeichert werden (nur für dich sichtbar)',
-];
-const DEFAULT_PROJECTS_NO = [
-  'Reine Stellenanzeigen oder Jobangebote',
-  'Projekte ohne Materialbezug (reine Software-Projekte, Events ohne Baubezug)',
-];
-const DEFAULT_ACTORS_YES = [
-  '<strong>Hersteller</strong> von nachhaltigen Bau- oder Werkstoffen',
-  '<strong>Lieferanten / Händler</strong> von Recycling- oder Bio-Baustoffen',
-  '<strong>Forschung / Labore</strong>, die an Materialinnovationen arbeiten',
-  '<strong>Recycling- / Verwertungsbetriebe</strong> und Urban-Mining-Initiativen',
-  '<strong>Makerspaces, Repair Cafés, Upcycling-Werkstätten</strong>',
-  '<strong>Vereine und Initiativen</strong> für Kreislaufwirtschaft oder nachhaltiges Bauen',
-  '<strong>Unternehmen</strong> aus Bau / Gestaltung mit zirkulärem Ansatz',
-  'Fokus liegt auf der Region — überregionale Akteure mit Bezug willkommen',
-];
-const DEFAULT_ACTORS_NO = [
-  'Privatpersonen als Einzelpersonen (es geht um Organisationen und Initiativen)',
-  'Unternehmen ohne erkennbaren Bezug zu Materialien, Bau oder Kreislaufwirtschaft',
-  'Reine Werbeeinträge',
-];
+import { useT } from '../../i18n/useT';
 
 function parseList(jsonStr, fallback) {
   if (!jsonStr) return fallback;
@@ -105,7 +61,7 @@ function NoList({ items }) {
       {items.map((item, i) => (
         <li key={i} className="flex items-start gap-2 text-xs text-gray-500 leading-relaxed">
           <span className="mt-0.5 text-gray-300 flex-shrink-0">✗</span>
-          <span>{item}</span>
+          <span dangerouslySetInnerHTML={{ __html: item }} />
         </li>
       ))}
     </ul>
@@ -119,19 +75,21 @@ function SubHeading({ children }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function GuidelinesOverlay({ onClose }) {
+  const t = useT();
   const { isAuthenticated } = useAuthStore();
   const openAgb = useAgbStore((s) => s.open);
   const { data: settings } = useSettings();
 
-  const introText = settings?.platform_intro ?? DEFAULT_INTRO;
+  const introText = settings?.platform_intro ?? t('guidelines.defaults.intro');
   const introParagraphs = introText.split('\n').filter(Boolean);
 
-  const materialsYes = parseList(settings?.guidelines_materials_yes, DEFAULT_MATERIALS_YES);
-  const materialsNo = parseList(settings?.guidelines_materials_no, DEFAULT_MATERIALS_NO);
-  const projectsYes = parseList(settings?.guidelines_projects_yes, DEFAULT_PROJECTS_YES);
-  const projectsNo = parseList(settings?.guidelines_projects_no, DEFAULT_PROJECTS_NO);
-  const actorsYes = parseList(settings?.guidelines_actors_yes, DEFAULT_ACTORS_YES);
-  const actorsNo = parseList(settings?.guidelines_actors_no, DEFAULT_ACTORS_NO);
+  const materialsYes = parseList(settings?.guidelines_materials_yes, t('guidelines.defaults.materialsYes'));
+  const materialsNo  = parseList(settings?.guidelines_materials_no,  t('guidelines.defaults.materialsNo'));
+  const projectsYes  = parseList(settings?.guidelines_projects_yes,  t('guidelines.defaults.projectsYes'));
+  const projectsNo   = parseList(settings?.guidelines_projects_no,   t('guidelines.defaults.projectsNo'));
+  const actorsYes    = parseList(settings?.guidelines_actors_yes,    t('guidelines.defaults.actorsYes'));
+  const actorsNo     = parseList(settings?.guidelines_actors_no,     t('guidelines.defaults.actorsNo'));
+
   const openCreate = () => {
     onClose();
     window.dispatchEvent(new CustomEvent('rzz:openCreateMenu'));
@@ -161,20 +119,20 @@ export default function GuidelinesOverlay({ onClose }) {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-gray-900">Info &amp; Spielregeln</h2>
+                <h2 className="text-base font-bold text-gray-900">{t('guidelines.title')}</h2>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200">
                   Beta
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
-                Was ist diese Plattform — und was kann ich eintragen?
+                {t('guidelines.subtitle')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors flex-shrink-0 ml-2"
-            aria-label="Schließen"
+            aria-label={t('guidelines.closeLabel')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -183,113 +141,88 @@ export default function GuidelinesOverlay({ onClose }) {
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
 
-          {/* ── Was ist die Plattform? ── */}
+          {/* Platform intro text */}
           <div className="bg-gray-50 rounded-xl px-4 py-3 text-xs text-gray-600 leading-relaxed space-y-2">
             {introParagraphs.map((para, i) => (
               <p key={i}>{para}</p>
             ))}
           </div>
 
-          {/* ── Drei Entity-Typen als Mini-Cards ── */}
+          {/* Three entity type mini-cards */}
           <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col items-start gap-1.5 bg-blue-50 rounded-xl p-3 border border-blue-100">
               <Package className="w-4 h-4 text-blue-600" />
-              <p className="font-semibold text-blue-900 text-[12px]">Materialien</p>
-              <p className="text-blue-700 text-[11px] leading-snug">Baustoffe, Rezyklate, nachwachsende Rohstoffe</p>
+              <p className="font-semibold text-blue-900 text-[12px]">{t('guidelines.entities.materials.name')}</p>
+              <p className="text-blue-700 text-[11px] leading-snug">{t('guidelines.entities.materials.desc')}</p>
             </div>
             <div className="flex flex-col items-start gap-1.5 bg-green-50 rounded-xl p-3 border border-green-100">
               <FolderOpen className="w-4 h-4 text-green-700" />
-              <p className="font-semibold text-green-900 text-[12px]">Projekte</p>
-              <p className="text-green-700 text-[11px] leading-snug">Bau-, Gestaltungs- und Forschungs&shy;vorhaben</p>
+              <p className="font-semibold text-green-900 text-[12px]">{t('guidelines.entities.projects.name')}</p>
+              <p className="text-green-700 text-[11px] leading-snug">{t('guidelines.entities.projects.desc')}</p>
             </div>
             <div className="flex flex-col items-start gap-1.5 bg-red-50 rounded-xl p-3 border border-red-100">
               <Users className="w-4 h-4 text-red-600" />
-              <p className="font-semibold text-red-900 text-[12px]">Akteure</p>
-              <p className="text-red-700 text-[11px] leading-snug">Hersteller, Werkstätten, Initiativen</p>
+              <p className="font-semibold text-red-900 text-[12px]">{t('guidelines.entities.actors.name')}</p>
+              <p className="text-red-700 text-[11px] leading-snug">{t('guidelines.entities.actors.desc')}</p>
             </div>
           </div>
 
-          {/* ── Login-Hinweis ── */}
+          {/* Login hint */}
           <div className="flex items-start gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
             <LogIn className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-gray-500 leading-relaxed">
-              <strong className="text-gray-700">Kein Account nötig</strong> um alles anzusehen.
-              Zum Eintragen, Anfragen und Nachrichten senden ist ein kostenloser Account erforderlich —
-              Registrierung dauert nur wenige Sekunden.
+              <strong className="text-gray-700">{t('guidelines.loginHintStrong')}</strong>
+              {t('guidelines.loginHintSuffix')}
             </p>
           </div>
 
-          {/* ── Spielregeln: einklappbare Abschnitte ── */}
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 pt-1">Spielregeln — Was gehört wohin?</p>
+          {/* Rules heading */}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 pt-1">{t('guidelines.rulesHeading')}</p>
 
-          <Section icon={Package} title="Materialien" color="#0033FF" defaultOpen>
-            <SubHeading>Was gehört hierher</SubHeading>
+          <Section icon={Package} title={t('guidelines.sections.materials')} color="#0033FF" defaultOpen>
+            <SubHeading>{t('guidelines.subHeadings.yes')}</SubHeading>
             <YesList items={materialsYes} />
-            <SubHeading>Was gehört NICHT hierher</SubHeading>
+            <SubHeading>{t('guidelines.subHeadings.no')}</SubHeading>
             <NoList items={materialsNo} />
-            <SubHeading>Hinweise zur Qualität</SubHeading>
-            <YesList items={[
-              'Möglichst aussagekräftiger Name und Beschreibung',
-              'Fotos sind sehr hilfreich (aber nicht zwingend)',
-              'Technische Daten (Dichte, Akustik, Brandverhalten …) wenn vorhanden willkommen',
-              'Nachhaltigkeitsprinzipien angeben wenn zutreffend',
-              'Standort / Geo-Daten helfen bei der Verortung auf der Karte',
-            ]} />
+            <SubHeading>{t('guidelines.subHeadings.quality')}</SubHeading>
+            <YesList items={t('guidelines.qualityHints')} />
           </Section>
 
-          <Section icon={FolderOpen} title="Projekte" color="#639530">
-            <SubHeading>Was gehört hierher</SubHeading>
+          <Section icon={FolderOpen} title={t('guidelines.sections.projects')} color="#639530">
+            <SubHeading>{t('guidelines.subHeadings.yes')}</SubHeading>
             <YesList items={projectsYes} />
-            <SubHeading>Was gehört NICHT hierher</SubHeading>
+            <SubHeading>{t('guidelines.subHeadings.no')}</SubHeading>
             <NoList items={projectsNo} />
-            <SubHeading>Besonders wertvoll</SubHeading>
-            <YesList items={[
-              'Verknüpfung mit Materialien aus der Datenbank',
-              'Verknüpfung mit beteiligten Akteuren',
-              'Dokumentation von Arbeitsschritten mit Fotos',
-              'Angabe von zirkulären Prinzipien (Design für Demontage, Modulares Design …)',
-            ]} />
+            <SubHeading>{t('guidelines.subHeadings.valuable')}</SubHeading>
+            <YesList items={t('guidelines.valuableItems')} />
           </Section>
 
-          <Section icon={Users} title="Akteure" color="#FF3B36">
-            <SubHeading>Was gehört hierher</SubHeading>
+          <Section icon={Users} title={t('guidelines.sections.actors')} color="#FF3B36">
+            <SubHeading>{t('guidelines.subHeadings.yes')}</SubHeading>
             <YesList items={actorsYes} />
-            <SubHeading>Was gehört NICHT hierher</SubHeading>
+            <SubHeading>{t('guidelines.subHeadings.no')}</SubHeading>
             <NoList items={actorsNo} />
           </Section>
 
-          <Section icon={Eye} title="Was kann ich ohne Login sehen?" color="#6366f1">
+          <Section icon={Eye} title={t('guidelines.sections.noLoginTitle')} color="#6366f1">
             <div className="grid sm:grid-cols-2 gap-3 mt-1">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Ohne Login (Gast)</p>
-                <YesList items={[
-                  'Alle Materialien, Projekte und Akteure durchstöbern',
-                  'Netzwerk-Karte mit Verbindungslinien nutzen',
-                  'Filtern, Suchen, Detailseiten ansehen',
-                ]} />
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">{t('guidelines.subHeadings.noLogin')}</p>
+                <YesList items={t('guidelines.noLoginItems')} />
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Mit kostenlosem Account</p>
-                <YesList items={[
-                  'Eigene Materialien, Projekte &amp; Akteure eintragen',
-                  'Materialien anfragen und Angebote verwalten',
-                  'Nachrichten senden und empfangen',
-                  'Push-Benachrichtigungen aktivieren',
-                ]} />
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">{t('guidelines.subHeadings.withAccount')}</p>
+                <YesList items={t('guidelines.withAccountItems')} />
               </div>
             </div>
           </Section>
 
-          <Section icon={FlaskConical} title="Beta-Version — Work in Progress" color="#d97706">
+          <Section icon={FlaskConical} title={t('guidelines.sections.betaTitle')} color="#d97706">
             <div className="text-xs text-gray-600 leading-relaxed space-y-2">
-              <p>Diese Plattform befindet sich in aktiver Entwicklung im Rahmen des Reallabors ZEKIWA Zeitz.</p>
-              <YesList items={[
-                '<strong>Neue Funktionen</strong> werden laufend ergänzt',
-                '<strong>Bugs und Fehler</strong> können auftreten — bitte hab Verständnis',
-                '<strong>Dein Feedback ist Gold wert</strong> — schreib uns gerne direkt',
-              ]} />
+              <p>{t('guidelines.betaIntro')}</p>
+              <YesList items={t('guidelines.betaItems')} />
               <p className="mt-2 text-gray-500">
-                Kontakt / Feedback:{' '}
+                {t('guidelines.betaFeedback')}{' '}
                 <a href="mailto:martin.wiesner@hs-anhalt.de" className="underline hover:text-gray-700 transition-colors">
                   martin.wiesner@hs-anhalt.de
                 </a>
@@ -305,7 +238,7 @@ export default function GuidelinesOverlay({ onClose }) {
             onClick={() => { onClose(); openAgb(); }}
             className="text-[11px] text-gray-400 hover:text-gray-600 underline transition-colors hidden sm:block"
           >
-            Nutzungsbedingungen &amp; AGB
+            {t('guidelines.footer.agb')}
           </button>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {isAuthenticated && (
@@ -313,14 +246,14 @@ export default function GuidelinesOverlay({ onClose }) {
                 onClick={openCreate}
                 className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 text-xs font-medium text-primary-700 hover:text-primary-800 border border-primary-200 hover:border-primary-300 rounded-lg px-3 py-2 transition-colors hover:bg-primary-50"
               >
-                Jetzt eintragen →
+                {t('guidelines.footer.submit')}
               </button>
             )}
             <button
               onClick={onClose}
               className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 bg-gray-900 text-white text-xs font-semibold rounded-lg px-4 py-2 hover:bg-gray-700 transition-colors"
             >
-              Verstanden
+              {t('guidelines.footer.confirm')}
             </button>
           </div>
         </div>
