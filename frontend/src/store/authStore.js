@@ -7,30 +7,36 @@ export const useAuthStore = create(
       user: null,
       token: null,
       isAuthenticated: false,
+      // Becomes true once localStorage has been read. Used by the 401
+      // interceptor to distinguish "genuinely logged out" from "not yet hydrated".
+      _hydrated: false,
 
       setAuth: (user, token) =>
-        set({
-          user,
-          token,
-          isAuthenticated: true,
-        }),
+        set({ user, token, isAuthenticated: true }),
 
       updateUser: (user) =>
-        set((state) => ({
-          ...state,
-          user,
-        })),
+        set((state) => ({ ...state, user })),
 
       logout: () =>
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-        }),
+        set({ user: null, token: null, isAuthenticated: false }),
+
+      _setHydrated: () => set({ _hydrated: true }),
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ token: state.token, user: state.user }),
+      // Persist token, user AND isAuthenticated so the app is ready immediately
+      // on relaunch without needing a re-check.
+      partialize: (state) => ({
+        token: state.token,
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+      onRehydrateStorage: () => (state) => {
+        // localStorage is synchronous on web, so this fires before any React
+        // render. Mark the store as hydrated so the 401 interceptor can trust
+        // the isAuthenticated flag.
+        if (state) state._setHydrated();
+      },
     }
   )
 );

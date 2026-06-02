@@ -14,12 +14,24 @@ const api = axios.create({
   },
 });
 
+// Decode JWT payload without verifying signature (client-side expiry check only)
+function jwtExpired(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp && payload.exp * 1000 < Date.now();
+  } catch { return false; }
+}
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().token;
+    const { token, logout } = useAuthStore.getState();
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      if (jwtExpired(token)) {
+        logout();
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
@@ -31,7 +43,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout();
+      const { _hydrated, isAuthenticated, logout } = useAuthStore.getState();
+      // Only logout if the store has been fully hydrated from localStorage.
+      // On iOS PWA relaunch, requests can fire before hydration completes —
+      // those 401s must not wipe the stored credentials.
+      if (_hydrated && isAuthenticated) {
+        logout();
+      }
     }
     return Promise.reject(error);
   }

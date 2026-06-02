@@ -9,6 +9,10 @@ if [ "$INIT_DB" = "true" ]; then
   npm run db:init
 fi
 
+# Always run migrations (idempotent — safe to run every startup)
+echo "Running database migrations..."
+npm run db:migrate
+
 # Generate swagger docs if needed
 if [ "$GENERATE_SWAGGER" = "true" ]; then
   echo "Generating Swagger documentation..."
