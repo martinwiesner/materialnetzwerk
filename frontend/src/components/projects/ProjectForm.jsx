@@ -3,15 +3,37 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
-import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Image as ImageIcon, Users, ChevronUp, ChevronDown, BookOpen, Tag, Package } from 'lucide-react';
+import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Users,
+  ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench } from 'lucide-react';
+import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
-import GeolocateButton from '../shared/GeolocateButton';
 import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
 
 const API_BASE = MEDIA_BASE;
+
+function AccordionSection({ icon: Icon, title, color = '#6b7280', filled = false, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+        aria-expanded={open}>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}18` }}>
+            <Icon className="w-4 h-4" style={{ color }} />
+          </div>
+          <span className="text-sm font-semibold text-gray-800">{title}</span>
+          {filled && !open && <span className="w-2 h-2 rounded-full bg-primary-400 flex-shrink-0" title="Daten vorhanden" />}
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+      </button>
+      {open && <div className="px-4 pb-5 pt-4 space-y-4">{children}</div>}
+    </div>
+  );
+}
 
 function safeJsonParse(value, fallback) {
   if (!value) return fallback;
@@ -50,8 +72,8 @@ const emptyForm = {
   description: '',
   content: '',
   location_name: '',
-  latitude: '51.0532575',
-  longitude: '12.1287658',
+  latitude: null,
+  longitude: null,
   address: '',
   status: 'draft',
   is_public: false,
@@ -105,21 +127,16 @@ export default function ProjectForm({ project, onClose }) {
   const toast = useToast();
   const [formData, setFormData] = useState(emptyForm);
   const [error, setError] = useState('');
-  // draftId: the ID of the auto-created draft (for new projects)
   const [draftId, setDraftId] = useState(null);
   const [localImages, setLocalImages] = useState([]);
   const [localFiles, setLocalFiles] = useState([]);
   const [autoSaving, setAutoSaving] = useState(false);
-  // track if we are editing an existing project
   const isEditing = !!project;
   const activeId = project?.id || draftId;
 
   const [actorIds, setActorIds] = useState(['']);
-
-  // Mode: 'project' = full project, 'offer-only' = lightweight availability entry
   const [mode, setMode] = useState('project');
 
-  // Sync is_available when switching to offer-only
   useEffect(() => {
     if (mode === 'offer-only') {
       setFormData(f => ({ ...f, is_available: true, is_public: true, status: 'active' }));
@@ -157,8 +174,8 @@ export default function ProjectForm({ project, onClose }) {
         description: project.description || '',
         content: project.content || '',
         location_name: project.location_name || '',
-        latitude: project.latitude ?? '',
-        longitude: project.longitude ?? '',
+        latitude: project.latitude ?? null,
+        longitude: project.longitude ?? null,
         address: project.address || '',
         status: project.status || 'draft',
         is_public: project.is_public || false,
@@ -182,7 +199,6 @@ export default function ProjectForm({ project, onClose }) {
     }
   }, [project]);
 
-  // ── Auto-create draft when first image/file upload is triggered ──────────
   const ensureDraft = async () => {
     if (activeId) return activeId;
     setAutoSaving(true);
@@ -203,8 +219,8 @@ export default function ProjectForm({ project, onClose }) {
 
   const buildSubmitData = () => ({
     ...formData,
-    latitude: formData.latitude === '' ? null : Number(formData.latitude),
-    longitude: formData.longitude === '' ? null : Number(formData.longitude),
+    latitude: formData.latitude === '' || formData.latitude == null ? null : Number(formData.latitude),
+    longitude: formData.longitude === '' || formData.longitude == null ? null : Number(formData.longitude),
     circular_principles: JSON.stringify(formData.circular_principles || []),
     principles_sufficiency: JSON.stringify(formData.principles_sufficiency || []),
     principles_consistency: JSON.stringify(formData.principles_consistency || []),
@@ -214,7 +230,6 @@ export default function ProjectForm({ project, onClose }) {
     references: formData.references?.length ? formData.references : null,
   });
 
-  // ── Save / update ─────────────────────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: projectService.create,
     onSuccess: (created) => {
@@ -267,15 +282,7 @@ export default function ProjectForm({ project, onClose }) {
     }
   };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  const handleNumberChange = (e) => {
-    const { name, value } = e.target;
-    if (value === '') { setFormData({ ...formData, [name]: '' }); return; }
-    const num = Number(value);
-    setFormData({ ...formData, [name]: Number.isFinite(num) ? num : '' });
-  };
 
   const addMaterial = () =>
     setFormData({ ...formData, materials: [...formData.materials, { material_id: '', quantity: 1, unit: '' }] });
@@ -291,7 +298,6 @@ export default function ProjectForm({ project, onClose }) {
 
   const isPending = createMutation.isPending || updateMutation.isPending || autoSaving;
 
-  // ── Image handlers ────────────────────────────────────────────────────────
   const handleImageUpload = async (files, opts) => {
     const id = await ensureDraft();
     if (!id) return;
@@ -320,7 +326,6 @@ export default function ProjectForm({ project, onClose }) {
     setLocalImages(Array.isArray(updated) ? updated : localImages);
   };
 
-  // ── File handlers ─────────────────────────────────────────────────────────
   const handleFileUpload = async (files) => {
     const id = await ensureDraft();
     if (!id) return;
@@ -344,7 +349,7 @@ export default function ProjectForm({ project, onClose }) {
   const moveStep = (idx, dir) => {
     const newIdx = idx + dir;
     if (newIdx < 0 || newIdx >= formData.steps.length) return;
-    const oldStep = idx + 1;   // 1-based step_index
+    const oldStep = idx + 1;
     const newStep = newIdx + 1;
     setFormData(f => {
       const steps = [...f.steps];
@@ -358,12 +363,30 @@ export default function ProjectForm({ project, onClose }) {
     }));
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   const draftCreated = !!draftId && !isEditing;
+
+  const locationValue = {
+    location_name: formData.location_name,
+    address: formData.address,
+    latitude: formData.latitude,
+    longitude: formData.longitude,
+  };
+  const handleLocationChange = (loc) =>
+    setFormData(f => ({ ...f, location_name: loc.location_name, address: loc.address, latitude: loc.latitude, longitude: loc.longitude }));
+
+  const allPrinciples = [
+    ...formData.circular_principles,
+    ...formData.principles_sufficiency,
+    ...formData.principles_consistency,
+    ...formData.principles_efficiency,
+    ...formData.general_sustainability_principles,
+  ];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 sticky top-0 bg-white z-10">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary-500" />
@@ -386,7 +409,7 @@ export default function ProjectForm({ project, onClose }) {
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{error}</div>}
 
-          {/* Mode toggle — only when creating (not editing) */}
+          {/* Mode toggle */}
           {!isEditing && (
             <div className="flex p-1 bg-gray-100 rounded-xl gap-1">
               <button type="button" onClick={() => setMode('project')}
@@ -415,7 +438,9 @@ export default function ProjectForm({ project, onClose }) {
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelTitle')}</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('projectForm.labelTitle')} <span className="text-red-400">*</span>
+            </label>
             <input type="text" name="name" value={formData.name} onChange={handleChange}
               placeholder={t('projectForm.placeholderTitle')} required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
@@ -429,163 +454,320 @@ export default function ProjectForm({ project, onClose }) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
           </div>
 
-          {/* Content */}
-          {mode === 'project' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelContent')}</label>
-            <textarea name="content" value={formData.content} onChange={handleChange} rows={8}
-              placeholder={t('projectForm.placeholderContent')}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none font-mono text-sm" />
-          </div>
-          )}
-
-          {/* Images — available immediately */}
-          <div className="border-t pt-4">
-            <ImageUploader
-              images={localImages}
-              onUpload={handleImageUpload}
-              onDelete={handleImageDelete}
-              onSetCover={handleSetCover}
-              onSetStep={mode === 'project' ? handleSetStep : undefined}
-              onSetCredit={handleSetCredit}
-              stepCount={mode === 'project' ? formData.steps.length : 0}
-              apiBase={API_BASE}
-              label={mode === 'offer-only' ? t('projectForm.imagesLabelOffer') : t('projectForm.imagesLabel')}
-            />
-          </div>
-
-          {/* Files */}
-          {mode === 'project' && (
-          <FileUploader
-            files={localFiles}
-            onUpload={handleFileUpload}
-            onDelete={handleFileDelete}
+          {/* Images */}
+          <ImageUploader
+            images={localImages}
+            onUpload={handleImageUpload}
+            onDelete={handleImageDelete}
+            onSetCover={handleSetCover}
+            onSetStep={mode === 'project' ? handleSetStep : undefined}
+            onSetCredit={handleSetCredit}
+            stepCount={mode === 'project' ? formData.steps.length : 0}
             apiBase={API_BASE}
-            label={t('projectForm.filesLabel')}
+            label={mode === 'offer-only' ? t('projectForm.imagesLabelOffer') : t('projectForm.imagesLabel')}
           />
-          )}
 
-          {/* Sustainability principles */}
-          {mode === 'project' && (<div className="border-t pt-4">
-            <div className="text-sm font-semibold text-gray-900 mb-3">{t('projectForm.sustainabilityTitle')}</div>
-            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
-              {[
-                { key: 'circular_principles', label: t('projectForm.circularPrinciples'), options: CIRCULAR_PRINCIPLES_DE },
-                { key: 'principles_sufficiency', label: t('projectForm.sufficiency'), options: PRINCIPLES.sufficiency },
-                { key: 'principles_consistency', label: t('projectForm.consistency'), options: PRINCIPLES.consistency },
-                { key: 'principles_efficiency', label: t('projectForm.efficiency'), options: PRINCIPLES.efficiency },
-                { key: 'general_sustainability_principles', label: t('projectForm.generalSustainability'), options: GENERAL_SUSTAINABILITY },
-              ].map(({ key, label, options }) => (
-                <div key={key}>
-                  <div className="text-xs font-semibold text-gray-700 mb-2">{label}</div>
-                  <div className="flex flex-wrap gap-3">
-                    {options.map((p) => (
-                      <label key={p} className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                        <input type="checkbox"
-                          checked={(formData[key] || []).includes(p)}
-                          onChange={() => setFormData(prev => ({ ...prev, [key]: toggleInArray(prev[key], p) }))}
-                          className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500" />
-                        {p}
-                      </label>
-                    ))}
+          {/* ── Project-mode accordions ── */}
+          {mode === 'project' && (
+            <div className="space-y-2">
+
+              {/* Inhalt */}
+              <AccordionSection icon={FileText} title="Inhalt & Beschreibung" color="#0891b2"
+                filled={!!formData.content} defaultOpen={!!formData.content}>
+                <textarea name="content" value={formData.content} onChange={handleChange} rows={8}
+                  placeholder={t('projectForm.placeholderContent')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none font-mono text-sm" />
+              </AccordionSection>
+
+              {/* Umsetzung & Schritte */}
+              <AccordionSection icon={Wrench} title="Umsetzung & Arbeitsschritte" color="#ea580c"
+                filled={!!formData.time_effort || !!formData.tools || formData.steps.length > 0}>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('projectForm.labelTimeEffort')}</label>
+                  <input type="text" value={formData.time_effort}
+                    onChange={e => setFormData({ ...formData, time_effort: e.target.value })}
+                    placeholder={t('projectForm.placeholderTimeEffort')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">{t('projectForm.labelTools')}</label>
+                  <textarea value={formData.tools}
+                    onChange={e => setFormData({ ...formData, tools: e.target.value })} rows={2}
+                    placeholder={t('projectForm.placeholderTools')}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
+                </div>
+
+                {/* Steps */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-700">📋 {t('projectForm.stepsTitle')}</p>
+                    <button type="button"
+                      onClick={() => setFormData(f => ({ ...f, steps: [...f.steps, { title: '', text: '' }] }))}
+                      className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                      <Plus className="w-3.5 h-3.5" /> {t('projectForm.addStep')}
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {formData.steps.map((step, i) => {
+                      const stepIndex = i + 1;
+                      const stepImgs = localImages.filter(img => img.step_index === stepIndex);
+                      return (
+                        <div key={i} className="bg-gray-50 rounded-lg border border-gray-200 p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
+                              {t('projectForm.step', { n: stepIndex })}
+                            </span>
+                            <div className="flex items-center gap-0.5 ml-1">
+                              <button type="button" onClick={() => moveStep(i, -1)} disabled={i === 0}
+                                className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button type="button" onClick={() => moveStep(i, 1)} disabled={i === formData.steps.length - 1}
+                                className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <button type="button"
+                              onClick={() => {
+                                stepImgs.forEach(img => handleImageDelete(img.id));
+                                setFormData(f => ({ ...f, steps: f.steps.filter((_, j) => j !== i) }));
+                              }}
+                              className="ml-auto text-red-400 hover:text-red-600">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <input type="text" placeholder="Titel" value={step.title || ''}
+                            onChange={e => setFormData(f => ({ ...f, steps: f.steps.map((s, j) => j === i ? { ...s, title: e.target.value } : s) }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none bg-white" />
+                          <textarea placeholder="Beschreibung" value={step.text || ''} rows={2}
+                            onChange={e => setFormData(f => ({ ...f, steps: f.steps.map((s, j) => j === i ? { ...s, text: e.target.value } : s) }))}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none resize-none bg-white" />
+                          <div className="border-t border-gray-100 pt-2 space-y-1.5">
+                            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                              {t('projectForm.stepImages', { n: stepIndex })}
+                            </p>
+                            {stepImgs.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {stepImgs.map(img => {
+                                  const url = `${API_BASE}${img.file_path?.replace(/^\./, '')}`;
+                                  return (
+                                    <div key={img.id} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
+                                      <img src={url} alt={img.original_name} className="w-full h-full object-cover" />
+                                      <button type="button" onClick={() => handleImageDelete(img.id)}
+                                        className="absolute inset-0 bg-red-500/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Trash2 className="w-4 h-4 text-white" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            <StepImageUpload stepIndex={stepIndex} onUpload={handleImageUpload} ensureDraft={ensureDraft} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>)}
+              </AccordionSection>
 
-          {/* Location */}
-          <div className="border-t pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">{t('projectForm.labelLocation')}</label>
-              <GeolocateButton
-                onLocate={(lat, lon) => setFormData(f => ({ ...f, latitude: lat, longitude: lon }))}
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="md:col-span-2">
-                <input type="text" name="location_name" value={formData.location_name} onChange={handleChange}
-                  placeholder={t('projectForm.placeholderLocationName')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-              </div>
-              <input type="number" step="0.000001" name="latitude" value={formData.latitude}
-                onChange={handleNumberChange} placeholder={t('projectForm.placeholderLat')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-              <input type="number" step="0.000001" name="longitude" value={formData.longitude}
-                onChange={handleNumberChange} placeholder={t('projectForm.placeholderLon')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-              <div className="md:col-span-2">
-                <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder={t('common.address')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-              </div>
-            </div>
-          </div>
+              {/* Materialien */}
+              <AccordionSection icon={Package} title={t('projectForm.materialsTitle')} color="#16a34a"
+                filled={formData.materials.length > 0}>
+                <div className="flex justify-end">
+                  <button type="button" onClick={addMaterial}
+                    className="flex items-center gap-1 px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
+                    <Plus className="w-4 h-4" /> {t('projectForm.addMaterial')}
+                  </button>
+                </div>
+                {formData.materials.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic p-3 bg-gray-50 rounded-lg">{t('projectForm.noMaterials')}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {formData.materials.map((mat, i) => {
+                      const selectedMat = availableMaterials.find(m => m.id === mat.material_id);
+                      const gwpVal = selectedMat?.gwp_value;
+                      const gwpUnit = selectedMat?.gwp_unit;
+                      const denominator = gwpUnit?.split('/')?.[1]?.trim();
+                      const unitMismatch = denominator && mat.unit && mat.unit.trim() !== denominator;
+                      return (
+                        <div key={i} className="space-y-1">
+                          <div className="flex gap-2 items-center">
+                            <select value={mat.material_id} onChange={(e) => updateMaterial(i, 'material_id', e.target.value)}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
+                              <option value="">{t('projectForm.chooseMaterial')}</option>
+                              {availableMaterials.map((m) => (
+                                <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
+                              ))}
+                            </select>
+                            <input type="number" step="0.01" min="0" value={mat.quantity}
+                              onChange={(e) => updateMaterial(i, 'quantity', parseFloat(e.target.value) || 0)}
+                              placeholder={t('common.quantity')} required
+                              className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
+                            <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, 'unit', e.target.value)}
+                              placeholder={t('common.unit')}
+                              className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
+                            <button type="button" onClick={() => removeMaterial(i)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {mat.material_id && gwpVal != null && gwpUnit && (
+                            <div className={`text-xs flex items-center gap-1 pl-1 ${unitMismatch ? 'text-amber-600' : 'text-gray-400'}`}>
+                              {unitMismatch
+                                ? <>⚠ GWP-Bezug: <span className="font-medium">{gwpUnit}</span> — Menge in <span className="font-medium">{denominator}</span> (eingetragen: {mat.unit || '?'})</>
+                                : <>ℹ GWP: <span className="font-medium">{gwpVal} {gwpUnit}</span>{denominator ? <> — Menge in <span className="font-medium">{denominator}</span></> : null}</>
+                              }
+                            </div>
+                          )}
+                          {mat.material_id && (gwpVal == null || gwpVal === 0) && selectedMat && (
+                            <div className="text-xs text-gray-300 pl-1">
+                              ℹ Kein GWP-Wert — fließt nicht in die Ökobilanz ein
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </AccordionSection>
 
-          {/* Materials */}
-          {mode === 'project' && (<div className="border-t pt-4">
-            <div className="flex items-center justify-between mb-3">
-              <label className="block text-sm font-medium text-gray-700">{t('projectForm.materialsTitle')}</label>
-              <button type="button" onClick={addMaterial}
-                className="flex items-center gap-1 px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
-                <Plus className="w-4 h-4" /> {t('projectForm.addMaterial')}
-              </button>
-            </div>
-            {formData.materials.length === 0 ? (
-              <p className="text-sm text-gray-500 italic p-3 bg-gray-50 rounded-lg">
-                {t('projectForm.noMaterials')}
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {formData.materials.map((mat, i) => {
-                  const selectedMat = availableMaterials.find(m => m.id === mat.material_id);
-                  const gwpVal = selectedMat?.gwp_value;
-                  const gwpUnit = selectedMat?.gwp_unit;
-                  const denominator = gwpUnit?.split('/')?.[1]?.trim(); // e.g. "kg" from "kg CO2e/kg"
-                  const unitMismatch = denominator && mat.unit && mat.unit.trim() !== denominator;
-                  return (
-                    <div key={i} className="space-y-1">
-                      <div className="flex gap-2 items-center">
-                        <select value={mat.material_id} onChange={(e) => updateMaterial(i, 'material_id', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
-                          <option value="">{t('projectForm.chooseMaterial')}</option>
-                          {availableMaterials.map((m) => (
-                            <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
+              {/* Nachhaltigkeitsprinzipien */}
+              <AccordionSection icon={Leaf} title={t('projectForm.sustainabilityTitle')} color="#15803d"
+                filled={allPrinciples.length > 0}>
+                <div className="space-y-4">
+                  {[
+                    { key: 'circular_principles', label: t('projectForm.circularPrinciples'), options: CIRCULAR_PRINCIPLES_DE },
+                    { key: 'principles_sufficiency', label: t('projectForm.sufficiency'), options: PRINCIPLES.sufficiency },
+                    { key: 'principles_consistency', label: t('projectForm.consistency'), options: PRINCIPLES.consistency },
+                    { key: 'principles_efficiency', label: t('projectForm.efficiency'), options: PRINCIPLES.efficiency },
+                    { key: 'general_sustainability_principles', label: t('projectForm.generalSustainability'), options: GENERAL_SUSTAINABILITY },
+                  ].map(({ key, label, options }) => (
+                    <div key={key}>
+                      <div className="text-xs font-semibold text-gray-600 mb-2">{label}</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {options.map((p) => {
+                          const active = (formData[key] || []).includes(p);
+                          return (
+                            <button key={p} type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, [key]: toggleInArray(prev[key], p) }))}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                                active
+                                  ? 'bg-green-600 border-green-600 text-white'
+                                  : 'bg-white border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700'
+                              }`}>
+                              {p}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </AccordionSection>
+
+              {/* Standort */}
+              <AccordionSection icon={MapPin} title={<>{t('projectForm.labelLocation')} <span className="text-red-400">*</span></>} color="#2563eb"
+                filled={!!(formData.latitude && formData.longitude)} defaultOpen={true}>
+                <LocationPicker value={locationValue} onChange={handleLocationChange} />
+                <input
+                  tabIndex={-1}
+                  style={{ opacity: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
+                  required
+                  value={formData.location_name || formData.address || ''}
+                  onChange={() => {}}
+                />
+              </AccordionSection>
+
+              {/* Akteure & Quellen */}
+              <AccordionSection icon={Users} title={t('projectForm.actorsTitle')} color="#7c3aed"
+                filled={actorIds.filter(Boolean).length > 0 || (formData.references || []).length > 0 || !!formData.license}>
+
+                {/* Actors */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-700 mb-2">{t('projectForm.actorsTitle')}</p>
+                  <div className="space-y-2">
+                    {actorIds.map((actorId, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <select value={actorId}
+                          onChange={(e) => { const next = [...actorIds]; next[idx] = e.target.value; setActorIds(next); }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm">
+                          <option value="">{t('projectForm.chooseActor')}</option>
+                          {allActors.map((a) => (
+                            <option key={a.id} value={a.id}>{a.name}{a.type ? ` (${a.type})` : ''}</option>
                           ))}
                         </select>
-                        <input type="number" step="0.01" min="0" value={mat.quantity}
-                          onChange={(e) => updateMaterial(i, 'quantity', parseFloat(e.target.value) || 0)}
-                          placeholder={t('common.quantity')} required
-                          className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
-                        <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, 'unit', e.target.value)}
-                          placeholder={t('common.unit')}
-                          className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
-                        <button type="button" onClick={() => removeMaterial(i)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {actorIds.length > 1 && (
+                          <button type="button" onClick={() => setActorIds(actorIds.filter((_, i) => i !== idx))}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      {mat.material_id && gwpVal != null && gwpUnit && (
-                        <div className={`text-xs flex items-center gap-1 pl-1 ${unitMismatch ? 'text-amber-600' : 'text-gray-400'}`}>
-                          {unitMismatch
-                            ? <>⚠ GWP-Bezug: <span className="font-medium">{gwpUnit}</span> — Menge sollte in <span className="font-medium">{denominator}</span> angegeben sein (eingetragen: {mat.unit || '?'})</>
-                            : <>ℹ GWP: <span className="font-medium">{gwpVal} {gwpUnit}</span>{denominator ? <> — Menge in <span className="font-medium">{denominator}</span></> : null}</>
-                          }
-                        </div>
-                      )}
-                      {mat.material_id && (gwpVal == null || gwpVal === 0) && selectedMat && (
-                        <div className="text-xs text-gray-300 pl-1">
-                          ℹ Kein GWP-Wert für dieses Material hinterlegt — fließt nicht in die Ökobilanz ein
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>)}
+                    ))}
+                    <button type="button" onClick={() => setActorIds([...actorIds, ''])}
+                      className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium">
+                      <Plus className="w-4 h-4" /> {t('projectForm.addActor')}
+                    </button>
+                  </div>
+                </div>
 
-          {/* Status + Visibility */}
-          <div className="grid grid-cols-2 gap-4">
+                {/* References */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5" /> {t('projectForm.refsTitle')}
+                    </p>
+                    <button type="button"
+                      onClick={() => setFormData(f => ({ ...f, references: [...(f.references || []), ''] }))}
+                      className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                      <Plus className="w-3.5 h-3.5" /> {t('projectForm.addRef')}
+                    </button>
+                  </div>
+                  {(!formData.references || formData.references.length === 0) ? (
+                    <p className="text-xs text-gray-400 italic">{t('projectForm.noRefs')}</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {formData.references.map((ref, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input type="text" value={ref}
+                            onChange={e => setFormData(f => ({ ...f, references: f.references.map((r, j) => j === i ? e.target.value : r) }))}
+                            placeholder={t('projectForm.refPlaceholder', { n: i + 1 })}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                          <button type="button"
+                            onClick={() => setFormData(f => ({ ...f, references: f.references.filter((_, j) => j !== i) }))}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Files */}
+                <FileUploader
+                  files={localFiles}
+                  onUpload={handleFileUpload}
+                  onDelete={handleFileDelete}
+                  apiBase={API_BASE}
+                  label={t('projectForm.filesLabel')}
+                />
+              </AccordionSection>
+
+            </div>
+          )}
+
+          {/* Standort für offer-only mode */}
+          {mode === 'offer-only' && (
+            <AccordionSection icon={MapPin} title={t('projectForm.labelLocation')} color="#2563eb"
+              filled={!!(formData.latitude && formData.longitude)}>
+              <LocationPicker value={locationValue} onChange={handleLocationChange} />
+            </AccordionSection>
+          )}
+
+          {/* Status + Sichtbarkeit */}
+          <div className="grid grid-cols-2 gap-4 pt-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelStatus')}</label>
               <select name="status" value={formData.status} onChange={handleChange}
@@ -599,18 +781,12 @@ export default function ProjectForm({ project, onClose }) {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelVisibility')}</label>
               <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setFormData(f => ({ ...f, is_public: true }))}
-                  className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${formData.is_public ? 'bg-project-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
+                <button type="button" onClick={() => setFormData(f => ({ ...f, is_public: true }))}
+                  className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${formData.is_public ? 'bg-project-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                   <Globe className="w-3.5 h-3.5" /> {t('common.public')}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(f => ({ ...f, is_public: false }))}
-                  className={`px-3 py-2 text-sm flex items-center gap-1.5 border-l border-gray-200 transition-colors ${!formData.is_public ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
+                <button type="button" onClick={() => setFormData(f => ({ ...f, is_public: false }))}
+                  className={`px-3 py-2 text-sm flex items-center gap-1.5 border-l border-gray-200 transition-colors ${!formData.is_public ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                   <Lock className="w-3.5 h-3.5" /> {t('common.private')}
                 </button>
               </div>
@@ -625,14 +801,12 @@ export default function ProjectForm({ project, onClose }) {
             </div>
           </div>
 
-          {/* License */}
+          {/* Lizenz */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelLicense')}</label>
-            <select
-              value={formData.license}
+            <select value={formData.license}
               onChange={e => setFormData({ ...formData, license: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
-            >
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm">
               <option value="">{t('projectForm.noLicense')}</option>
               <option value="CC BY 4.0">CC BY 4.0 – Namensnennung</option>
               <option value="CC BY-SA 4.0">CC BY-SA 4.0 – Namensnennung + Weitergabe</option>
@@ -644,185 +818,6 @@ export default function ProjectForm({ project, onClose }) {
             </select>
           </div>
 
-          {/* Execution */}
-          {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <p className="text-sm font-semibold text-gray-800">🛠️ {t('projectForm.executionTitle')}</p>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">{t('projectForm.labelTimeEffort')}</label>
-              <input type="text" value={formData.time_effort}
-                onChange={e => setFormData({ ...formData, time_effort: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-                placeholder={t('projectForm.placeholderTimeEffort')} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">{t('projectForm.labelTools')}</label>
-              <textarea value={formData.tools}
-                onChange={e => setFormData({ ...formData, tools: e.target.value })} rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
-                placeholder={t('projectForm.placeholderTools')} />
-            </div>
-          </div>)}
-
-          {/* Steps */}
-          {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-800">📋 {t('projectForm.stepsTitle')}</p>
-              <button type="button"
-                onClick={() => setFormData(f => ({ ...f, steps: [...f.steps, { title: '', text: '' }] }))}
-                className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" /> {t('projectForm.addStep')}
-              </button>
-            </div>
-            {formData.steps.map((step, i) => {
-              // step_index is 1-based: Schritt 1 → step_index = 1
-              const stepIndex = i + 1;
-              const stepImgs = localImages.filter(img => img.step_index === stepIndex);
-              return (
-                <div key={i} className="bg-white rounded-lg border border-gray-200 p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">{t('projectForm.step', { n: stepIndex })}</span>
-                    <div className="flex items-center gap-0.5 ml-1">
-                      <button type="button" onClick={() => moveStep(i, -1)} disabled={i === 0}
-                        className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Nach oben">
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      </button>
-                      <button type="button" onClick={() => moveStep(i, 1)} disabled={i === formData.steps.length - 1}
-                        className="p-0.5 text-gray-400 hover:text-primary-600 disabled:opacity-30 disabled:cursor-not-allowed" title="Nach unten">
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <button type="button"
-                      onClick={() => {
-                        // also remove images assigned to this step
-                        stepImgs.forEach(img => handleImageDelete(img.id));
-                        setFormData(f => ({ ...f, steps: f.steps.filter((_, j) => j !== i) }));
-                      }}
-                      className="ml-auto text-red-400 hover:text-red-600" title="Schritt löschen">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <input type="text" placeholder="Titel" value={step.title || ''}
-                    onChange={e => setFormData(f => ({ ...f, steps: f.steps.map((s, j) => j === i ? { ...s, title: e.target.value } : s) }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
-                  <textarea placeholder="Beschreibung" value={step.text || ''} rows={2}
-                    onChange={e => setFormData(f => ({ ...f, steps: f.steps.map((s, j) => j === i ? { ...s, text: e.target.value } : s) }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none resize-none" />
-
-                  {/* Inline images for this step */}
-                  <div className="border-t border-gray-100 pt-2 space-y-1.5">
-                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{t('projectForm.stepImages', { n: stepIndex })}</p>
-                    {stepImgs.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {stepImgs.map(img => {
-                          const url = `${API_BASE}${img.file_path?.replace(/^\./, '')}`;
-                          return (
-                            <div key={img.id} className="relative group w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
-                              <img src={url} alt={img.original_name} className="w-full h-full object-cover" />
-                              <button
-                                type="button"
-                                onClick={() => handleImageDelete(img.id)}
-                                className="absolute inset-0 bg-red-500/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                title="Bild löschen"
-                              >
-                                <Trash2 className="w-4 h-4 text-white" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                    <StepImageUpload
-                      stepIndex={stepIndex}
-                      onUpload={handleImageUpload}
-                      disabled={!activeId && !draftId}
-                      ensureDraft={ensureDraft}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>)}
-
-          {/* References */}
-          {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-gray-500" />
-                {t('projectForm.refsTitle')}
-              </p>
-              <button type="button"
-                onClick={() => setFormData(f => ({ ...f, references: [...(f.references || []), ''] }))}
-                className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" /> {t('projectForm.addRef')}
-              </button>
-            </div>
-            {(!formData.references || formData.references.length === 0) ? (
-              <p className="text-xs text-gray-400 italic">{t('projectForm.noRefs')}</p>
-            ) : (
-              <div className="space-y-2">
-                {formData.references.map((ref, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={ref}
-                      onChange={e => setFormData(f => ({ ...f, references: f.references.map((r, j) => j === i ? e.target.value : r) }))}
-                      placeholder={t('projectForm.refPlaceholder', { n: i + 1 })}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-                    />
-                    <button type="button"
-                      onClick={() => setFormData(f => ({ ...f, references: f.references.filter((_, j) => j !== i) }))}
-                      className="p-1.5 text-gray-400 hover:text-red-500 rounded">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>)}
-
-          {/* Beteiligte Akteure */}
-          {mode === 'project' && (<div className="bg-gray-50 rounded-lg p-3 space-y-2">
-            <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-gray-500" />
-              {t('projectForm.actorsTitle')}
-            </p>
-            {actorIds.map((actorId, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <select
-                  value={actorId}
-                  onChange={(e) => {
-                    const next = [...actorIds];
-                    next[idx] = e.target.value;
-                    setActorIds(next);
-                  }}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                >
-                  <option value="">{t('projectForm.chooseActor')}</option>
-                  {allActors.map((a) => (
-                    <option key={a.id} value={a.id}>{a.name}{a.type ? ` (${a.type})` : ''}</option>
-                  ))}
-                </select>
-                {actorIds.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setActorIds(actorIds.filter((_, i) => i !== idx))}
-                    className="p-1.5 text-gray-400 hover:text-red-500 rounded"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setActorIds([...actorIds, ''])}
-              className="flex items-center gap-1.5 text-sm text-primary-600 hover:text-primary-700 font-medium"
-            >
-              <Plus className="w-4 h-4" />
-              {t('projectForm.addActor')}
-            </button>
-          </div>)}
-
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button type="button" onClick={onClose}
@@ -831,7 +826,13 @@ export default function ProjectForm({ project, onClose }) {
             </button>
             <button type="submit" disabled={isPending}
               className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50">
-              {isPending ? t('common.saving') : draftCreated || isEditing ? t('projectForm.btnUpdate') : mode === 'offer-only' ? t('projectForm.btnCreateOffer') : t('common.create')}
+              {isPending
+                ? t('common.saving')
+                : draftCreated || isEditing
+                  ? t('projectForm.btnUpdate')
+                  : mode === 'offer-only'
+                    ? t('projectForm.btnCreateOffer')
+                    : t('common.create')}
             </button>
           </div>
         </form>

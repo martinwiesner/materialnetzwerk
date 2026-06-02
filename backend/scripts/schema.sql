@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS materials (
     unit TEXT DEFAULT 'kg',
     
     -- Origin
-    origin_source TEXT CHECK(origin_source IN ('primary','secondary_rückbau','secondary_überschuss','secondary_restposten') OR origin_source IS NULL),
+    origin_source TEXT,
     previous_use TEXT,
 
     -- Application limits

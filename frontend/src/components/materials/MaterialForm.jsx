@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { materialService, materialActorService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { inventoryService } from '../../services/inventoryService';
-import { MapPin, X, Plus, Trash2, Users, Package, Upload, Search,
+import { MapPin, X, Plus, Trash2, Users, Package, Upload, Search, Tag,
   ChevronDown, ChevronUp, Leaf, Wrench, Recycle, FlaskConical, Info } from 'lucide-react';
 import GeolocateButton from '../shared/GeolocateButton';
 import LocationPicker from '../shared/LocationPicker';
@@ -178,13 +178,17 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
   const [offerData, setOfferData] = useState({
     quantity: '',
     unit: 'kg',
+    same_as_material: false,
     location_name: '',
     address: '',
-    latitude: '51.0532575',
-    longitude: '12.1287658',
+    latitude: null,
+    longitude: null,
     is_available: true,
-    available_for_transfer: false,
     available_for_gift: false,
+    swap_possible: false,
+    is_negotiable: false,
+    external_url: '',
+    show_external: false,
     notes: '',
   });
 
@@ -201,8 +205,9 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     unit: 'kg',
     notes: '',
     location_name: '',
-    latitude: '51.0532575',
-    longitude: '12.1287658',
+    address: '',
+    latitude: null,
+    longitude: null,
   });
 
   const { data: categories = [], isLoading: catsLoading } = useQuery({
@@ -361,8 +366,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             latitude: offerData.latitude ? parseFloat(offerData.latitude) : null,
             longitude: offerData.longitude ? parseFloat(offerData.longitude) : null,
             is_available: Boolean(offerData.is_available),
-            available_for_transfer: Boolean(offerData.available_for_transfer),
             available_for_gift: Boolean(offerData.available_for_gift),
+            swap_possible: Boolean(offerData.swap_possible),
+            is_negotiable: Boolean(offerData.is_negotiable),
+            external_url: offerData.external_url || null,
             notes: offerData.notes,
           };
           await inventoryService.create(submitOffer);
@@ -408,8 +415,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       latitude: offerData.latitude ? parseFloat(offerData.latitude) : null,
       longitude: offerData.longitude ? parseFloat(offerData.longitude) : null,
       is_available: Boolean(offerData.is_available),
-      available_for_transfer: Boolean(offerData.available_for_transfer),
       available_for_gift: Boolean(offerData.available_for_gift),
+      swap_possible: Boolean(offerData.swap_possible),
+      is_negotiable: Boolean(offerData.is_negotiable),
+      external_url: offerData.external_url || null,
       notes: offerData.notes,
     }),
     onSuccess: async (created) => {
@@ -447,8 +456,9 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         quantity: gesuchData.quantity ? parseFloat(gesuchData.quantity) : 0,
         unit: gesuchData.unit,
         location_name: gesuchData.location_name,
-        latitude: gesuchData.latitude ? parseFloat(gesuchData.latitude) : null,
-        longitude: gesuchData.longitude ? parseFloat(gesuchData.longitude) : null,
+        address: gesuchData.address,
+        latitude: gesuchData.latitude != null ? parseFloat(gesuchData.latitude) : null,
+        longitude: gesuchData.longitude != null ? parseFloat(gesuchData.longitude) : null,
         notes: gesuchData.notes,
         is_available: true,
         entry_type: 'gesuch',
@@ -728,37 +738,11 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               </div>
 
               {/* Location */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <MapPin className="w-3.5 h-3.5 inline mr-1" />{t('materialForm.locationRegion')}
-                </label>
-                <input type="text" value={gesuchData.location_name}
-                  onChange={e => setGesuchData(d => ({ ...d, location_name: e.target.value }))}
-                  placeholder="z.B. Zeitz, Saalekreis"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
-              </div>
-              <div>
-                <GeolocateButton
-                  onLocate={(lat, lon) => setGesuchData(d => ({ ...d, latitude: lat, longitude: lon }))}
-                  className="mb-2"
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.latitude')}</label>
-                    <input type="number" step="0.000001" value={gesuchData.latitude || ''}
-                      onChange={e => setGesuchData(d => ({ ...d, latitude: e.target.value }))}
-                      placeholder="z.B. 51.05"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.longitude')}</label>
-                    <input type="number" step="0.000001" value={gesuchData.longitude || ''}
-                      onChange={e => setGesuchData(d => ({ ...d, longitude: e.target.value }))}
-                      placeholder="z.B. 12.13"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" />
-                  </div>
-                </div>
-              </div>
+              <LocationPicker
+                label={t('materialForm.locationRegion')}
+                value={{ location_name: gesuchData.location_name, address: gesuchData.address, latitude: gesuchData.latitude, longitude: gesuchData.longitude }}
+                onChange={loc => setGesuchData(d => ({ ...d, location_name: loc.location_name, address: loc.address, latitude: loc.latitude, longitude: loc.longitude }))}
+              />
 
               {/* Notes */}
               <div>
@@ -865,57 +849,81 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
               {/* Location */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  <MapPin className="w-3.5 h-3.5 inline mr-1" />{t('materialForm.locationName')}
-                </label>
-                <input type="text" name="location_name" value={offerData.location_name}
-                  onChange={handleOfferChange} placeholder="z.B. Lager Zeitz"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.address')}</label>
-                <input type="text" name="address" value={offerData.address}
-                  onChange={handleOfferChange} placeholder="Straße, PLZ, Ort"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-              </div>
-              <div>
-                <GeolocateButton
-                  onLocate={(lat, lon) => setOfferData(d => ({ ...d, latitude: lat, longitude: lon }))}
-                  className="mb-2"
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.latitude')}</label>
-                    <input type="number" step="0.000001" name="latitude" value={offerData.latitude}
-                      onChange={handleOfferChange} placeholder="z.B. 51.05"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.longitude')}</label>
-                    <input type="number" step="0.000001" name="longitude" value={offerData.longitude}
-                      onChange={handleOfferChange} placeholder="z.B. 12.13"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !offerData.same_as_material;
+                    const mat = allMaterials.find(m => m.id === offerMaterialId);
+                    setOfferData(d => ({
+                      ...d,
+                      same_as_material: next,
+                      location_name: next ? (mat?.location_name || '') : '',
+                      address:        next ? (mat?.address || '')       : '',
+                      latitude:       next ? (mat?.latitude  ?? null)   : null,
+                      longitude:      next ? (mat?.longitude ?? null)   : null,
+                    }));
+                  }}
+                  className={`mb-2 px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                    offerData.same_as_material
+                      ? 'bg-green-500 text-white border-green-500'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-green-400'
+                  }`}
+                >
+                  📍 {offerData.same_as_material ? 'Gleicher Standort wie Material' : 'Gleicher Standort wie Material?'}
+                </button>
+                {!offerData.same_as_material ? (
+                  <LocationPicker
+                    label={t('materialForm.locationName')}
+                    value={{ location_name: offerData.location_name, address: offerData.address, latitude: offerData.latitude, longitude: offerData.longitude }}
+                    onChange={loc => setOfferData(d => ({ ...d, location_name: loc.location_name, address: loc.address, latitude: loc.latitude, longitude: loc.longitude }))}
+                  />
+                ) : (
+                  <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                    {offerData.location_name || offerData.address || 'Kein Standort im Material hinterlegt'}
+                  </p>
+                )}
               </div>
 
               {/* Availability flags */}
-              <div className="grid grid-cols-3 gap-3">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-                  <input type="checkbox" name="is_available" checked={offerData.is_available}
-                    onChange={handleOfferChange} className="w-4 h-4 text-orange-500 border-gray-300 rounded" />
-                  {t('materialForm.visible')}
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-                  <input type="checkbox" name="available_for_transfer" checked={offerData.available_for_transfer}
-                    onChange={handleOfferChange} className="w-4 h-4 text-primary-500 border-gray-300 rounded" />
-                  {t('materialForm.transfer')}
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-                  <input type="checkbox" name="available_for_gift" checked={offerData.available_for_gift}
-                    onChange={handleOfferChange} className="w-4 h-4 text-primary-500 border-gray-300 rounded" />
-                  {t('materialForm.gift')}
-                </label>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{t('materialForm.offerConditions')}</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: 'available_for_gift', label: '🎁 Zu Verschenken',    desc: 'Kostenlos abzugeben' },
+                    { key: 'swap_possible',       label: '🔄 Tausch möglich',    desc: 'Gegen etwas tauschen' },
+                    { key: 'is_negotiable',       label: '💬 Preis verhandelbar',desc: 'Preis auf Anfrage' },
+                  ].map(({ key, label, desc }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      title={desc}
+                      onClick={() => setOfferData(d => ({ ...d, [key]: !d[key] }))}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                        offerData[key]
+                          ? 'bg-primary-500 text-white border-primary-500'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-primary-300'
+                      }`}
+                    >{label}</button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setOfferData(d => ({ ...d, show_external: !d.show_external, external_url: d.show_external ? '' : d.external_url }))}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                      offerData.show_external
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                    }`}
+                  >🔗 Extern inseriert</button>
+                </div>
+                {offerData.show_external && (
+                  <input
+                    type="url"
+                    value={offerData.external_url}
+                    onChange={e => setOfferData(d => ({ ...d, external_url: e.target.value }))}
+                    placeholder="https://..."
+                    className="mt-2 w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none text-sm"
+                  />
+                )}
               </div>
 
               {/* Notes */}
@@ -990,39 +998,31 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             /* ── Material mode — new accordion UX ────────────────────────── */
             <>
 
-          {/* ── Primär / Sekundär toggle (required) ───────────────────────── */}
+          {/* ── Materialtyp-Chips (B+C: granular, kein Ausblenden) ─────────── */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Was ist das Material? <span className="text-red-400">*</span>
+              Materialtyp <span className="text-red-400">*</span>
             </p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setFormData(prev => ({
-                  ...prev,
-                  origin_source: prev.origin_source?.startsWith('secondary') ? prev.origin_source : 'secondary_rückbau',
-                }))}
-                className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 text-left transition-all ${
-                  formData.origin_source?.startsWith('secondary')
-                    ? 'border-primary-500 bg-primary-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
-              >
-                <span className="text-sm font-semibold text-gray-900">♻ Sekundär / Rezyklat</span>
-                <span className="text-[11px] text-gray-500 leading-snug">Rückbau, Überschuss, wiederverwendetes Material</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setFormData(prev => ({ ...prev, origin_source: 'primary' }))}
-                className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border-2 text-left transition-all ${
-                  formData.origin_source === 'primary'
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
-              >
-                <span className="text-sm font-semibold text-gray-900">🏭 Primärmaterial / Neu</span>
-                <span className="text-[11px] text-gray-500 leading-snug">Neues Produkt, Herstellerware</span>
-              </button>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { val: 'primary',                    label: '🏭 Neuware',          sub: 'Herstellerware' },
+                { val: 'secondary_rückbau',          label: '🏗 Rückbau',           sub: 'Aus Demontage' },
+                { val: 'secondary_restposten',       label: '🧱 Produktionsrest',   sub: 'Aus Produktion' },
+                { val: 'secondary_überschuss',       label: '📦 Überschuss',        sub: 'Lagerbestand' },
+                { val: 'secondary_upcycling',        label: '♻ Upcycling',          sub: 'Aufgewertet' },
+                { val: 'secondary_eigenproduktion',  label: '🛠 Eigenproduktion',   sub: 'Selbst hergestellt' },
+              ].map(({ val, label, sub }) => (
+                <button key={val} type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, origin_source: val }))}
+                  className={`flex flex-col items-start px-3 py-2 rounded-xl border-2 text-left transition-all ${
+                    formData.origin_source === val
+                      ? 'border-primary-500 bg-primary-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}>
+                  <span className="text-sm font-semibold text-gray-900">{label}</span>
+                  <span className="text-[11px] text-gray-500">{sub}</span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -1141,83 +1141,57 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           {/* ── Accordion sections ───────────────────────────────────────── */}
           <div className="space-y-2 pt-1">
 
-            {/* 1. Herkunft — auto-open, content depends on type */}
+            {/* 1. Herkunft — alle Felder immer sichtbar (B+C) */}
             <AccordionSection
-              icon={formData.origin_source?.startsWith('secondary') ? Recycle : Package}
-              title={formData.origin_source?.startsWith('secondary') ? 'Herkunft & Bezug' : 'Hersteller & Bezug'}
-              color={formData.origin_source?.startsWith('secondary') ? '#16a34a' : '#2563eb'}
+              icon={Recycle}
+              title="Herkunft & Bezug"
+              color="#16a34a"
               defaultOpen={!!formData.origin_source}
-              filled={!!(formData.origin_acquisition || formData.previous_use || formData.manufacturer || formData.sku)}
+              filled={!!(formData.origin_acquisition || formData.previous_use || formData.manufacturer || formData.sku || formData.source_url)}
             >
-              {formData.origin_source?.startsWith('secondary') ? (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.originSource')}</label>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { val: 'secondary_rückbau', label: t('materialForm.originSecondaryRueckbau') },
-                        { val: 'secondary_überschuss', label: t('materialForm.originSecondaryUeberschuss') },
-                        { val: 'secondary_restposten', label: t('materialForm.originSecondaryRestposten') },
-                      ].map(({ val, label }) => (
-                        <button key={val} type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, origin_source: val }))}
-                          className={`px-3 py-1.5 rounded-lg text-sm border transition-all ${formData.origin_source === val ? 'bg-primary-500 text-white border-primary-500' : 'bg-white text-gray-700 border-gray-300 hover:border-primary-300'}`}>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.previousUse')}</label>
-                    <input type="text" name="previous_use" value={formData.previous_use}
-                      onChange={e => setFormData(prev => ({...prev, previous_use: e.target.value}))}
-                      placeholder={t('materialForm.previousUsePlaceholder')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.originAcquisition')}</label>
-                    <textarea name="origin_acquisition" value={formData.origin_acquisition}
-                      onChange={handleChange} rows={3}
-                      placeholder={t('materialForm.originAcquisitionPlaceholder')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.similarIds')}</label>
-                    <input type="text" name="similar_material_ids_input" value={formData.similar_material_ids_input}
-                      onChange={handleChange}
-                      placeholder={t('materialForm.similarIdsPlaceholder')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.manufacturer')}</label>
-                      <input type="text" name="manufacturer" value={formData.manufacturer} onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">SKU / Artikelnummer</label>
-                      <input type="text" name="sku" value={formData.sku} onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.sourceUrl')}</label>
-                    <input type="url" name="source_url" value={formData.source_url} onChange={handleChange}
-                      placeholder="https://"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.similarIds')}</label>
-                    <input type="text" name="similar_material_ids_input" value={formData.similar_material_ids_input}
-                      onChange={handleChange}
-                      placeholder={t('materialForm.similarIdsPlaceholder')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
-                  </div>
-                </>
-              )}
+              {/* Produktinfo */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.manufacturer')}</label>
+                  <input type="text" name="manufacturer" value={formData.manufacturer} onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">SKU / Artikelnummer</label>
+                  <input type="text" name="sku" value={formData.sku} onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.sourceUrl')}</label>
+                <input type="url" name="source_url" value={formData.source_url} onChange={handleChange}
+                  placeholder="https://"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
+              </div>
+
+              {/* Vorgeschichte */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.previousUse')}</label>
+                <input type="text" name="previous_use" value={formData.previous_use}
+                  onChange={e => setFormData(prev => ({ ...prev, previous_use: e.target.value }))}
+                  placeholder={t('materialForm.previousUsePlaceholder')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.originAcquisition')}</label>
+                <textarea name="origin_acquisition" value={formData.origin_acquisition}
+                  onChange={handleChange} rows={3}
+                  placeholder={t('materialForm.originAcquisitionPlaceholder')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.similarIds')}</label>
+                <input type="text" name="similar_material_ids_input" value={formData.similar_material_ids_input}
+                  onChange={handleChange}
+                  placeholder={t('materialForm.similarIdsPlaceholder')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
+              </div>
             </AccordionSection>
 
             {/* 2. Anwendung */}
@@ -1359,61 +1333,66 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 </div>
               </div>
 
-              {/* EPD detail */}
-              <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{t('materialForm.sectionEpd')}</p>
-                <p className="text-[11px] text-gray-400 mb-3">{t('materialForm.epdHint')}</p>
-                {(() => {
-                  const f = parseFloat(formData.gwp_fossil), b = parseFloat(formData.gwp_biogenic), l = parseFloat(formData.gwp_luluc);
-                  const hasAny = formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '';
-                  const total = (isNaN(f)?0:f)+(isNaN(b)?0:b)+(isNaN(l)?0:l);
-                  return hasAny ? (
-                    <div className="mb-3 flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-xs text-green-800">
-                      <span className="font-semibold">GWP =</span>
-                      <span className="font-mono font-bold">{total.toLocaleString('de-DE',{maximumFractionDigits:4})} kg CO₂e</span>
-                      <span className="text-green-600">fossil {isNaN(f)?'–':f} + biogen {isNaN(b)?'–':b} + luluc {isNaN(l)?'–':l}</span>
-                    </div>
-                  ) : null;
-                })()}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
+            </AccordionSection>
+
+            {/* 4b. EPD – Ökobilanzdetails */}
+            <AccordionSection
+              icon={FlaskConical}
+              title={t('materialForm.sectionEpd')}
+              color="#7c3aed"
+              filled={!!(formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '' || formData.declared_unit || formData.lifecycle_scope)}
+            >
+              <p className="text-[11px] text-gray-400 mb-3">{t('materialForm.epdHint')}</p>
+              {(() => {
+                const f = parseFloat(formData.gwp_fossil), b = parseFloat(formData.gwp_biogenic), l = parseFloat(formData.gwp_luluc);
+                const hasAny = formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '';
+                const total = (isNaN(f)?0:f)+(isNaN(b)?0:b)+(isNaN(l)?0:l);
+                return hasAny ? (
+                  <div className="mb-3 flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-xs text-green-800">
+                    <span className="font-semibold">GWP =</span>
+                    <span className="font-mono font-bold">{total.toLocaleString('de-DE',{maximumFractionDigits:4})} kg CO₂e</span>
+                    <span className="text-green-600">fossil {isNaN(f)?'–':f} + biogen {isNaN(b)?'–':b} + luluc {isNaN(l)?'–':l}</span>
+                  </div>
+                ) : null;
+              })()}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                    {t('materialForm.epdDeclaredUnit')}<InfoTooltip text={t('materialForm.epdTooltipDeclaredUnit')} />
+                  </label>
+                  <input type="text" name="declared_unit" value={formData.declared_unit} onChange={handleChange}
+                    placeholder="z. B. 1 kg"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm" />
+                </div>
+                <div>
+                  <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
+                    {t('materialForm.epdSystemBoundary')}<InfoTooltip text={t('materialForm.epdTooltipSystemBoundary')} />
+                  </label>
+                  <select name="lifecycle_scope" value={formData.lifecycle_scope} onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm">
+                    <option value="">{t('materialForm.epdBoundaryNone')}</option>
+                    <option value="A1-A3">{t('materialForm.epdBoundaryA1A3')}</option>
+                    <option value="A1-A5">{t('materialForm.epdBoundaryA1A5')}</option>
+                    <option value="A1-D">{t('materialForm.epdBoundaryA1D')}</option>
+                  </select>
+                </div>
+                {[
+                  { name: 'gwp_fossil',        label: t('materialForm.epdGwpFossil'),    tip: 'epdTooltipGwpFossil',    ph: 'z. B. 2.4' },
+                  { name: 'gwp_biogenic',       label: t('materialForm.epdGwpBiogenic'),  tip: 'epdTooltipGwpBiogenic',  ph: 'z. B. -0.1' },
+                  { name: 'gwp_luluc',          label: t('materialForm.epdGwpLuluc'),     tip: 'epdTooltipGwpLuluc',     ph: 'z. B. 0.01' },
+                  { name: 'adp_fossil',         label: t('materialForm.epdAdpFossil'),    tip: 'epdTooltipAdpFossil',    ph: 'z. B. 45' },
+                  { name: 'adp_elements',       label: t('materialForm.epdAdpElements'),  tip: 'epdTooltipAdpElements',  ph: 'z. B. 0.00012' },
+                  { name: 'water_consumption',  label: t('materialForm.epdWater'),        tip: 'epdTooltipWater',        ph: 'z. B. 0.003' },
+                ].map(({ name, label, tip, ph }) => (
+                  <div key={name}>
                     <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                      {t('materialForm.epdDeclaredUnit')}<InfoTooltip text={t('materialForm.epdTooltipDeclaredUnit')} />
+                      {label}<InfoTooltip text={t(`materialForm.${tip}`)} />
                     </label>
-                    <input type="text" name="declared_unit" value={formData.declared_unit} onChange={handleChange}
-                      placeholder="z. B. 1 kg"
+                    <input type="number" step="any" name={name} value={formData[name]} onChange={handleChange}
+                      placeholder={ph}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm" />
                   </div>
-                  <div>
-                    <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                      {t('materialForm.epdSystemBoundary')}<InfoTooltip text={t('materialForm.epdTooltipSystemBoundary')} />
-                    </label>
-                    <select name="lifecycle_scope" value={formData.lifecycle_scope} onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm">
-                      <option value="">{t('materialForm.epdBoundaryNone')}</option>
-                      <option value="A1-A3">{t('materialForm.epdBoundaryA1A3')}</option>
-                      <option value="A1-A5">{t('materialForm.epdBoundaryA1A5')}</option>
-                      <option value="A1-D">{t('materialForm.epdBoundaryA1D')}</option>
-                    </select>
-                  </div>
-                  {[
-                    { name: 'gwp_fossil',        label: t('materialForm.epdGwpFossil'),    tip: 'epdTooltipGwpFossil',    ph: 'z. B. 2.4' },
-                    { name: 'gwp_biogenic',       label: t('materialForm.epdGwpBiogenic'),  tip: 'epdTooltipGwpBiogenic',  ph: 'z. B. -0.1' },
-                    { name: 'gwp_luluc',          label: t('materialForm.epdGwpLuluc'),     tip: 'epdTooltipGwpLuluc',     ph: 'z. B. 0.01' },
-                    { name: 'adp_fossil',         label: t('materialForm.epdAdpFossil'),    tip: 'epdTooltipAdpFossil',    ph: 'z. B. 45' },
-                    { name: 'adp_elements',       label: t('materialForm.epdAdpElements'),  tip: 'epdTooltipAdpElements',  ph: 'z. B. 0.00012' },
-                    { name: 'water_consumption',  label: t('materialForm.epdWater'),        tip: 'epdTooltipWater',        ph: 'z. B. 0.003' },
-                  ].map(({ name, label, tip, ph }) => (
-                    <div key={name}>
-                      <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                        {label}<InfoTooltip text={t(`materialForm.${tip}`)} />
-                      </label>
-                      <input type="number" step="any" name={name} value={formData[name]} onChange={handleChange}
-                        placeholder={ph}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm" />
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
             </AccordionSection>
 
@@ -1483,9 +1462,10 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             {/* 6. Standort */}
             <AccordionSection
               icon={MapPin}
-              title={t('materialForm.sectionLocation')}
+              title={<>{t('materialForm.sectionLocation')} <span className="text-red-400">*</span></>}
               color="#0891b2"
               filled={!!(formData.location_name || formData.latitude)}
+              defaultOpen={true}
             >
               <LocationPicker
                 value={{
@@ -1501,6 +1481,14 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   latitude: loc.latitude ?? '',
                   longitude: loc.longitude ?? '',
                 }))}
+              />
+              {/* Hidden input forces browser required-validation */}
+              <input
+                tabIndex={-1}
+                style={{ opacity: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
+                required
+                value={formData.location_name || formData.address || ''}
+                onChange={() => {}}
               />
             </AccordionSection>
 
@@ -1637,97 +1625,79 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <MapPin className="w-4 h-4 inline mr-1" /> {t('materialForm.locationName')}
-                    </label>
-                    <input
-                      type="text"
-                      name="location_name"
-                      value={offerData.location_name}
-                      onChange={handleOfferChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                      placeholder="z.B. Lager Zeitz"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !offerData.same_as_material;
+                        setOfferData(d => ({
+                          ...d,
+                          same_as_material: next,
+                          location_name: next ? (formData.location_name || '') : '',
+                          address:        next ? (formData.address || '')        : '',
+                          latitude:       next ? (formData.latitude  ?? null)    : null,
+                          longitude:      next ? (formData.longitude ?? null)    : null,
+                        }));
+                      }}
+                      className={`mb-2 px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                        offerData.same_as_material
+                          ? 'bg-green-500 text-white border-green-500'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-green-400'
+                      }`}
+                    >
+                      📍 {offerData.same_as_material ? 'Gleicher Standort wie Material' : 'Gleicher Standort wie Material?'}
+                    </button>
+                    {!offerData.same_as_material ? (
+                      <LocationPicker
+                        label={t('materialForm.locationName')}
+                        value={{ location_name: offerData.location_name, address: offerData.address, latitude: offerData.latitude, longitude: offerData.longitude }}
+                        onChange={loc => setOfferData(d => ({ ...d, location_name: loc.location_name, address: loc.address, latitude: loc.latitude, longitude: loc.longitude }))}
+                      />
+                    ) : (
+                      <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                        {offerData.location_name || offerData.address || 'Standort wird vom Material übernommen'}
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.address')}</label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={offerData.address}
-                      onChange={handleOfferChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                      placeholder="Straße, PLZ, Ort"
-                    />
-                  </div>
-
-                  <div>
-                    <GeolocateButton
-                      onLocate={(lat, lon) => setOfferData(d => ({ ...d, latitude: lat, longitude: lon }))}
-                      className="mb-2"
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.latitude')}</label>
-                        <input
-                          type="number"
-                          step="0.000001"
-                          name="latitude"
-                          value={offerData.latitude}
-                          onChange={handleOfferChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                          placeholder="z.B. 51.05"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.longitude')}</label>
-                        <input
-                          type="number"
-                          step="0.000001"
-                          name="longitude"
-                          value={offerData.longitude}
-                          onChange={handleOfferChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                          placeholder="z.B. 12.13"
-                        />
-                      </div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{t('materialForm.offerConditions')}</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { key: 'available_for_gift', label: '🎁 Zu Verschenken',    desc: 'Kostenlos abzugeben' },
+                        { key: 'swap_possible',       label: '🔄 Tausch möglich',    desc: 'Gegen etwas tauschen' },
+                        { key: 'is_negotiable',       label: '💬 Preis verhandelbar',desc: 'Preis auf Anfrage' },
+                      ].map(({ key, label, desc }) => (
+                        <button
+                          key={key}
+                          type="button"
+                          title={desc}
+                          onClick={() => setOfferData(d => ({ ...d, [key]: !d[key] }))}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                            offerData[key]
+                              ? 'bg-primary-500 text-white border-primary-500'
+                              : 'bg-white text-gray-600 border-gray-300 hover:border-primary-300'
+                          }`}
+                        >{label}</button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setOfferData(d => ({ ...d, show_external: !d.show_external, external_url: d.show_external ? '' : d.external_url }))}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                          offerData.show_external
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
+                        }`}
+                      >🔗 Extern inseriert</button>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <label className="flex items-center gap-3 cursor-pointer">
+                    {offerData.show_external && (
                       <input
-                        type="checkbox"
-                        name="is_available"
-                        checked={offerData.is_available}
-                        onChange={handleOfferChange}
-                        className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+                        type="url"
+                        value={offerData.external_url}
+                        onChange={e => setOfferData(d => ({ ...d, external_url: e.target.value }))}
+                        placeholder="https://..."
+                        className="mt-2 w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none text-sm"
                       />
-                      <span className="text-sm text-gray-700">{t('materialForm.visible')}</span>
-                    </label>
-
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="available_for_transfer"
-                        checked={offerData.available_for_transfer}
-                        onChange={handleOfferChange}
-                        className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-                      />
-                      <span className="text-sm text-gray-700">{t('materialForm.transfer')}</span>
-                    </label>
-
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="available_for_gift"
-                        checked={offerData.available_for_gift}
-                        onChange={handleOfferChange}
-                        className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
-                      />
-                      <span className="text-sm text-gray-700">{t('materialForm.gift')}</span>
-                    </label>
+                    )}
                   </div>
 
                   <div>
@@ -1745,364 +1715,6 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                {t('materialForm.manufacturer')}
-              </label>
-              <input
-                type="text"
-                name="manufacturer"
-                value={formData.manufacturer}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                SKU
-              </label>
-              <input
-                type="text"
-                name="sku"
-                value={formData.sku}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">{t('materialForm.sectionEnv')}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('materialForm.gwpTotal')}
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="gwp_value"
-                  value={formData.gwp_value}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                  placeholder="z. B. 2.5"
-                />
-                {(formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '') && (
-                  <p className="text-[11px] text-amber-600 mt-1">{t('materialForm.gwpCalcHint')}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('materialForm.gwpUnit')}
-                </label>
-                <select
-                  name="gwp_unit"
-                  value={formData.gwp_unit}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-                >
-                  <option value="kg CO2e/kg">kg CO₂e/kg</option>
-                  <option value="kg CO2e/m2">kg CO₂e/m²</option>
-                  <option value="kg CO2e/m3">kg CO₂e/m³</option>
-                  <option value="kg CO2e/unit">kg CO₂e/unit</option>
-                </select>
-              </div>
-
-            </div>
-
-            <div className="flex gap-6 mt-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="recyclable"
-                  checked={formData.recyclable}
-                  onChange={handleChange}
-                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">{t('materialForm.recyclable')}</span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  name="biodegradable"
-                  checked={formData.biodegradable}
-                  onChange={handleChange}
-                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">{t('materialForm.biodegradable')}</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-1">{t('materialForm.sectionEpd')}</h3>
-            <p className="text-xs text-gray-400 mb-3">{t('materialForm.epdHint')}</p>
-            {(() => {
-              const f = parseFloat(formData.gwp_fossil);
-              const b = parseFloat(formData.gwp_biogenic);
-              const l = parseFloat(formData.gwp_luluc);
-              const hasAny = formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '';
-              const total = (isNaN(f) ? 0 : f) + (isNaN(b) ? 0 : b) + (isNaN(l) ? 0 : l);
-              return hasAny ? (
-                <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 border border-green-200 text-xs text-green-800">
-                  <span className="font-semibold">GWP total =</span>
-                  <span className="font-mono font-bold">{total.toLocaleString('de-DE', { maximumFractionDigits: 4 })} kg CO₂e</span>
-                  <span className="text-green-600">(fossil {isNaN(f)?'–':f} + biogen {isNaN(b)?'–':b} + luluc {isNaN(l)?'–':l}) → wird als GWP-Wert gespeichert</span>
-                </div>
-              ) : null;
-            })()}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  {t('materialForm.epdDeclaredUnit')}
-                  <InfoTooltip text={t('materialForm.epdTooltipDeclaredUnit')} />
-                </label>
-                <input
-                  type="text"
-                  name="declared_unit"
-                  value={formData.declared_unit}
-                  onChange={handleChange}
-                  placeholder="z. B. 1 kg"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  {t('materialForm.epdSystemBoundary')}
-                  <InfoTooltip text={t('materialForm.epdTooltipSystemBoundary')} />
-                </label>
-                <select
-                  name="lifecycle_scope"
-                  value={formData.lifecycle_scope}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                >
-                  <option value="">{t('materialForm.epdBoundaryNone')}</option>
-                  <option value="A1-A3">{t('materialForm.epdBoundaryA1A3')}</option>
-                  <option value="A1-A5">{t('materialForm.epdBoundaryA1A5')}</option>
-                  <option value="A1-D">{t('materialForm.epdBoundaryA1D')}</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  {t('materialForm.epdGwpFossil')}
-                  <InfoTooltip text={t('materialForm.epdTooltipGwpFossil')} />
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  name="gwp_fossil"
-                  value={formData.gwp_fossil}
-                  onChange={handleChange}
-                  placeholder="z. B. 2.4"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  {t('materialForm.epdGwpBiogenic')}
-                  <InfoTooltip text={t('materialForm.epdTooltipGwpBiogenic')} />
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  name="gwp_biogenic"
-                  value={formData.gwp_biogenic}
-                  onChange={handleChange}
-                  placeholder="z. B. -0.1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  {t('materialForm.epdGwpLuluc')}
-                  <InfoTooltip text={t('materialForm.epdTooltipGwpLuluc')} />
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  name="gwp_luluc"
-                  value={formData.gwp_luluc}
-                  onChange={handleChange}
-                  placeholder="z. B. 0.01"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  {t('materialForm.epdAdpFossil')}
-                  <InfoTooltip text={t('materialForm.epdTooltipAdpFossil')} />
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  name="adp_fossil"
-                  value={formData.adp_fossil}
-                  onChange={handleChange}
-                  placeholder="z. B. 45"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  {t('materialForm.epdAdpElements')}
-                  <InfoTooltip text={t('materialForm.epdTooltipAdpElements')} />
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  name="adp_elements"
-                  value={formData.adp_elements}
-                  onChange={handleChange}
-                  placeholder="z. B. 0.00012"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">
-                  {t('materialForm.epdWater')}
-                  <InfoTooltip text={t('materialForm.epdTooltipWater')} />
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  name="water_consumption"
-                  value={formData.water_consumption}
-                  onChange={handleChange}
-                  placeholder="z. B. 0.003"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('materialForm.sourceUrl')}
-            </label>
-            <input
-              type="url"
-              name="source_url"
-              value={formData.source_url}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-              placeholder="https://"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('materialForm.notesLabel')}
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
-            />
-          </div>
-
-
-          {/* Images */}
-          {/* Pending preview — shown before material is saved */}
-          {pendingImages.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-gray-700">{t('materialForm.imagesPendingTitle')}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {pendingImages.map((file, i) => (
-                  <div key={i} className="relative rounded-xl overflow-hidden border-2 border-dashed border-primary-300 bg-primary-50">
-                    <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-28 object-cover opacity-80" />
-                    <span className="absolute top-1 left-1 bg-primary-500 text-white text-[10px] px-2 py-0.5 rounded-full">
-                      {i === 0 ? 'Cover' : t('materialForm.imagePicLabel', { n: i + 1 })}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = pendingImages.filter((_, j) => j !== i);
-                        pendingImagesRef.current = updated;
-                        setPendingImages(updated);
-                      }}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
-                    >×</button>
-                  </div>
-                ))}
-              </div>
-              <p className="text-xs text-primary-600 bg-primary-50 px-3 py-1.5 rounded-lg">
-                {t('materialForm.imagesAutoUpload')}
-              </p>
-            </div>
-          )}
-          <ImageUploader
-            images={localImages}
-            onUpload={async (files, opts) => {
-              const id = material?.id || savedId;
-              if (!id) {
-                // Queue for upload after save
-                const updated = [...pendingImagesRef.current, ...files];
-                pendingImagesRef.current = updated;
-                setPendingImages(updated);
-                return;
-              }
-              const { materialImageService } = await import('../../services/materialService');
-              const result = await materialImageService.upload(id, files, opts);
-              setLocalImages(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
-            }}
-            onDelete={async (imageId) => {
-              const id = material?.id || savedId;
-              if (!id) return;
-              const { materialImageService } = await import('../../services/materialService');
-              await materialImageService.delete(id, imageId);
-              setLocalImages(prev => prev.filter(i => i.id !== imageId));
-            }}
-            onSetCredit={async (imageId, credit) => {
-              const id = material?.id || savedId;
-              if (!id) return;
-              const { materialImageService } = await import('../../services/materialService');
-              const updated = await materialImageService.updateMeta(id, imageId, { credit });
-              if (Array.isArray(updated)) setLocalImages(updated);
-            }}
-            apiBase={API_BASE}
-            showSteps={true}
-            label={pendingImages.length > 0 ? t('materialForm.imagesLabelMore') : t('materialForm.imagesLabel')}
-          />
-
-          {/* Files */}
-          <FileUploader
-            files={localFiles}
-            onUpload={async (files) => {
-              const id = material?.id || savedId;
-              if (!id) {
-                const updated = [...pendingFilesRef.current, ...files];
-                pendingFilesRef.current = updated;
-                setPendingFiles(updated);
-                return;
-              }
-              const { materialImageService } = await import('../../services/materialService');
-              const result = await materialImageService.uploadFiles(id, files);
-              setLocalFiles(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
-            }}
-            onDelete={async (fileId) => {
-              const id = material?.id || savedId;
-              if (!id) return;
-              const { materialImageService } = await import('../../services/materialService');
-              await materialImageService.deleteFile(id, fileId);
-              setLocalFiles(prev => prev.filter(f => f.id !== fileId));
-            }}
-            apiBase={API_BASE}
-            label={t('materialForm.filesLabel')}
-          />
 
           {savedId && !material && (
             <p className="text-xs text-primary-700 bg-primary-50 px-3 py-2 rounded-lg">

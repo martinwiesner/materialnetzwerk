@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { X, Upload, Trash2, Plus, Link2, Package, FolderOpen } from 'lucide-react';
+import { X, Upload, Trash2, Plus, Link2, Package, FolderOpen,
+  ChevronDown, ChevronUp, Phone, MapPin } from 'lucide-react';
 import { actorService } from '../../services/actorService';
 import { materialService } from '../../services/materialService';
 import { projectService } from '../../services/projectService';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../store/toastStore';
-import GeolocateButton from '../shared/GeolocateButton';
+import LocationPicker from '../shared/LocationPicker';
 import { MEDIA_BASE } from '../../services/api';
 import { useT } from '../../i18n/useT';
 
@@ -24,6 +25,27 @@ const ACTOR_TYPES = [
   'Sonstiges',
 ];
 
+function AccordionSection({ icon: Icon, title, color = '#6b7280', filled = false, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+        aria-expanded={open}>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}18` }}>
+            <Icon className="w-4 h-4" style={{ color }} />
+          </div>
+          <span className="text-sm font-semibold text-gray-800">{title}</span>
+          {filled && !open && <span className="w-2 h-2 rounded-full bg-primary-400 flex-shrink-0" title="Daten vorhanden" />}
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+      </button>
+      {open && <div className="px-4 pb-5 pt-4 space-y-4">{children}</div>}
+    </div>
+  );
+}
+
 const EMPTY = {
   name: '',
   type: '',
@@ -34,8 +56,8 @@ const EMPTY = {
   phone: '',
   location_name: '',
   address: '',
-  latitude: '51.0532575',
-  longitude: '12.1287658',
+  latitude: null,
+  longitude: null,
 };
 
 export default function ActorForm({ actor, onClose }) {
@@ -55,8 +77,8 @@ export default function ActorForm({ actor, onClose }) {
     phone: actor.phone || '',
     location_name: actor.location_name || '',
     address: actor.address || '',
-    latitude: actor.latitude ?? '',
-    longitude: actor.longitude ?? '',
+    latitude: actor.latitude ?? null,
+    longitude: actor.longitude ?? null,
   } : EMPTY);
 
   const [images, setImages] = useState(actor?.images || []);
@@ -92,7 +114,6 @@ export default function ActorForm({ actor, onClose }) {
   const availableMaterials = materials.filter(m => !linkedMaterialIds.includes(m.id));
   const availableProjects = projects.filter(p => !linkedProjectIds.includes(p.id));
 
-  // Prevent body scroll while modal open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
@@ -128,8 +149,8 @@ export default function ActorForm({ actor, onClose }) {
     if (!form.name.trim()) { setError(t('actorForm.nameRequired')); return; }
     const payload = {
       ...form,
-      latitude: form.latitude !== '' ? parseFloat(form.latitude) : null,
-      longitude: form.longitude !== '' ? parseFloat(form.longitude) : null,
+      latitude: form.latitude != null ? parseFloat(form.latitude) : null,
+      longitude: form.longitude != null ? parseFloat(form.longitude) : null,
     };
     saveMutation.mutate(payload);
   };
@@ -154,10 +175,15 @@ export default function ActorForm({ actor, onClose }) {
     ? `${MEDIA_BASE}${img.file_path.replace(/^\./, '')}`
     : null;
 
+  const contactFilled = !!(form.website || form.email || form.phone);
+  const locationFilled = !!(form.latitude && form.longitude);
+  const linksFilled = links.length > 0;
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">
@@ -169,30 +195,25 @@ export default function ActorForm({ actor, onClose }) {
         </div>
 
         {/* Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-2.5 rounded-xl">{error}</div>
           )}
 
-          {/* Name + Type */}
+          {/* Name + Typ */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelName')}</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={set('name')}
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('actorForm.labelName')} <span className="text-red-400">*</span>
+              </label>
+              <input type="text" value={form.name} onChange={set('name')}
                 placeholder={t('actorForm.placeholderName')}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-              />
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelType')}</label>
-              <select
-                value={form.type}
-                onChange={set('type')}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-              >
+              <select value={form.type} onChange={set('type')}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none">
                 <option value="">{t('actorForm.chooseType')}</option>
                 {ACTOR_TYPES.map(tp => <option key={tp} value={tp}>{tp}</option>)}
               </select>
@@ -202,138 +223,36 @@ export default function ActorForm({ actor, onClose }) {
           {/* Tagline */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelTagline')}</label>
-            <input
-              type="text"
-              value={form.tagline}
-              onChange={set('tagline')}
+            <input type="text" value={form.tagline} onChange={set('tagline')}
               placeholder={t('actorForm.placeholderTagline')}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-            />
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none" />
           </div>
 
-          {/* Description */}
+          {/* Beschreibung */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelDescription')}</label>
-            <textarea
-              value={form.description}
-              onChange={set('description')}
-              rows={3}
+            <textarea value={form.description} onChange={set('description')} rows={3}
               placeholder={t('actorForm.placeholderDescription')}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none resize-none"
-            />
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none resize-none" />
           </div>
 
-          {/* Contact */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.website')}</label>
-              <input
-                type="url"
-                value={form.website}
-                onChange={set('website')}
-                placeholder="https://beispiel.de"
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.email')}</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={set('email')}
-                placeholder="kontakt@beispiel.de"
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelPhone')}</label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={set('phone')}
-                placeholder="+49 3441 …"
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelLocation')}</label>
-              <input
-                type="text"
-                value={form.location_name}
-                onChange={set('location_name')}
-                placeholder={t('actorForm.placeholderLocation')}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-              />
-              <p className="text-xs text-gray-400 mt-1">{t('actorForm.coordsHint')}</p>
-            </div>
-          </div>
-
-          {/* Address */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.address')}</label>
-            <input
-              type="text"
-              value={form.address}
-              onChange={set('address')}
-              placeholder="Straße, Hausnummer, PLZ Ort"
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-            />
-          </div>
-
-          {/* Coordinates */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">{t('actorForm.labelCoords')}</label>
-              <GeolocateButton onLocate={(lat, lon) => setForm(f => ({ ...f, latitude: lat, longitude: lon }))} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <input
-                type="number"
-                step="any"
-                value={form.latitude}
-                onChange={set('latitude')}
-                placeholder={t('actorForm.placeholderLat')}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-              />
-              <input
-                type="number"
-                step="any"
-                value={form.longitude}
-                onChange={set('longitude')}
-                placeholder={t('actorForm.placeholderLon')}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Images — only available in edit mode */}
+          {/* Bilder */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('actorForm.labelImages')}</label>
-            {!isEdit && (
-              <p className="text-xs text-gray-500 mb-2">{t('actorForm.imagesHint')}</p>
-            )}
+            {!isEdit && <p className="text-xs text-gray-500 mb-2">{t('actorForm.imagesHint')}</p>}
             {images.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
                 {images.map(img => (
                   <div key={img.id} className="flex flex-col w-24">
                     <div className="relative group">
-                      <img
-                        src={imgUrl(img)}
-                        alt=""
-                        className="w-24 h-24 object-cover rounded-t-xl border border-b-0 border-gray-200"
-                      />
-                      <button
-                        type="button"
+                      <img src={imgUrl(img)} alt="" className="w-24 h-24 object-cover rounded-t-xl border border-b-0 border-gray-200" />
+                      <button type="button"
                         onClick={() => deleteImageMutation.mutate({ actorId: actor.id, imageId: img.id })}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
-                    <input
-                      type="text"
-                      placeholder="© Credit"
-                      defaultValue={img.credit || ''}
+                    <input type="text" placeholder="© Credit" defaultValue={img.credit || ''}
                       onBlur={async (e) => {
                         const val = e.target.value;
                         if (val !== (img.credit || '')) {
@@ -341,22 +260,14 @@ export default function ActorForm({ actor, onClose }) {
                           setImages(prev => prev.map(i => i.id === img.id ? { ...i, credit: val } : i));
                         }
                       }}
-                      className="w-full text-[10px] px-1.5 py-1 border border-t-0 border-gray-200 rounded-b-xl focus:outline-none focus:ring-1 focus:ring-actor-300 bg-white text-gray-500 placeholder-gray-300"
-                    />
+                      className="w-full text-[10px] px-1.5 py-1 border border-t-0 border-gray-200 rounded-b-xl focus:outline-none focus:ring-1 focus:ring-actor-300 bg-white text-gray-500 placeholder-gray-300" />
                   </div>
                 ))}
               </div>
             )}
             {isEdit && (
               <label className="inline-flex items-center gap-1.5 cursor-pointer px-3 py-2 text-sm font-medium text-actor-600 bg-actor-50 border border-actor-200 rounded-xl hover:bg-actor-100 transition-colors">
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
+                <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
                 {uploadingImage
                   ? <span>{t('actorForm.uploading')}</span>
                   : <><Upload className="w-4 h-4" /> {t('actorForm.uploadImage')}</>
@@ -365,91 +276,115 @@ export default function ActorForm({ actor, onClose }) {
             )}
           </div>
 
-          {/* Verknüpfungen — only in edit mode */}
-          {isEdit && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Link2 className="w-4 h-4 text-actor-600" />
-                <label className="block text-sm font-medium text-gray-700">{t('actorForm.labelLinks')}</label>
-              </div>
-              <p className="text-xs text-gray-500 mb-3">
-                {t('actorForm.linksHint')}
-              </p>
+          {/* Accordions */}
+          <div className="space-y-2">
 
-              {/* Linked materials */}
-              <div className="mb-3">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 mb-1.5">
-                  <Package className="w-3.5 h-3.5" /> Materialien
+            {/* Kontakt */}
+            <AccordionSection icon={Phone} title="Kontakt" color="#0891b2"
+              filled={contactFilled} defaultOpen={contactFilled}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.website')}</label>
+                  <input type="url" value={form.website} onChange={set('website')}
+                    placeholder="https://beispiel.de"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none" />
                 </div>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {links.filter(l => l.entity_type === 'material').map(link => {
-                    const mat = materials.find(m => m.id === link.entity_id);
-                    return (
-                      <span key={link.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-actor-50 border border-actor-200 text-xs text-actor-700">
-                        {mat?.name || link.entity_id}
-                        <button type="button" onClick={() => removeLinkMutation.mutate(link.id)} className="ml-0.5 hover:text-red-600">×</button>
-                      </span>
-                    );
-                  })}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('common.email')}</label>
+                  <input type="email" value={form.email} onChange={set('email')}
+                    placeholder="kontakt@beispiel.de"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none" />
                 </div>
-                {availableMaterials.length > 0 && (
-                  <select
-                    onChange={(e) => { if (e.target.value) { addLinkMutation.mutate({ entityType: 'material', entityId: e.target.value }); e.target.value = ''; } }}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-actor-400 outline-none"
-                    defaultValue=""
-                  >
-                    <option value="">{t('actorForm.linkMaterial')}</option>
-                    {availableMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-                )}
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('actorForm.labelPhone')}</label>
+                  <input type="tel" value={form.phone} onChange={set('phone')}
+                    placeholder="+49 3441 …"
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-actor-400 focus:border-transparent outline-none" />
+                </div>
               </div>
+            </AccordionSection>
 
-              {/* Linked projects */}
-              <div>
-                <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600 mb-1.5">
-                  <FolderOpen className="w-3.5 h-3.5" /> Projekte
+            {/* Standort */}
+            <AccordionSection icon={MapPin} title="Standort" color="#2563eb"
+              filled={locationFilled} defaultOpen={locationFilled}>
+              <LocationPicker
+                value={{ location_name: form.location_name, address: form.address, latitude: form.latitude, longitude: form.longitude }}
+                onChange={loc => setForm(f => ({ ...f, location_name: loc.location_name, address: loc.address, latitude: loc.latitude, longitude: loc.longitude }))}
+              />
+            </AccordionSection>
+
+            {/* Verknüpfungen — nur im Edit-Modus */}
+            {isEdit && (
+              <AccordionSection icon={Link2} title={t('actorForm.labelLinks')} color="#7c3aed"
+                filled={linksFilled} defaultOpen={linksFilled}>
+                <p className="text-xs text-gray-500">{t('actorForm.linksHint')}</p>
+
+                {/* Materialien */}
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 mb-2">
+                    <Package className="w-3.5 h-3.5" /> Materialien
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {links.filter(l => l.entity_type === 'material').map(link => {
+                      const mat = materials.find(m => m.id === link.entity_id);
+                      return (
+                        <span key={link.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-actor-50 border border-actor-200 text-xs text-actor-700">
+                          {mat?.name || link.entity_id}
+                          <button type="button" onClick={() => removeLinkMutation.mutate(link.id)} className="ml-0.5 hover:text-red-600">×</button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {availableMaterials.length > 0 && (
+                    <select
+                      onChange={(e) => { if (e.target.value) { addLinkMutation.mutate({ entityType: 'material', entityId: e.target.value }); e.target.value = ''; } }}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-actor-400 outline-none"
+                      defaultValue="">
+                      <option value="">{t('actorForm.linkMaterial')}</option>
+                      {availableMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {links.filter(l => l.entity_type === 'project').map(link => {
-                    const proj = projects.find(p => p.id === link.entity_id);
-                    return (
-                      <span key={link.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs text-blue-700">
-                        {proj?.name || link.entity_id}
-                        <button type="button" onClick={() => removeLinkMutation.mutate(link.id)} className="ml-0.5 hover:text-red-600">×</button>
-                      </span>
-                    );
-                  })}
+
+                {/* Projekte */}
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 mb-2">
+                    <FolderOpen className="w-3.5 h-3.5" /> Projekte
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {links.filter(l => l.entity_type === 'project').map(link => {
+                      const proj = projects.find(p => p.id === link.entity_id);
+                      return (
+                        <span key={link.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs text-blue-700">
+                          {proj?.name || link.entity_id}
+                          <button type="button" onClick={() => removeLinkMutation.mutate(link.id)} className="ml-0.5 hover:text-red-600">×</button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  {availableProjects.length > 0 && (
+                    <select
+                      onChange={(e) => { if (e.target.value) { addLinkMutation.mutate({ entityType: 'project', entityId: e.target.value }); e.target.value = ''; } }}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-actor-400 outline-none"
+                      defaultValue="">
+                      <option value="">{t('actorForm.linkProject')}</option>
+                      {availableProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  )}
                 </div>
-                {availableProjects.length > 0 && (
-                  <select
-                    onChange={(e) => { if (e.target.value) { addLinkMutation.mutate({ entityType: 'project', entityId: e.target.value }); e.target.value = ''; } }}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-actor-400 outline-none"
-                    defaultValue=""
-                  >
-                    <option value="">{t('actorForm.linkProject')}</option>
-                    {availableProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                )}
-              </div>
-            </div>
-          )}
+              </AccordionSection>
+            )}
+          </div>
         </form>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
-          >
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
             {t('common.cancel')}
           </button>
-          <button
-            type="submit"
-            onClick={handleSubmit}
-            disabled={saveMutation.isPending}
-            className="px-5 py-2 text-sm font-semibold bg-actor-600 hover:bg-actor-700 text-white rounded-xl transition-colors disabled:opacity-50"
-          >
+          <button type="submit" onClick={handleSubmit} disabled={saveMutation.isPending}
+            className="px-5 py-2 text-sm font-semibold bg-actor-600 hover:bg-actor-700 text-white rounded-xl transition-colors disabled:opacity-50">
             {saveMutation.isPending ? t('common.saving') : isEdit ? t('actorForm.btnSave') : t('actorForm.btnCreate')}
           </button>
         </div>
