@@ -142,6 +142,9 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
               {item.condition && <Badge color="blue">{CONDITION_LABELS[item.condition] || item.condition}</Badge>}
               {item.value_type && <Badge color="green">{VALUE_TYPE_LABELS[item.value_type] || item.value_type}</Badge>}
               {item.is_mobile ? <Badge color="orange">{t('inventoryDetail.labels.mobile')}</Badge> : null}
+              {item.available_for_gift ? <Badge color="green">🎁 Zu Verschenken</Badge> : null}
+              {item.swap_possible ? <Badge color="purple">🔄 Tausch möglich</Badge> : null}
+              {item.is_negotiable ? <Badge color="gray">💬 Preis verhandelbar</Badge> : null}
             </div>
 
             {/* Core details */}
@@ -162,7 +165,6 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
                 <div className="space-y-2">
                   <InfoRow label={t('inventoryDetail.labels.exchangeValue')} value={VALUE_TYPE_LABELS[item.value_type] || item.value_type} />
                   {item.price != null && <InfoRow label={t('inventoryDetail.labels.price')} value={`${item.price}${item.price_unit ? ' ' + item.price_unit : ' €'}`} />}
-                  {item.is_negotiable ? <InfoRow label={t('inventoryDetail.labels.negotiable')} value={t('inventoryDetail.labels.yes')} /> : null}
                 </div>
               </Section>
             )}

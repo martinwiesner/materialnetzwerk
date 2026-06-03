@@ -104,8 +104,42 @@ function distKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Combined recency + proximity score — lower = higher in list
-// Recency (65%): normalized over 180 days; Proximity (35%): normalized over 150 km
+// Returns 0 (fully complete) to 1 (empty) — used to penalise sparse entries
+function completenessScore(e) {
+  const raw = e.raw || {};
+  let filled = 0;
+  let total = 0;
+  const chk = (val) => { total++; if (val) filled++; };
+
+  // Common: image, description, real location
+  chk(raw.images?.length > 0);
+  chk(raw.description || raw.content || raw.short_description);
+  chk(Number.isFinite(Number(raw.latitude)) && Number.isFinite(Number(raw.longitude)));
+
+  if (e.type === 'material') {
+    chk(raw.category);
+    chk(raw.manufacturer);
+    chk(raw.gwp_total_value != null || raw.gwp_value != null || raw.gwp_fossil != null);
+  } else if (e.type === 'project') {
+    chk(raw.tools);
+    chk(raw.time_effort);
+    try {
+      const steps = Array.isArray(raw.steps) ? raw.steps : JSON.parse(raw.steps || '[]');
+      chk(steps.some((s) => s?.text || s?.title));
+    } catch { chk(false); }
+  } else if (e.type === 'actor') {
+    chk(raw.email || raw.website || raw.phone);
+    chk(raw.type);
+  } else if (e.type === 'offer' || e.type === 'gesuch') {
+    chk(raw.quantity);
+    chk(raw.notes);
+  }
+
+  return total > 0 ? 1 - filled / total : 0.5;
+}
+
+// Combined recency + completeness + proximity score — lower = higher in list
+// Completeness (30%): penalise incomplete entries; Recency (50%): newer first; Proximity (20%): closer first
 function entityScore(e) {
   const lat = e.location?.lat ?? ZEITZ_LAT;
   const lon = e.location?.lon ?? ZEITZ_LON;
@@ -118,7 +152,8 @@ function entityScore(e) {
 
   const distScore = Math.min(dist / 150, 1);
   const ageScore = Math.min(ageDays / 180, 1);
-  return distScore * 0.35 + ageScore * 0.65;
+  const incomplete = completenessScore(e);
+  return distScore * 0.20 + ageScore * 0.50 + incomplete * 0.30;
 }
 
 function buildEntities({ materials, offers, projects, actors, gesuche, search }) {

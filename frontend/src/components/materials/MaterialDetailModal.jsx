@@ -130,6 +130,15 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
 
   if (!material) return null;
 
+  const ORIGIN_SOURCE_LABELS = {
+    primary:                    '🏭 Neuware',
+    'secondary_rückbau':        '🏗 Rückbau',
+    secondary_restposten:       '🧱 Produktionsrest',
+    'secondary_überschuss':     '📦 Überschuss',
+    secondary_upcycling:        '♻ Upcycling',
+    secondary_eigenproduktion:  '🛠 Eigenproduktion',
+  };
+
   const gwpComponents = [
     { key: 'gwp_fossil',   label: 'fossil',   tipKey: 'gwpFossil' },
     { key: 'gwp_biogenic', label: 'biogen',   tipKey: 'gwpBiogenic' },
@@ -150,6 +159,11 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
               {material.category ? (
                 <span className="px-2.5 py-1 rounded-full text-xs border border-gray-200 bg-gray-50 text-gray-800">
                   {material.category}
+                </span>
+              ) : null}
+              {material.origin_source ? (
+                <span className="px-2.5 py-1 rounded-full text-xs border border-amber-200 bg-amber-50 text-amber-900">
+                  {ORIGIN_SOURCE_LABELS[material.origin_source] || material.origin_source}
                 </span>
               ) : null}
               {typeof material.gwp_total_value === 'number' ? (

@@ -15,6 +15,16 @@ import { useToast } from '../../store/toastStore';
 import { OwnerLine } from '../../components/shared/ContactButton';
 import { useT } from '../../i18n/useT';
 
+function actorCompleteness(a) {
+  let score = 0;
+  if (a.images?.length > 0) score += 3;
+  if (a.description) score += 2;
+  if (a.latitude && a.longitude) score += 2;
+  if (a.type) score += 1;
+  if (a.email || a.website || a.phone) score += 2;
+  return score;
+}
+
 // ── Actor Card ────────────────────────────────────────────────────────────────
 
 function ActorCard({ actor, onOpenDetail, onEdit, onDelete, isOwner }) {
@@ -133,7 +143,8 @@ export default function Actors() {
     onError: () => toast.error('Löschen fehlgeschlagen.'),
   });
 
-  const actors = Array.isArray(data) ? data : [];
+  const rawActors = Array.isArray(data) ? data : [];
+  const actors = [...rawActors].sort((a, b) => actorCompleteness(b) - actorCompleteness(a));
   const allTypes = [...new Set(actors.map(a => a.type).filter(Boolean))].sort();
 
   const isOwnerOf = (actor) => isAuthenticated && (actor.owner_id === user?.id || user?.is_admin);

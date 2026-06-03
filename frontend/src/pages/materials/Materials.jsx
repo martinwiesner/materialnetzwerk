@@ -40,6 +40,18 @@ function formatApproxQty(qty, unit) {
   return `~${rounded} ${unit || ''}`.trim();
 }
 
+// 0 = empty, higher = more complete — more complete materials sort first
+function materialCompleteness(m) {
+  let score = 0;
+  if (m.images?.length > 0) score += 3;
+  if (m.description || m.short_description) score += 2;
+  if (m.latitude && m.longitude) score += 2;
+  if (m.category) score += 1;
+  if (m.manufacturer) score += 1;
+  if (m.gwp_total_value != null || m.gwp_value != null || m.gwp_fossil != null) score += 2;
+  return score;
+}
+
 export default function Materials() {
   const navigate = useNavigate();
   const t = useT();
@@ -153,9 +165,10 @@ export default function Materials() {
     return acc;
   }, {});
 
-  const materials = filterAvailable
+  const materialsFiltered = filterAvailable
     ? allMaterials.filter(m => Boolean(inventoryByMaterial[m.id]?.quantity))
     : (filterOnlyGesuch ? [] : allMaterials);
+  const materials = [...materialsFiltered].sort((a, b) => materialCompleteness(b) - materialCompleteness(a));
 
   const filteredGesuche = filterAvailable ? [] : gesuche.filter(g => {
     if (!search) return true;

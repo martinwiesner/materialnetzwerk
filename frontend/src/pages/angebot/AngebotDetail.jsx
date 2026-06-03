@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Store, MapPin, Package, User, ArrowLeft, Printer, Tag, Send } from 'lucide-react';
+import { Store, MapPin, Package, User, ArrowLeft, Printer, Tag, Send, ExternalLink } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { exportAngebotPoster } from '../../utils/exportUtils';
 import SharePrintBar from '../../components/shared/SharePrintBar';
@@ -167,6 +167,42 @@ export default function AngebotDetail() {
             <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3">
               <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1.5">Beschreibung / Hinweise</p>
               <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{offer.notes}</p>
+            </div>
+          )}
+
+          {/* Offer conditions */}
+          {(offer.available_for_gift || offer.swap_possible || offer.is_negotiable) && (
+            <div className="flex flex-wrap gap-2">
+              {offer.available_for_gift && (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-green-50 border border-green-200 text-green-800">
+                  🎁 Zu Verschenken
+                </span>
+              )}
+              {offer.swap_possible && (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 border border-blue-200 text-blue-800">
+                  🔄 Tausch möglich
+                </span>
+              )}
+              {offer.is_negotiable && (
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-50 border border-gray-200 text-gray-700">
+                  💬 Preis verhandelbar
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* External listing */}
+          {offer.external_url && (
+            <div className="flex items-center gap-2 text-sm">
+              <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <a
+                href={offer.external_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary-600 hover:text-primary-700 underline underline-offset-2 break-all"
+              >
+                Extern inseriert – zum Angebot
+              </a>
             </div>
           )}
         </div>

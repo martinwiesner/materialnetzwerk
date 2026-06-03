@@ -16,6 +16,21 @@ import { OwnerLine } from '../../components/shared/ContactButton';
 import { formatDate } from '../../utils/dates';
 import { useT } from '../../i18n/useT';
 
+// 0 = empty, 1 = fully complete — more complete projects sort first
+function projectCompleteness(p) {
+  let score = 0;
+  if (p.images?.length > 0) score += 3;
+  if (p.description || p.content) score += 2;
+  if (p.latitude && p.longitude) score += 2;
+  if (p.tools) score += 1;
+  if (p.time_effort) score += 1;
+  try {
+    const steps = Array.isArray(p.steps) ? p.steps : JSON.parse(p.steps || '[]');
+    if (steps.some((s) => s?.text || s?.title)) score += 2;
+  } catch { /* ignore */ }
+  return score;
+}
+
 export default function Projects() {
   const t = useT();
   const { isAuthenticated, token, user } = useAuthStore();
@@ -87,7 +102,8 @@ export default function Projects() {
   const publicProjects = allProjects.filter(p => p.is_public == 1);
 
   const projectsBase = activeTab === 'my-projects' ? myProjects : publicProjects;
-  const projects = filterAvailable ? projectsBase.filter(p => p.is_available == 1) : projectsBase;
+  const projectsFiltered = filterAvailable ? projectsBase.filter(p => p.is_available == 1) : projectsBase;
+  const projects = [...projectsFiltered].sort((a, b) => projectCompleteness(b) - projectCompleteness(a));
 
   const mapPoints = (projects || [])
     .filter((p) => p?.latitude && p?.longitude)
