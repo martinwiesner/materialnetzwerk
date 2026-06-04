@@ -273,5 +273,8 @@ tryAlter('ALTER TABLE inventory ADD COLUMN swap_possible BOOLEAN DEFAULT 0');
 tryAlter('ALTER TABLE inventory ADD COLUMN available_for_gift BOOLEAN DEFAULT 0');
 tryAlter('ALTER TABLE inventory ADD COLUMN external_url TEXT');
 
+// ── projects: CAD share URL ───────────────────────────────────────────────────
+tryAlter('ALTER TABLE projects ADD COLUMN cad_share_url TEXT');
+
 db.close();
 console.log('✅ Migrations complete!');

@@ -154,6 +154,7 @@ const Project = {
       'location_name','latitude','longitude','address',
       'time_effort','tools','steps','references',
       'status','is_public','is_available','license',
+      'cad_share_url',
     ];
     const jsonFields = new Set(['steps','references']);
     const boolFields = new Set(['is_public','is_available']);

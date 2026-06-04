@@ -4,7 +4,7 @@ import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Users,
-  ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench } from 'lucide-react';
+  ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench, Box, ExternalLink } from 'lucide-react';
 import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
@@ -14,23 +14,24 @@ import { useT } from '../../i18n/useT';
 
 const API_BASE = MEDIA_BASE;
 
-function AccordionSection({ icon: Icon, title, color = '#6b7280', filled = false, defaultOpen = false, children }) {
+function AccordionSection({ icon: Icon, title, color = '#6b7280', filled = false, defaultOpen = false, forceOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
+  const isOpen = forceOpen || open;
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
       <button type="button" onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-        aria-expanded={open}>
+        aria-expanded={isOpen}>
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}18` }}>
             <Icon className="w-4 h-4" style={{ color }} />
           </div>
           <span className="text-sm font-semibold text-gray-800">{title}</span>
-          {filled && !open && <span className="w-2 h-2 rounded-full bg-primary-400 flex-shrink-0" title="Daten vorhanden" />}
+          {filled && !isOpen && <span className="w-2 h-2 rounded-full bg-primary-400 flex-shrink-0" title="Daten vorhanden" />}
         </div>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+        {isOpen ? <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />}
       </button>
-      {open && <div className="px-4 pb-5 pt-4 space-y-4">{children}</div>}
+      {isOpen && <div className="px-4 pb-5 pt-4 space-y-4">{children}</div>}
     </div>
   );
 }
@@ -89,6 +90,7 @@ const emptyForm = {
   steps: [],
   references: [],
   license: '',
+  cad_share_url: '',
 };
 
 function StepImageUpload({ stepIndex, onUpload, ensureDraft }) {
@@ -127,6 +129,7 @@ export default function ProjectForm({ project, onClose }) {
   const toast = useToast();
   const [formData, setFormData] = useState(emptyForm);
   const [error, setError] = useState('');
+  const [locationError, setLocationError] = useState(false);
   const [draftId, setDraftId] = useState(null);
   const [localImages, setLocalImages] = useState([]);
   const [localFiles, setLocalFiles] = useState([]);
@@ -195,6 +198,7 @@ export default function ProjectForm({ project, onClose }) {
         steps: Array.isArray(steps) ? steps : [],
         references: safeJsonParse(project.references, []),
         license: project.license || '',
+        cad_share_url: project.cad_share_url || '',
       });
     }
   }, [project]);
@@ -262,6 +266,16 @@ export default function ProjectForm({ project, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
+    setLocationError(false);
+
+    // Standort-Pflichtfeld prüfen (nur im normalen Modus, nicht offer-only)
+    if (mode !== 'offer-only' && !formData.location_name && !formData.address) {
+      setLocationError(true);
+      setError('Bitte einen Standort eingeben — der Abschnitt "Standort" wurde geöffnet.');
+      document.querySelector('[data-location-section]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     const submitData = buildSubmitData();
     const validActorIds = actorIds.filter(Boolean);
 
@@ -667,17 +681,16 @@ export default function ProjectForm({ project, onClose }) {
               </AccordionSection>
 
               {/* Standort */}
-              <AccordionSection icon={MapPin} title={<>{t('projectForm.labelLocation')} <span className="text-red-400">*</span></>} color="#2563eb"
-                filled={!!(formData.latitude && formData.longitude)} defaultOpen={true}>
-                <LocationPicker value={locationValue} onChange={handleLocationChange} />
-                <input
-                  tabIndex={-1}
-                  style={{ opacity: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
-                  required
-                  value={formData.location_name || formData.address || ''}
-                  onChange={() => {}}
-                />
-              </AccordionSection>
+              <div data-location-section>
+                <AccordionSection icon={MapPin} title={<>{t('projectForm.labelLocation')} <span className="text-red-400">*</span></>} color="#2563eb"
+                  filled={!!(formData.latitude && formData.longitude)} defaultOpen={true}
+                  forceOpen={locationError}>
+                  <LocationPicker value={locationValue} onChange={(loc) => { setLocationError(false); handleLocationChange(loc); }} />
+                  {locationError && (
+                    <p className="text-xs text-red-500 mt-1">Bitte einen Standort auswählen oder eingeben.</p>
+                  )}
+                </AccordionSection>
+              </div>
 
               {/* Akteure & Quellen */}
               <AccordionSection icon={Users} title={t('projectForm.actorsTitle')} color="#7c3aed"
@@ -753,6 +766,55 @@ export default function ProjectForm({ project, onClose }) {
                   apiBase={API_BASE}
                   label={t('projectForm.filesLabel')}
                 />
+              </AccordionSection>
+
+              {/* CAD-Modell */}
+              <AccordionSection
+                icon={Box}
+                title={<>CAD-Modell <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">experimentell</span></>}
+                color="#b45309"
+                filled={!!formData.cad_share_url}
+              >
+                <div className="space-y-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 space-y-1.5">
+                    <p className="font-semibold">So funktioniert's:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-amber-700">
+                      <li>CAD-App öffnen und dein Modell aufbauen</li>
+                      <li>Oben rechts auf <strong>Teilen</strong> klicken → Share-URL kopieren</li>
+                      <li>URL hier einfügen und Projekt speichern</li>
+                    </ol>
+                    <p className="text-xs text-amber-600 mt-2">
+                      Das CAD-Modell wird komprimiert in der URL gespeichert (kein Upload nötig). Funktioniert bei einfachen Modellen problemlos — bei sehr großen STEP-Dateien kann die URL sehr lang werden.
+                    </p>
+                    <a
+                      href="https://martinwiesner.github.io/cad-app/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 mt-1 text-amber-700 hover:text-amber-900 font-medium underline underline-offset-2"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      CAD-App öffnen
+                    </a>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
+                      Share-URL einfügen
+                    </label>
+                    <textarea
+                      value={formData.cad_share_url}
+                      onChange={e => setFormData(f => ({ ...f, cad_share_url: e.target.value }))}
+                      placeholder="https://martinwiesner.github.io/cad-app/#share=..."
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent outline-none text-sm font-mono resize-none"
+                    />
+                    {formData.cad_share_url && !formData.cad_share_url.includes('#share=') && (
+                      <p className="text-xs text-red-500 mt-1">⚠ Das sieht nicht wie eine gültige Share-URL aus. Die URL sollte <code>#share=</code> enthalten.</p>
+                    )}
+                    {formData.cad_share_url && formData.cad_share_url.includes('#share=') && (
+                      <p className="text-xs text-green-600 mt-1">✓ Share-URL erkannt</p>
+                    )}
+                  </div>
+                </div>
               </AccordionSection>
 
             </div>

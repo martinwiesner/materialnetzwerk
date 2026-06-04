@@ -541,6 +541,33 @@ export default function ProjectDetail() {
           </div>
         )}
 
+        {/* CAD-Modell */}
+        {project.cad_share_url && (
+          <div className="bg-white rounded-xl p-6 border border-amber-200">
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-base font-bold text-gray-900">CAD-Modell</h2>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">experimentell</span>
+            </div>
+            <p className="text-sm text-gray-500 mb-3">
+              Zu diesem Projekt gibt es ein interaktives CAD-Modell. Es öffnet sich in der CAD-App im Browser — keine Installation nötig.
+            </p>
+            <a
+              href={project.cad_share_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-800 text-sm font-medium hover:bg-amber-100 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              CAD-Modell öffnen
+              <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+            </a>
+          </div>
+        )}
+
         {/* Step-by-step instructions */}
         {(() => {
           let steps = safeJsonParse(project.steps, []);
