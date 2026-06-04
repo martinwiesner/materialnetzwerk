@@ -251,20 +251,39 @@ try {
 }
 
 // ── Fix stale FK refs left by origin_source migration (materials_old_ck) ─────
-// The rename/recreate migration above broke child-table FK references.
-// Use writable_schema via sqlite3 CLI (better-sqlite3 blocks this). If already
-// fixed (count=0) this is a no-op, so safe to run on a clean DB too.
+// Rebuild affected tables using pure better-sqlite3 (no sqlite3 CLI needed).
 try {
-  const broken = db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE sql LIKE '%materials_old_ck%'").get().n;
-  if (broken > 0) {
-    console.log(`Fixing ${broken} stale FK reference(s) to materials_old_ck via VACUUM workaround...`);
-    // We can't use writable_schema via better-sqlite3, so spawn sqlite3 CLI
-    const { execSync } = await import('child_process');
-    const dbPath = process.env.DB_PATH || './data/material_library.db';
-    execSync(`sqlite3 "${dbPath}" "PRAGMA writable_schema=ON; UPDATE sqlite_master SET sql=REPLACE(sql,'\\\"materials_old_ck\\\"','materials') WHERE type='table' AND sql LIKE '%materials_old_ck%'; PRAGMA writable_schema=OFF;"`);
+  const stale = db.prepare(
+    `SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%materials_old_ck%'`
+  ).all();
+  if (stale.length > 0) {
+    console.log(`Fixing ${stale.length} table(s) with stale FK reference to materials_old_ck...`);
+    db.pragma('foreign_keys = OFF');
+    for (const { name, sql } of stale) {
+      // Capture indexes before rename (SQL still references original table name)
+      const indexes = db.prepare(
+        `SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL`
+      ).all(name);
+      const tmpName = `_mig_fix_${name}`;
+      const fixedCreate = sql
+        .replace(/"materials_old_ck"/g, '"materials"')
+        .replace(/\bmaterials_old_ck\b/g, 'materials');
+      const cols = db.prepare(`PRAGMA table_info("${name}")`).all()
+        .map(c => `"${c.name}"`).join(', ');
+      db.exec(`ALTER TABLE "${name}" RENAME TO "${tmpName}"`);
+      db.exec(fixedCreate);
+      db.exec(`INSERT INTO "${name}" (${cols}) SELECT ${cols} FROM "${tmpName}"`);
+      db.exec(`DROP TABLE "${tmpName}"`);
+      for (const idx of indexes) {
+        try { db.exec(idx.sql); } catch (_) { /* already exists */ }
+      }
+      console.log(`  ✓ Rebuilt: ${name}`);
+    }
+    db.pragma('foreign_keys = ON');
     console.log('✅ Stale FK references fixed');
   }
 } catch (e) {
+  db.pragma('foreign_keys = ON');
   console.error('FK fix error (non-fatal):', e.message);
 }
 
