@@ -1,56 +1,84 @@
 #!/bin/bash
 # Deploy to Hetzner Server + Git commit
 # Usage: ./deploy.sh "optionale commit message"
+#
+# SSH ControlMaster: Passwort nur EINMAL eingeben — alle Verbindungen nutzen den Tunnel.
+# Sicherheitsregeln:
+#   - Kein Deploy ohne erfolgreiches DB-Backup
+#   - Build-/Restart-Fehler brechen ab (kein falsches "Done!")
+#   - Migration-Fehler brechen ab und zeigen klare Meldung
+#   - SSH-Socket wird vorher bereinigt damit kein Stale-Socket hängt
+
+set -euo pipefail
 
 SERVER="root@91.99.228.92"
 REMOTE_PATH="/opt/material-library"
 COMMIT_MSG="${1:-deploy: $(date '+%Y-%m-%d %H:%M')}"
 BACKUP_DIR="$(dirname "$0")/db-backups"
 TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')
+SSH_CTRL="/tmp/ssh_deploy_ctrl_matbib"
+SSH_OPTS="-o ControlMaster=no -o ControlPath=$SSH_CTRL -o StrictHostKeyChecking=no"
 
-echo "🚀 Deploying to $SERVER..."
+# ── Stale SSH-Socket bereinigen ───────────────────────────────────────────────
+rm -f "$SSH_CTRL"
 
-# 0. Produktionsdatenbank lokal sichern (VOR allem anderen)
+cleanup() {
+  ssh -o ControlPath="$SSH_CTRL" -O exit "$SERVER" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# ── SSH-Tunnel öffnen (hier nur EINMAL Passwort eingeben) ─────────────────────
+echo "🔑 SSH-Verbindung aufbauen (einmalige Passwortabfrage)..."
+ssh -o ControlMaster=yes -o ControlPath="$SSH_CTRL" -o ControlPersist=600 \
+    -o StrictHostKeyChecking=no -N -f "$SERVER"
+echo "   ✅ Verbunden (Tunnel aktiv)"
+
+# ── 0. Produktionsdatenbank sichern — bei Fehler: ABBRUCH ─────────────────────
 echo "💾 Backing up production database..."
 mkdir -p "$BACKUP_DIR"
-if scp "$SERVER:$REMOTE_PATH/data/material_library.db" "$BACKUP_DIR/material_library_$TIMESTAMP.db" 2>/dev/null; then
-  echo "   ✅ Backup saved: db-backups/material_library_$TIMESTAMP.db"
-  # Nur die letzten 100 Backups behalten
-  ls -t "$BACKUP_DIR"/material_library_*.db 2>/dev/null | tail -n +101 | xargs rm -f 2>/dev/null
-  echo "   (ältere Backups bereinigt, max. 100 werden behalten)"
-else
-  echo "   ⚠️  Backup fehlgeschlagen — Deploy wird trotzdem fortgesetzt"
+if ! scp $SSH_OPTS \
+    "$SERVER:$REMOTE_PATH/data/material_library.db" \
+    "$BACKUP_DIR/material_library_$TIMESTAMP.db" 2>/dev/null; then
+  echo ""
+  echo "❌ BACKUP FEHLGESCHLAGEN — Deploy wird ABGEBROCHEN."
+  echo "   Die Produktionsdatenbank konnte nicht gesichert werden."
+  echo "   Bitte Verbindung und Pfad prüfen, dann erneut ausführen."
+  exit 1
 fi
+echo "   ✅ Backup saved: db-backups/material_library_$TIMESTAMP.db"
+ls -t "$BACKUP_DIR"/material_library_*.db 2>/dev/null | tail -n +101 | xargs rm -f 2>/dev/null
+echo "   (ältere Backups bereinigt, max. 100)"
 
-# 0b. Hochgeladene Dateien inkrementell sichern (rsync + Hard-Links)
+# ── 0b. Uploads sichern (unkritisch — kein Abbruch bei Fehler) ───────────────
 echo "🖼️  Backing up uploaded files..."
 UPLOADS_BACKUP_DIR="$(dirname "$0")/uploads-backups"
 mkdir -p "$UPLOADS_BACKUP_DIR"
 LATEST_LINK="$UPLOADS_BACKUP_DIR/latest"
 NEW_UPLOADS_BACKUP="$UPLOADS_BACKUP_DIR/uploads_$TIMESTAMP"
-if rsync -az --link-dest="$LATEST_LINK" "$SERVER:$REMOTE_PATH/backend/uploads/" "$NEW_UPLOADS_BACKUP/" 2>/dev/null; then
+if rsync -az -e "ssh $SSH_OPTS" --link-dest="$LATEST_LINK" \
+    "$SERVER:$REMOTE_PATH/backend/uploads/" "$NEW_UPLOADS_BACKUP/" 2>/dev/null; then
   rm -f "$LATEST_LINK" && ln -sf "$NEW_UPLOADS_BACKUP" "$LATEST_LINK"
-  echo "   ✅ Uploads backed up: uploads-backups/uploads_$TIMESTAMP"
-  # Nur die letzten 25 Snapshots behalten
+  echo "   ✅ Uploads backed up"
   ls -dt "$UPLOADS_BACKUP_DIR"/uploads_* 2>/dev/null | tail -n +26 | xargs rm -rf 2>/dev/null
-  echo "   (ältere Uploads-Backups bereinigt, max. 25 werden behalten)"
 else
-  echo "   ⚠️  Uploads-Backup fehlgeschlagen — Deploy wird trotzdem fortgesetzt"
+  echo "   ⚠️  Uploads-Backup fehlgeschlagen — wird ignoriert (kein Abbruch)"
 fi
 
-# 1. Git commit (ohne .env)
+# ── 1. Git commit (nur explizit gelistete Dateien, kein -A wegen .env-Risiko) ─
 if git rev-parse --git-dir > /dev/null 2>&1; then
   echo "📝 Committing to git..."
-  git add -A
+  git add \
+    backend/src/ backend/scripts/ \
+    frontend/src/ frontend/public/ \
+    docker-compose.yml deploy.sh \
+    2>/dev/null || true
   git commit -m "$COMMIT_MSG" 2>/dev/null || echo "   (nothing new to commit)"
   git push 2>/dev/null || echo "   (no remote configured or push failed)"
-else
-  echo "   (kein git repo — überspringe)"
 fi
 
-# 2. Dateien übertragen (inkl. .env, aber nicht ins git)
+# ── 2. Dateien übertragen — bei Fehler: ABBRUCH ───────────────────────────────
 echo "📦 Transferring files..."
-rsync -avz --progress \
+rsync -avz --progress -e "ssh $SSH_OPTS" \
   --exclude 'node_modules' \
   --exclude '.git' \
   --exclude 'frontend/dist' \
@@ -62,10 +90,44 @@ rsync -avz --progress \
   --exclude 'db-backups' \
   --exclude 'certbot' \
   --exclude '.DS_Store' \
-  . $SERVER:$REMOTE_PATH/
+  --exclude '.env' \
+  . $SERVER:$REMOTE_PATH/ || {
+    echo "❌ Dateiübertragung fehlgeschlagen — Deploy abgebrochen."
+    exit 1
+  }
 
-# 3. Auf dem Server: neu bauen und starten
+# ── 3. Build & Restart — bei Fehler: ABBRUCH ─────────────────────────────────
 echo "🔨 Building and restarting on server..."
-ssh $SERVER "cd $REMOTE_PATH && docker compose build --build-arg CACHEBUST=\$(date +%s) frontend backend && docker compose up -d --force-recreate"
+ssh $SSH_OPTS "$SERVER" \
+  "cd $REMOTE_PATH && \
+   docker compose build --build-arg CACHEBUST=\$(date +%s) frontend backend && \
+   docker compose up -d --force-recreate" || {
+    echo "❌ Build oder Neustart fehlgeschlagen — bitte Server prüfen."
+    exit 1
+  }
 
-echo "✅ Done! App is live at https://materialien.reallabor-zekiwa-zeitz.de"
+# ── 4. Auf Backend-Start warten, dann Migration ───────────────────────────────
+echo "⏳ Warte auf Backend-Start..."
+ssh $SSH_OPTS "$SERVER" "
+  for i in \$(seq 1 24); do
+    if docker compose -f $REMOTE_PATH/docker-compose.yml exec -T backend \
+        node -e 'process.exit(0)' 2>/dev/null; then
+      echo \"   ✅ Backend bereit (nach \${i}x2s = \$((i*2))s)\"
+      break
+    fi
+    sleep 2
+    if [ \$i -eq 24 ]; then
+      echo '❌ Backend nicht gestartet nach 48s — Migration übersprungen'
+      exit 1
+    fi
+  done
+  cd $REMOTE_PATH
+  node scripts/migrate.js && echo '✅ Migration erfolgreich'
+" || {
+  echo "❌ Migration fehlgeschlagen — bitte manuell prüfen:"
+  echo "   ssh $SERVER 'cd $REMOTE_PATH && node scripts/migrate.js'"
+  exit 1
+}
+
+echo ""
+echo "✅ Deploy erfolgreich! App ist live: https://materialien.reallabor-zekiwa-zeitz.de"
