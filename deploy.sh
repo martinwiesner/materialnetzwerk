@@ -122,10 +122,10 @@ ssh $SSH_OPTS "$SERVER" "
     fi
   done
   cd $REMOTE_PATH
-  node scripts/migrate.js && echo '✅ Migration erfolgreich'
+  docker compose exec -T backend node scripts/migrate.js && echo '✅ Migration erfolgreich'
 " || {
   echo "❌ Migration fehlgeschlagen — bitte manuell prüfen:"
-  echo "   ssh $SERVER 'cd $REMOTE_PATH && node scripts/migrate.js'"
+  echo "   ssh $SERVER 'cd $REMOTE_PATH && docker compose exec -T backend node scripts/migrate.js'"
   exit 1
 }
 
