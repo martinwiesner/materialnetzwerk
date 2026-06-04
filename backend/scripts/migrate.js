@@ -273,7 +273,11 @@ tryAlter('ALTER TABLE inventory ADD COLUMN swap_possible BOOLEAN DEFAULT 0');
 tryAlter('ALTER TABLE inventory ADD COLUMN available_for_gift BOOLEAN DEFAULT 0');
 tryAlter('ALTER TABLE inventory ADD COLUMN external_url TEXT');
 
-// ── projects: CAD share URL ───────────────────────────────────────────────────
+// ── projects: ensure all model columns exist (safe to re-run) ────────────────
+tryAlter('ALTER TABLE projects ADD COLUMN "references" TEXT');
+tryAlter('ALTER TABLE projects ADD COLUMN is_available BOOLEAN DEFAULT 0');
+tryAlter('ALTER TABLE projects ADD COLUMN license TEXT');
+tryAlter('ALTER TABLE projects ADD COLUMN material_id TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN cad_share_url TEXT');
 
 db.close();

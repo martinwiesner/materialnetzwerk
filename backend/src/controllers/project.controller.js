@@ -129,6 +129,7 @@ export const updateProject = (req, res) => {
 
     res.json(Project.findByIdWithDetails(req.params.id));
   } catch (error) {
+    console.error('[updateProject]', error);
     res.status(500).json({ message: 'Failed to update project', error: error.message });
   }
 };
