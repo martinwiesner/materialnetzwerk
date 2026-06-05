@@ -250,6 +250,29 @@ try {
   console.error('origin_source migration error:', e.message);
 }
 
+// ── Recover orphaned _mig_fix_* tables from any previously interrupted run ───
+try {
+  db.pragma('foreign_keys = OFF');
+  const orphaned = db.prepare(
+    `SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '_mig_fix_%'`
+  ).all();
+  for (const { name } of orphaned) {
+    const orig = name.slice('_mig_fix_'.length);
+    const exists = db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name=?`).get(orig);
+    if (!exists) {
+      db.exec(`ALTER TABLE "${name}" RENAME TO "${orig}"`);
+      console.log(`  Recovered orphaned table: ${name} → ${orig}`);
+    } else {
+      db.exec(`DROP TABLE "${name}"`);
+      console.log(`  Dropped stale temp table: ${name}`);
+    }
+  }
+  db.pragma('foreign_keys = ON');
+} catch (e) {
+  db.pragma('foreign_keys = ON');
+  console.error('Orphan recovery error (non-fatal):', e.message);
+}
+
 // ── Fix stale FK refs left by origin_source migration (materials_old_ck) ─────
 // Rebuild affected tables using pure better-sqlite3 (no sqlite3 CLI needed).
 try {
@@ -260,27 +283,36 @@ try {
     console.log(`Fixing ${stale.length} table(s) with stale FK reference to materials_old_ck...`);
     db.pragma('foreign_keys = OFF');
     for (const { name, sql } of stale) {
-      // Capture indexes before rename (SQL still references original table name)
-      const indexes = db.prepare(
-        `SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL`
-      ).all(name);
-      const tmpName = `_mig_fix_${name}`;
-      const fixedCreate = sql
-        .replace(/"materials_old_ck"/g, '"materials"')
-        .replace(/\bmaterials_old_ck\b/g, 'materials');
-      const cols = db.prepare(`PRAGMA table_info("${name}")`).all()
-        .map(c => `"${c.name}"`).join(', ');
-      db.exec(`ALTER TABLE "${name}" RENAME TO "${tmpName}"`);
-      db.exec(fixedCreate);
-      db.exec(`INSERT INTO "${name}" (${cols}) SELECT ${cols} FROM "${tmpName}"`);
-      db.exec(`DROP TABLE "${tmpName}"`);
-      for (const idx of indexes) {
-        try { db.exec(idx.sql); } catch (_) { /* already exists */ }
+      try {
+        const indexes = db.prepare(
+          `SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL`
+        ).all(name);
+        const tmpName = `_mig_fix_${name}`;
+        const fixedCreate = sql
+          .replace(/"materials_old_ck"/g, '"materials"')
+          .replace(/\bmaterials_old_ck\b/g, 'materials');
+        const cols = db.prepare(`PRAGMA table_info("${name}")`).all()
+          .map(c => `"${c.name}"`).join(', ');
+        db.exec(`ALTER TABLE "${name}" RENAME TO "${tmpName}"`);
+        try {
+          db.exec(fixedCreate);
+          db.exec(`INSERT INTO "${name}" (${cols}) SELECT ${cols} FROM "${tmpName}"`);
+          db.exec(`DROP TABLE "${tmpName}"`);
+          for (const idx of indexes) {
+            try { db.exec(idx.sql); } catch (_) { /* already exists */ }
+          }
+          console.log(`  ✓ Rebuilt: ${name}`);
+        } catch (inner) {
+          // Recreate failed — rename temp back so table is not lost
+          db.exec(`ALTER TABLE "${tmpName}" RENAME TO "${name}"`);
+          console.error(`  ✗ Rebuild failed for ${name} (restored): ${inner.message}`);
+        }
+      } catch (outer) {
+        console.error(`  ✗ Could not process ${name}: ${outer.message}`);
       }
-      console.log(`  ✓ Rebuilt: ${name}`);
     }
     db.pragma('foreign_keys = ON');
-    console.log('✅ Stale FK references fixed');
+    console.log('✅ FK fix pass complete');
   }
 } catch (e) {
   db.pragma('foreign_keys = ON');
