@@ -330,6 +330,48 @@ export const deleteProjectFile = (req, res) => {
   }
 };
 
+export const uploadCadPreview = (req, res) => {
+  try {
+    const project = Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+    if (project.owner_id !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
+    // Delete old preview file if exists
+    if (project.cad_preview_url) {
+      const oldPath = webPathToFs(project.cad_preview_url);
+      if (oldPath && existsSync(oldPath)) {
+        try { unlinkSync(oldPath); } catch { /* ignore */ }
+      }
+    }
+
+    const webPath = `/uploads/project-cad/${req.params.id}/${req.file.filename}`;
+    Project.update(req.params.id, { cad_preview_url: webPath });
+    res.json({ cad_preview_url: webPath });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to upload CAD preview', error: error.message });
+  }
+};
+
+export const deleteCadPreview = (req, res) => {
+  try {
+    const project = Project.findById(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+    if (project.owner_id !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+
+    if (project.cad_preview_url) {
+      const fsPath = webPathToFs(project.cad_preview_url);
+      if (fsPath && existsSync(fsPath)) {
+        try { unlinkSync(fsPath); } catch { /* ignore */ }
+      }
+    }
+    Project.update(req.params.id, { cad_preview_url: null });
+    res.json({ message: 'CAD preview deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete CAD preview', error: error.message });
+  }
+};
+
 export const getProjectActors = (req, res) => {
   try {
     const actors = Project.getActors(req.params.id);

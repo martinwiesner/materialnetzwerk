@@ -376,6 +376,7 @@ tryAlter('ALTER TABLE projects ADD COLUMN is_available BOOLEAN DEFAULT 0');
 tryAlter('ALTER TABLE projects ADD COLUMN license TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN material_id TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN cad_share_url TEXT');
+tryAlter('ALTER TABLE projects ADD COLUMN cad_preview_url TEXT');
 
 db.close();
 console.log('✅ Migrations complete!');

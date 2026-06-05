@@ -155,6 +155,7 @@ const Project = {
       'time_effort','tools','steps','references',
       'status','is_public','is_available','license',
       'cad_share_url',
+      'cad_preview_url',
     ];
     const jsonFields = new Set(['steps','references']);
     const boolFields = new Set(['is_public','is_available']);

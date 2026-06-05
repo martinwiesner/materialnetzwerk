@@ -286,8 +286,16 @@ function OekobilanzSection({ project }) {
   );
 }
 
-function CadEmbed({ url }) {
+// Prüft ob das Gerät genug Ressourcen für WASM hat.
+// navigator.deviceMemory: Chrome/Android. Auf iOS nicht verfügbar → Desktop-Annahme.
+const deviceMemory = navigator.deviceMemory ?? (window.matchMedia('(pointer: coarse)').matches ? 2 : 8);
+const wasmCapable = deviceMemory >= 2;
+
+function CadEmbed({ shareUrl, previewUrl }) {
   const [active, setActive] = useState(false);
+  const [forceLoad, setForceLoad] = useState(false);
+
+  const showIframe = active && (wasmCapable || forceLoad);
 
   return (
     <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
@@ -297,16 +305,16 @@ function CadEmbed({ url }) {
         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">experimentell</span>
       </div>
 
-      {/* Viewer area */}
-      {active ? (
+      {/* Viewer */}
+      {showIframe ? (
         <iframe
-          src={url}
+          src={shareUrl}
           title="CAD-Modell"
           className="w-full border-0"
           style={{ height: '520px' }}
           allow="fullscreen"
         />
-      ) : (
+      ) : wasmCapable ? (
         <button
           onClick={() => setActive(true)}
           className="w-full flex flex-col items-center justify-center gap-3 py-14 bg-gradient-to-b from-gray-50 to-gray-100 hover:from-amber-50 hover:to-amber-100 transition-colors cursor-pointer group"
@@ -323,15 +331,37 @@ function CadEmbed({ url }) {
             <p className="text-xs text-gray-400 mt-0.5">Klicken zum Laden · läuft im Browser</p>
           </div>
         </button>
+      ) : (
+        <div className="w-full flex flex-col items-center justify-center gap-3 py-12 bg-gradient-to-b from-gray-50 to-gray-100 px-6">
+          <div className="w-14 h-14 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-amber-700">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-gray-700">3D-Modell</p>
+            <p className="text-xs text-gray-400 mt-0.5">Auf diesem Gerät am besten im Browser öffnen</p>
+          </div>
+          <button
+            onClick={() => { setActive(true); setForceLoad(true); }}
+            className="text-xs text-amber-600 hover:text-amber-800 underline underline-offset-2"
+          >
+            Trotzdem hier laden
+          </button>
+        </div>
       )}
 
-      {/* Link immer sichtbar */}
+      {/* Footer */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-amber-100 bg-amber-50/60">
         <p className="text-xs text-gray-400">
-          {active ? 'Drehen: Maus · Zoomen: Scroll · Verschieben: Shift + Maus · Falls leer → Link rechts' : 'Öffnet direkt im Browser — keine Installation nötig'}
+          {showIframe
+            ? 'Drehen: Maus · Zoomen: Scroll · Verschieben: Shift + Maus'
+            : 'Öffnet direkt im Browser — keine Installation nötig'}
         </p>
         <a
-          href={url}
+          href={shareUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 transition-colors shrink-0"
@@ -600,7 +630,7 @@ export default function ProjectDetail() {
         )}
 
         {/* CAD-Modell */}
-        {project.cad_share_url && <CadEmbed url={project.cad_share_url} />}
+        {project.cad_share_url && <CadEmbed shareUrl={project.cad_share_url} />}
 
         {/* Step-by-step instructions */}
         {(() => {

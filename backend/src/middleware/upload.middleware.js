@@ -46,6 +46,7 @@ const fileFilter = (req, file, cb) => {
     '.dxf', '.dwg',
     '.step', '.stp',
     '.stl', '.obj', '.3ds', '.igs', '.iges',
+    '.glb', '.gltf',
     '.zip', '.rar',
   ];
   const ext = extname(file.originalname).toLowerCase();
@@ -87,6 +88,18 @@ export const uploadProjectFiles = multer({
   storage: makeStorage('project-files'),
   fileFilter: fileFilter,
   limits: { fileSize: 50 * 1024 * 1024, files: 10 },
+});
+
+const glbFilter = (req, file, cb) => {
+  const ext = extname(file.originalname).toLowerCase();
+  if (ext === '.glb' || ext === '.gltf') cb(null, true);
+  else cb(new Error('Only GLB/GLTF files are allowed for CAD preview.'), false);
+};
+
+export const uploadCadPreview = multer({
+  storage: makeStorage('project-cad'),
+  fileFilter: glbFilter,
+  limits: { fileSize: 100 * 1024 * 1024, files: 1 },
 });
 
 export default upload;

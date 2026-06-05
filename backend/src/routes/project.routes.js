@@ -22,9 +22,11 @@ import {
   deleteProjectFile,
   getProjectActors,
   setProjectActors,
+  uploadCadPreview,
+  deleteCadPreview,
 } from '../controllers/project.controller.js';
 import protect, { optionalAuth } from '../middleware/auth.middleware.js';
-import upload, { uploadProjectFiles as multerProjFiles } from '../middleware/upload.middleware.js';
+import upload, { uploadProjectFiles as multerProjFiles, uploadCadPreview as multerCadPreview } from '../middleware/upload.middleware.js';
 
 const router = express.Router();
 
@@ -353,6 +355,10 @@ export default router;
 router.post('/:id/files', protect, multerProjFiles.array('files', 10), (req, res) => uploadProjectFiles(req, res));
 router.get('/:id/files', optionalAuth, (req, res) => getProjectFiles(req, res));
 router.delete('/:id/files/:fileId', protect, (req, res) => deleteProjectFile(req, res));
+
+// CAD preview (GLB) routes
+router.post('/:id/cad-preview', protect, multerCadPreview.single('file'), (req, res) => uploadCadPreview(req, res));
+router.delete('/:id/cad-preview', protect, (req, res) => deleteCadPreview(req, res));
 
 // Actor association routes
 router.get('/:id/actors', optionalAuth, (req, res) => getProjectActors(req, res));
