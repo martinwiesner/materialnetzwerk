@@ -328,7 +328,7 @@ function CadEmbed({ url }) {
       {/* Link immer sichtbar */}
       <div className="flex items-center justify-between px-5 py-3 border-t border-amber-100 bg-amber-50/60">
         <p className="text-xs text-gray-400">
-          {active ? 'Drehen mit Maus · Zoomen mit Scroll · Falls leer → Link rechts' : 'Öffnet direkt im Browser — keine Installation nötig'}
+          {active ? 'Drehen: Maus · Zoomen: Scroll · Verschieben: Shift + Maus · Falls leer → Link rechts' : 'Öffnet direkt im Browser — keine Installation nötig'}
         </p>
         <a
           href={url}
