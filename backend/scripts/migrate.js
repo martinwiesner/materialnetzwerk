@@ -319,6 +319,52 @@ try {
   console.error('FK fix error (non-fatal):', e.message);
 }
 
+// ── Fix stale FK refs pointing to _mig_fix_* tables (cascade from table rebuild) ──
+// When a table is renamed to _mig_fix_X during rebuild, SQLite auto-rewrites all
+// child-table FKs to point to _mig_fix_X. After the rebuild completes and _mig_fix_X
+// is dropped, those child tables are left with broken FK references.
+try {
+  const staleFix = db.prepare(
+    `SELECT name, sql FROM sqlite_master WHERE type='table' AND sql LIKE '%_mig_fix_%'`
+  ).all();
+  if (staleFix.length > 0) {
+    console.log(`Fixing ${staleFix.length} table(s) with stale _mig_fix_ FK reference(s)...`);
+    db.pragma('foreign_keys = OFF');
+    for (const { name, sql } of staleFix) {
+      try {
+        const fixedCreate = sql.replace(/"_mig_fix_([^"]+)"/g, '"$1"')
+                               .replace(/_mig_fix_(\w+)/g, '$1');
+        const indexes = db.prepare(
+          `SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL`
+        ).all(name);
+        const cols = db.prepare(`PRAGMA table_info("${name}")`).all()
+          .map(c => `"${c.name}"`).join(', ');
+        const tmpName = `_mig_fix_${name}`;
+        db.exec(`ALTER TABLE "${name}" RENAME TO "${tmpName}"`);
+        try {
+          db.exec(fixedCreate);
+          db.exec(`INSERT INTO "${name}" (${cols}) SELECT ${cols} FROM "${tmpName}"`);
+          db.exec(`DROP TABLE "${tmpName}"`);
+          for (const idx of indexes) {
+            try { db.exec(idx.sql); } catch (_) { /* already exists */ }
+          }
+          console.log(`  ✓ Rebuilt (mig_fix ref): ${name}`);
+        } catch (inner) {
+          db.exec(`ALTER TABLE "${tmpName}" RENAME TO "${name}"`);
+          console.error(`  ✗ Rebuild failed for ${name} (restored): ${inner.message}`);
+        }
+      } catch (outer) {
+        console.error(`  ✗ Could not process ${name}: ${outer.message}`);
+      }
+    }
+    db.pragma('foreign_keys = ON');
+    console.log('✅ _mig_fix_ FK ref pass complete');
+  }
+} catch (e) {
+  db.pragma('foreign_keys = ON');
+  console.error('_mig_fix_ FK ref fix error (non-fatal):', e.message);
+}
+
 // ── inventory: swap_possible + external_url columns ──────────────────────────
 tryAlter('ALTER TABLE inventory ADD COLUMN swap_possible BOOLEAN DEFAULT 0');
 tryAlter('ALTER TABLE inventory ADD COLUMN available_for_gift BOOLEAN DEFAULT 0');
