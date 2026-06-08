@@ -1,6 +1,10 @@
 import OpenAI from 'openai';
-import { readFileSync, unlinkSync, writeFileSync } from 'fs';
+import { readFileSync, unlinkSync } from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import sharp from 'sharp';
+
+const execFileAsync = promisify(execFile);
 
 const MATERIAL_PROMPT = `Du bist ein Experte für Baumaterialien und Werkstoffe.
 Analysiere die hochgeladenen Bilder und extrahiere alle erkennbaren Informationen über das Material.
@@ -64,11 +68,15 @@ async function toBase64Jpeg(filePath, mimeType) {
   const isHeic = mimeType === 'image/heic' || mimeType === 'image/heif'
     || filePath.toLowerCase().endsWith('.heic') || filePath.toLowerCase().endsWith('.heif');
   if (isHeic) {
+    const jpegPath = filePath + '.jpg';
     try {
-      const jpegBuffer = await sharp(filePath).jpeg({ quality: 85 }).toBuffer();
-      return `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
+      await execFileAsync('heif-convert', ['-q', '85', filePath, jpegPath]);
+      const buffer = readFileSync(jpegPath);
+      return `data:image/jpeg;base64,${buffer.toString('base64')}`;
     } catch (e) {
       throw Object.assign(new Error('HEIC_UNSUPPORTED'), { isHeicError: true });
+    } finally {
+      try { unlinkSync(jpegPath); } catch {}
     }
   }
   const buffer = readFileSync(filePath);
