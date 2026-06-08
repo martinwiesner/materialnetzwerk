@@ -194,6 +194,15 @@ export default function ProjectForm({ project, onClose }) {
     }
   }, [mode]);
 
+  // Auto-save steps to draft whenever they change (debounced)
+  useEffect(() => {
+    if (!draftId || !formData.steps?.length) return;
+    const timer = setTimeout(() => {
+      projectService.update(draftId, { steps: formData.steps }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [draftId, formData.steps]);
+
   const { data: materialsData } = useQuery({
     queryKey: ['materials'],
     queryFn: () => materialService.getAll(),
