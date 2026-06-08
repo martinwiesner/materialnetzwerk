@@ -194,14 +194,18 @@ export default function ProjectForm({ project, onClose }) {
     }
   }, [mode]);
 
-  // Auto-save steps to draft whenever they change (debounced)
+  // Auto-save text fields + steps to draft whenever they change (debounced)
   useEffect(() => {
-    if (!draftId || !formData.steps?.length) return;
+    if (!draftId) return;
     const timer = setTimeout(() => {
-      projectService.update(draftId, { steps: formData.steps }).catch(() => {});
+      const { name, description, content, time_effort, tools, steps } = formData;
+      projectService.update(draftId, {
+        name, description, content, time_effort, tools,
+        steps: steps?.length ? steps : null,
+      }).catch(() => {});
     }, 800);
     return () => clearTimeout(timer);
-  }, [draftId, formData.steps]);
+  }, [draftId, formData]);
 
   const { data: materialsData } = useQuery({
     queryKey: ['materials'],
