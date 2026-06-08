@@ -510,7 +510,7 @@ export default function ProjectForm({ project, onClose }) {
                 ...(data.time_effort && { time_effort: data.time_effort }),
                 ...(data.tools && { tools: data.tools }),
               }));
-            }} />
+            }} onImages={(files) => handleImageUpload(files)} />
           </div>
 
           {/* Title */}
