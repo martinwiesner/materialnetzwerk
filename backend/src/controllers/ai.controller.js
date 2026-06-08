@@ -64,8 +64,12 @@ async function toBase64Jpeg(filePath, mimeType) {
   const isHeic = mimeType === 'image/heic' || mimeType === 'image/heif'
     || filePath.toLowerCase().endsWith('.heic') || filePath.toLowerCase().endsWith('.heif');
   if (isHeic) {
-    const jpegBuffer = await sharp(filePath).jpeg({ quality: 85 }).toBuffer();
-    return `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
+    try {
+      const jpegBuffer = await sharp(filePath).jpeg({ quality: 85 }).toBuffer();
+      return `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
+    } catch (e) {
+      throw Object.assign(new Error('HEIC_UNSUPPORTED'), { isHeicError: true });
+    }
   }
   const buffer = readFileSync(filePath);
   return `data:${mimeType};base64,${buffer.toString('base64')}`;
@@ -118,6 +122,9 @@ export const analyzeImages = async (req, res) => {
 
     res.json({ data, mode });
   } catch (error) {
+    if (error.isHeicError) {
+      return res.status(415).json({ message: 'HEIC-Dateien werden auf diesem Server nicht unterstützt. Bitte das Foto als JPEG oder PNG exportieren (iPhone: Einstellungen → Kamera → Formate → Kompatibel) und erneut hochladen.' });
+    }
     res.status(500).json({ message: 'KI-Analyse fehlgeschlagen', error: error.message });
   } finally {
     for (const f of files) {

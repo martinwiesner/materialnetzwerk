@@ -8,7 +8,8 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install build dependencies for native modules (like better-sqlite3)
-RUN apk add --no-cache python3 make g++ sqlite
+# libheif + libde265 enable HEIC/HEIF image processing via sharp/vips
+RUN apk add --no-cache python3 make g++ sqlite libheif libde265
 
 # Install dependencies
 RUN npm install --production=false
