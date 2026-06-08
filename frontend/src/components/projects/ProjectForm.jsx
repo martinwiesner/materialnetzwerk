@@ -129,7 +129,7 @@ function StepAiButton({ stepIndex, onUpload, ensureDraft, onStepResult }) {
   return (
     <div className="flex flex-col gap-0.5">
       <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-violet-600 hover:text-violet-800 py-1">
-        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFiles} disabled={loading} />
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif" className="hidden" onChange={handleFiles} disabled={loading} />
         {loading ? (
           <><span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" /> KI analysiert…</>
         ) : (

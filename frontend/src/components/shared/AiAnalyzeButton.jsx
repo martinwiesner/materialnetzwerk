@@ -59,7 +59,7 @@ export default function AiAnalyzeButton({ mode = 'material', onResult, onImages,
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
         multiple={multiple}
         className="hidden"
         onChange={(e) => handleFiles(Array.from(e.target.files || []))}

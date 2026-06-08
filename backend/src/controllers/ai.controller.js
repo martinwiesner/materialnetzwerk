@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
-import { readFileSync, unlinkSync } from 'fs';
+import { readFileSync, unlinkSync, writeFileSync } from 'fs';
+import sharp from 'sharp';
 
 const MATERIAL_PROMPT = `Du bist ein Experte für Baumaterialien und Werkstoffe.
 Analysiere die hochgeladenen Bilder und extrahiere alle erkennbaren Informationen über das Material.
@@ -59,7 +60,13 @@ JSON-Schema:
   "text": "klare Schritt-für-Schritt-Anleitung für diesen Arbeitsschritt (2-4 Sätze, konkret und handlungsorientiert)"
 }`;
 
-function imageToBase64(filePath, mimeType) {
+async function toBase64Jpeg(filePath, mimeType) {
+  const isHeic = mimeType === 'image/heic' || mimeType === 'image/heif'
+    || filePath.toLowerCase().endsWith('.heic') || filePath.toLowerCase().endsWith('.heif');
+  if (isHeic) {
+    const jpegBuffer = await sharp(filePath).jpeg({ quality: 85 }).toBuffer();
+    return `data:image/jpeg;base64,${jpegBuffer.toString('base64')}`;
+  }
   const buffer = readFileSync(filePath);
   return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }
@@ -82,10 +89,10 @@ export const analyzeImages = async (req, res) => {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
-    const imageContents = files.map((f) => ({
+    const imageContents = await Promise.all(files.map(async (f) => ({
       type: 'image_url',
-      image_url: { url: imageToBase64(f.path, f.mimetype), detail: 'high' },
-    }));
+      image_url: { url: await toBase64Jpeg(f.path, f.mimetype), detail: 'high' },
+    })));
 
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
