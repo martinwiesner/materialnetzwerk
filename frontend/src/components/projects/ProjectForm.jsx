@@ -11,6 +11,7 @@ import FileUploader from '../shared/FileUploader';
 import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
+import AiAnalyzeButton from '../shared/AiAnalyzeButton';
 
 const API_BASE = MEDIA_BASE;
 
@@ -92,6 +93,53 @@ const emptyForm = {
   license: '',
   cad_share_url: '',
 };
+
+function StepAiButton({ stepIndex, onUpload, ensureDraft, onStepResult }) {
+  const inputRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setLoading(true);
+    setError('');
+    try {
+      const id = await ensureDraft();
+      if (!id) return;
+      // Upload image as step image
+      await onUpload(files, { step_index: stepIndex });
+      // Send to AI for step description
+      const { default: api } = await import('../../services/api');
+      const form = new FormData();
+      form.append('mode', 'step');
+      form.append('images', files[0]);
+      const { data: resp } = await api.post('/ai/analyze', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      onStepResult(resp.data);
+    } catch (e) {
+      setError(e.response?.data?.message ?? 'Analyse fehlgeschlagen');
+    } finally {
+      setLoading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-violet-600 hover:text-violet-800 py-1">
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFiles} disabled={loading} />
+        {loading ? (
+          <><span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" /> KI analysiert…</>
+        ) : (
+          <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4"/><path d="M12 10v4M8 14h8M6 18h12M4 22h16"/></svg> Bild hochladen &amp; KI beschreibt</>
+        )}
+      </label>
+      {error && <p className="text-xs text-red-500">⚠ {error}</p>}
+    </div>
+  );
+}
 
 function StepImageUpload({ stepIndex, onUpload, ensureDraft }) {
   const t = useT();
@@ -450,6 +498,21 @@ export default function ProjectForm({ project, onClose }) {
             </div>
           )}
 
+          {/* ── KI-Analyse ───────────────────────────────────────────────── */}
+          <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+            <p className="text-xs font-semibold text-violet-700 mb-2">✨ KI-Assistent</p>
+            <AiAnalyzeButton mode="project" onResult={(data) => {
+              setFormData(prev => ({
+                ...prev,
+                ...(data.name && { name: data.name }),
+                ...(data.description && { description: data.description }),
+                ...(data.content && { content: data.content }),
+                ...(data.time_effort && { time_effort: data.time_effort }),
+                ...(data.tools && { tools: data.tools }),
+              }));
+            }} />
+          </div>
+
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -576,7 +639,22 @@ export default function ProjectForm({ project, onClose }) {
                                 })}
                               </div>
                             )}
-                            <StepImageUpload stepIndex={stepIndex} onUpload={handleImageUpload} ensureDraft={ensureDraft} />
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <StepImageUpload stepIndex={stepIndex} onUpload={handleImageUpload} ensureDraft={ensureDraft} />
+                              <StepAiButton
+                                stepIndex={stepIndex}
+                                onUpload={handleImageUpload}
+                                ensureDraft={ensureDraft}
+                                onStepResult={(data) => setFormData(f => ({
+                                  ...f,
+                                  steps: f.steps.map((s, j) => j === i ? {
+                                    ...s,
+                                    ...(data.title && { title: data.title }),
+                                    ...(data.text && { text: data.text }),
+                                  } : s),
+                                }))}
+                              />
+                            </div>
                           </div>
                         </div>
                       );

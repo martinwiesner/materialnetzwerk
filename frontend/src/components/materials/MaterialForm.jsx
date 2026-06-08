@@ -10,6 +10,7 @@ import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
 import InfoTooltip from '../shared/InfoTooltip';
+import AiAnalyzeButton from '../shared/AiAnalyzeButton';
 
 import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
@@ -1024,6 +1025,45 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* ── KI-Analyse ───────────────────────────────────────────────── */}
+          <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+            <p className="text-xs font-semibold text-violet-700 mb-2">✨ KI-Assistent</p>
+            <AiAnalyzeButton
+              mode="material"
+              onImages={(files) => {
+                const updated = [...pendingImagesRef.current, ...files];
+                pendingImagesRef.current = updated;
+                setPendingImages(updated);
+              }}
+              onResult={(data) => {
+                const VALID_SOURCES = ['primary','secondary_rückbau','secondary_restposten','secondary_überschuss','secondary_upcycling','secondary_eigenproduktion'];
+                const SOURCE_MAP = { neu: 'primary', neuware: 'primary', rückbau: 'secondary_rückbau', abbruch: 'secondary_rückbau', demontage: 'secondary_rückbau', restposten: 'secondary_restposten', produktion: 'secondary_restposten', überschuss: 'secondary_überschuss', lager: 'secondary_überschuss', upcycling: 'secondary_upcycling', recycelt: 'secondary_upcycling', eigenproduktion: 'secondary_eigenproduktion', selbst: 'secondary_eigenproduktion' };
+                const rawSrc = (data.origin_source || '').toLowerCase().trim();
+                const origin_source = VALID_SOURCES.includes(rawSrc) ? rawSrc : (SOURCE_MAP[rawSrc] ?? '');
+                setFormData(prev => ({
+                  ...prev,
+                  ...(data.name && { name: data.name }),
+                  ...(data.category && { category: data.category }),
+                  ...(data.description && { description: data.description }),
+                  ...(data.short_description && { short_description: data.short_description }),
+                  ...(data.origin_acquisition && { origin_acquisition: data.origin_acquisition }),
+                  ...(data.use_processing && { use_processing: data.use_processing }),
+                  ...(data.use_where && { use_where: data.use_where }),
+                  ...(data.use_not_suitable && { use_not_suitable: data.use_not_suitable }),
+                  ...(data.use_indoor !== undefined && { use_indoor: data.use_indoor }),
+                  ...(data.use_outdoor !== undefined && { use_outdoor: data.use_outdoor }),
+                  ...(origin_source && { origin_source }),
+                  ...(data.previous_use && { previous_use: data.previous_use }),
+                  ...(data.tech_dimensions && { tech_dimensions: data.tech_dimensions }),
+                  ...(data.tech_density && { tech_density: data.tech_density }),
+                  ...(data.tech_flammability && { tech_flammability: data.tech_flammability }),
+                  ...(data.tech_thermal_insulation && { tech_thermal_insulation: data.tech_thermal_insulation }),
+                  ...(data.tech_compressive_strength && { tech_compressive_strength: data.tech_compressive_strength }),
+                }));
+              }}
+            />
           </div>
 
           {/* ── Grunddaten ────────────────────────────────────────────────── */}
