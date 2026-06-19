@@ -26,6 +26,7 @@ const NEW_FIELDS = [
   'material_id','passport_type','passport_data',
   // EPD / Ökobilanz-Grunddaten (EN 15804)
   'declared_unit','gwp_fossil','gwp_biogenic','gwp_luluc','adp_fossil','adp_elements','lifecycle_scope','water_consumption',
+  'odp','ap','ep_terrestrial','ep_freshwater','ep_marine','pocp','hwd','nhwd','rwd','pere','penre','perm',
 ];
 
 const BOOL_FIELDS = new Set(['is_reusable','is_transferable','is_giftable','use_indoor','use_outdoor','cert_epd','cert_cradle_to_cradle','cert_fsc_pefc']);
@@ -112,6 +113,18 @@ const Material = {
       data.adp_elements??null,
       data.lifecycle_scope||null,
       data.water_consumption??null,
+      data.odp??null,
+      data.ap??null,
+      data.ep_terrestrial??null,
+      data.ep_freshwater??null,
+      data.ep_marine??null,
+      data.pocp??null,
+      data.hwd??null,
+      data.nhwd??null,
+      data.rwd??null,
+      data.pere??null,
+      data.penre??null,
+      data.perm??null,
     ];
     const ph = cols.map(()=>'?').join(', ');
     db.prepare(`INSERT INTO materials (${cols.join(', ')}) VALUES (${ph})`).run(...vals);

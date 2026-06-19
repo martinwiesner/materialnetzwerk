@@ -149,6 +149,18 @@ const initialFormState = {
   adp_elements: '',
   lifecycle_scope: '',
   water_consumption: '',
+  odp: '',
+  ap: '',
+  ep_terrestrial: '',
+  ep_freshwater: '',
+  ep_marine: '',
+  pocp: '',
+  hwd: '',
+  nhwd: '',
+  rwd: '',
+  pere: '',
+  penre: '',
+  perm: '',
 };
 
 export default function MaterialForm({ material, onClose, enableOfferOnCreate = false, initialMode }) {
@@ -321,6 +333,18 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         adp_elements: material.adp_elements ?? '',
         lifecycle_scope: material.lifecycle_scope || '',
         water_consumption: material.water_consumption ?? '',
+        odp: material.odp ?? '',
+        ap: material.ap ?? '',
+        ep_terrestrial: material.ep_terrestrial ?? '',
+        ep_freshwater: material.ep_freshwater ?? '',
+        ep_marine: material.ep_marine ?? '',
+        pocp: material.pocp ?? '',
+        hwd: material.hwd ?? '',
+        nhwd: material.nhwd ?? '',
+        rwd: material.rwd ?? '',
+        pere: material.pere ?? '',
+        penre: material.penre ?? '',
+        perm: material.perm ?? '',
       });
     }
   }, [material]);
@@ -547,6 +571,18 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       adp_fossil:        formData.adp_fossil        !== '' ? parseFloat(formData.adp_fossil)        : null,
       adp_elements:      formData.adp_elements       !== '' ? parseFloat(formData.adp_elements)       : null,
       water_consumption: formData.water_consumption  !== '' ? parseFloat(formData.water_consumption)  : null,
+      odp:               formData.odp               !== '' ? parseFloat(formData.odp)               : null,
+      ap:                formData.ap                !== '' ? parseFloat(formData.ap)                : null,
+      ep_terrestrial:    formData.ep_terrestrial    !== '' ? parseFloat(formData.ep_terrestrial)    : null,
+      ep_freshwater:     formData.ep_freshwater     !== '' ? parseFloat(formData.ep_freshwater)     : null,
+      ep_marine:         formData.ep_marine         !== '' ? parseFloat(formData.ep_marine)         : null,
+      pocp:              formData.pocp              !== '' ? parseFloat(formData.pocp)              : null,
+      hwd:               formData.hwd               !== '' ? parseFloat(formData.hwd)               : null,
+      nhwd:              formData.nhwd              !== '' ? parseFloat(formData.nhwd)              : null,
+      rwd:               formData.rwd               !== '' ? parseFloat(formData.rwd)               : null,
+      pere:              formData.pere              !== '' ? parseFloat(formData.pere)              : null,
+      penre:             formData.penre             !== '' ? parseFloat(formData.penre)             : null,
+      perm:              formData.perm              !== '' ? parseFloat(formData.perm)              : null,
 
       // normalize arrays/JSON
       similar_material_ids: JSON.stringify(similarIds),
@@ -1417,12 +1453,24 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   </select>
                 </div>
                 {[
-                  { name: 'gwp_fossil',        label: t('materialForm.epdGwpFossil'),    tip: 'epdTooltipGwpFossil',    ph: 'z. B. 2.4' },
-                  { name: 'gwp_biogenic',       label: t('materialForm.epdGwpBiogenic'),  tip: 'epdTooltipGwpBiogenic',  ph: 'z. B. -0.1' },
-                  { name: 'gwp_luluc',          label: t('materialForm.epdGwpLuluc'),     tip: 'epdTooltipGwpLuluc',     ph: 'z. B. 0.01' },
-                  { name: 'adp_fossil',         label: t('materialForm.epdAdpFossil'),    tip: 'epdTooltipAdpFossil',    ph: 'z. B. 45' },
-                  { name: 'adp_elements',       label: t('materialForm.epdAdpElements'),  tip: 'epdTooltipAdpElements',  ph: 'z. B. 0.00012' },
-                  { name: 'water_consumption',  label: t('materialForm.epdWater'),        tip: 'epdTooltipWater',        ph: 'z. B. 0.003' },
+                  { name: 'gwp_fossil',        label: t('materialForm.epdGwpFossil'),        tip: 'epdTooltipGwpFossil',        ph: 'z. B. 2.4' },
+                  { name: 'gwp_biogenic',       label: t('materialForm.epdGwpBiogenic'),      tip: 'epdTooltipGwpBiogenic',      ph: 'z. B. -0.1' },
+                  { name: 'gwp_luluc',          label: t('materialForm.epdGwpLuluc'),         tip: 'epdTooltipGwpLuluc',         ph: 'z. B. 0.01' },
+                  { name: 'adp_fossil',         label: t('materialForm.epdAdpFossil'),        tip: 'epdTooltipAdpFossil',        ph: 'z. B. 45' },
+                  { name: 'adp_elements',       label: t('materialForm.epdAdpElements'),      tip: 'epdTooltipAdpElements',      ph: 'z. B. 0.00012' },
+                  { name: 'water_consumption',  label: t('materialForm.epdWater'),            tip: 'epdTooltipWater',            ph: 'z. B. 0.003' },
+                  { name: 'odp',                label: t('materialForm.epdOdp'),              tip: 'epdTooltipOdp',              ph: 'z. B. 1.2e-8' },
+                  { name: 'ap',                 label: t('materialForm.epdAp'),               tip: 'epdTooltipAp',               ph: 'z. B. 0.012' },
+                  { name: 'ep_terrestrial',     label: t('materialForm.epdEpTerrestrial'),    tip: 'epdTooltipEpTerrestrial',    ph: 'z. B. 0.05' },
+                  { name: 'ep_freshwater',      label: t('materialForm.epdEpFreshwater'),     tip: 'epdTooltipEpFreshwater',     ph: 'z. B. 3e-5' },
+                  { name: 'ep_marine',          label: t('materialForm.epdEpMarine'),         tip: 'epdTooltipEpMarine',         ph: 'z. B. 0.004' },
+                  { name: 'pocp',               label: t('materialForm.epdPocp'),             tip: 'epdTooltipPocp',             ph: 'z. B. 0.003' },
+                  { name: 'hwd',                label: t('materialForm.epdHwd'),              tip: 'epdTooltipHwd',              ph: 'z. B. 0.001' },
+                  { name: 'nhwd',               label: t('materialForm.epdNhwd'),             tip: 'epdTooltipNhwd',             ph: 'z. B. 15' },
+                  { name: 'rwd',                label: t('materialForm.epdRwd'),              tip: 'epdTooltipRwd',              ph: 'z. B. 2e-5' },
+                  { name: 'pere',               label: t('materialForm.epdPere'),             tip: 'epdTooltipPere',             ph: 'z. B. 1.5' },
+                  { name: 'penre',              label: t('materialForm.epdPenre'),            tip: 'epdTooltipPenre',            ph: 'z. B. 45' },
+                  { name: 'perm',               label: t('materialForm.epdPerm'),             tip: 'epdTooltipPerm',             ph: 'z. B. 0.5' },
                 ].map(({ name, label, tip, ph }) => (
                   <div key={name}>
                     <label className="flex items-center gap-1 text-xs font-medium text-gray-600 mb-1">

@@ -12,6 +12,8 @@ import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
 import AiAnalyzeButton from '../shared/AiAnalyzeButton';
+import OekobaudatPicker from './OekobaudatPicker';
+import { EpdFullAnalysis } from './EpdAnalysis';
 
 const API_BASE = MEDIA_BASE;
 
@@ -92,6 +94,7 @@ const emptyForm = {
   references: [],
   license: '',
   cad_share_url: '',
+  oekodat_materials: [],
 };
 
 function StepAiButton({ stepIndex, onUpload, ensureDraft, onStepResult }) {
@@ -171,6 +174,49 @@ function StepImageUpload({ stepIndex, onUpload, ensureDraft }) {
   );
 }
 
+function libEntryFromFormMat(formMat, libFull) {
+  const f = libFull.gwp_fossil   != null ? Number(libFull.gwp_fossil)   : null;
+  const b = libFull.gwp_biogenic != null ? Number(libFull.gwp_biogenic) : null;
+  const l = libFull.gwp_luluc    != null ? Number(libFull.gwp_luluc)    : null;
+  const hasFBL = f != null || b != null || l != null;
+  const perUnit = hasFBL ? ((f || 0) + (b || 0) + (l || 0)) : (Number(libFull.gwp_value) || 0);
+  if (!perUnit && !hasFBL) return null;
+  const indicators = {};
+  if (perUnit !== 0)  indicators['GWP-total']    = { mods: { 'A1-A3': perUnit }, unit: 'kg CO₂e' };
+  if (f != null)      indicators['GWP-fossil']   = { mods: { 'A1-A3': f }, unit: 'kg CO₂e' };
+  if (b != null)      indicators['GWP-biogenic'] = { mods: { 'A1-A3': b }, unit: 'kg CO₂e' };
+  if (l != null)      indicators['GWP-luluc']    = { mods: { 'A1-A3': l }, unit: 'kg CO₂e' };
+  const n = (field) => libFull[field] != null ? Number(libFull[field]) : null;
+  const addInd = (k, field, unit) => { const v = n(field); if (v != null) indicators[k] = { mods: { 'A1-A3': v }, unit }; };
+  addInd('ADP-fossil',     'adp_fossil',        'MJ');
+  addInd('ADP-elements',   'adp_elements',      'kg Sb eq.');
+  addInd('WDP',            'water_consumption', 'm³');
+  addInd('ODP',            'odp',               'kg CFC-11 eq.');
+  addInd('AP',             'ap',                'mol H⁺ eq.');
+  addInd('EP-terrestrial', 'ep_terrestrial',    'mol N eq.');
+  addInd('EP-freshwater',  'ep_freshwater',     'kg P eq.');
+  addInd('EP-marine',      'ep_marine',         'kg N eq.');
+  addInd('POCP',           'pocp',              'kg NMVOC eq.');
+  addInd('HWD',            'hwd',               'kg');
+  addInd('NHWD',           'nhwd',              'kg');
+  addInd('RWD',            'rwd',               'kg');
+  addInd('PERE',           'pere',              'MJ');
+  addInd('PENRE',          'penre',             'MJ');
+  addInd('PERM',           'perm',              'MJ');
+  return {
+    uuid: `lib-${libFull.id}`,
+    name: libFull.name,
+    category: libFull.category || '',
+    declaredUnit: libFull.declared_unit || libFull.unit || 'kg',
+    quantity: Number(formMat.quantity) || 1,
+    unit: formMat.unit || libFull.unit || libFull.declared_unit || 'kg',
+    gwpA1A3: perUnit !== 0 ? perUnit : null,
+    gwpEoL: null, gwpD: null,
+    indicators,
+    isLibraryMaterial: true,
+  };
+}
+
 export default function ProjectForm({ project, onClose }) {
   const t = useT();
   const queryClient = useQueryClient();
@@ -194,14 +240,15 @@ export default function ProjectForm({ project, onClose }) {
     }
   }, [mode]);
 
-  // Auto-save text fields + steps to draft whenever they change (debounced)
+  // Auto-save text fields + steps + oekodat_materials to draft whenever they change (debounced)
   useEffect(() => {
     if (!draftId) return;
     const timer = setTimeout(() => {
-      const { name, description, content, time_effort, tools, steps } = formData;
+      const { name, description, content, time_effort, tools, steps, oekodat_materials } = formData;
       projectService.update(draftId, {
         name, description, content, time_effort, tools,
         steps: steps?.length ? steps : null,
+        oekodat_materials: oekodat_materials?.length ? oekodat_materials : null,
       }).catch(() => {});
     }, 800);
     return () => clearTimeout(timer);
@@ -260,6 +307,7 @@ export default function ProjectForm({ project, onClose }) {
         references: safeJsonParse(project.references, []),
         license: project.license || '',
         cad_share_url: project.cad_share_url || '',
+        oekodat_materials: safeJsonParse(project.oekodat_materials, []),
       });
     }
   }, [project]);
@@ -293,6 +341,7 @@ export default function ProjectForm({ project, onClose }) {
     general_sustainability_principles: JSON.stringify(formData.general_sustainability_principles || []),
     steps: formData.steps?.length ? formData.steps : null,
     references: formData.references?.length ? formData.references : null,
+    oekodat_materials: formData.oekodat_materials?.length ? formData.oekodat_materials : null,
   });
 
   const createMutation = useMutation({
@@ -456,6 +505,14 @@ export default function ProjectForm({ project, onClose }) {
     ...formData.principles_efficiency,
     ...formData.general_sustainability_principles,
   ];
+
+  const libAsEpdForm = formData.materials
+    .map(m => {
+      const full = availableMaterials.find(a => a.id === m.material_id);
+      return full ? libEntryFromFormMat(m, full) : null;
+    })
+    .filter(Boolean);
+  const allMaterialsForLca = [...libAsEpdForm, ...(formData.oekodat_materials || [])];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
@@ -736,6 +793,36 @@ export default function ProjectForm({ project, onClose }) {
                   </div>
                 )}
               </AccordionSection>
+
+              {/* Ökobaudat EPDs */}
+              <AccordionSection icon={Leaf} title="Ökobaudat-Umweltdaten (EPD)" color="#059669"
+                filled={formData.oekodat_materials?.length > 0}
+                defaultOpen={!!(project?.oekodat_materials && safeJsonParse(project?.oekodat_materials, []).length > 0)}>
+                <p className="text-xs text-gray-500 mb-3">
+                  Materialien aus der professionellen Ökobaudat-Datenbank suchen und Umweltwerte (GWP, ODP, AP, EP, ADP …) für alle Lebenszyklusphasen extrahieren.
+                </p>
+                <OekobaudatPicker
+                  selected={formData.oekodat_materials || []}
+                  onChange={(items) => setFormData(f => ({ ...f, oekodat_materials: items }))}
+                />
+              </AccordionSection>
+
+              {/* Kombinierte Umweltbilanz — Bibliothek + Ökobaudat */}
+              {allMaterialsForLca.length > 0 && (
+                <div className="border border-emerald-100 rounded-xl overflow-hidden bg-emerald-50/20 px-4 py-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Leaf className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-semibold text-emerald-800">Umweltwirkung – Gesamtbilanz</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mb-3">
+                    {[
+                      libAsEpdForm.length > 0 && `${libAsEpdForm.length} Bibliotheks-Material${libAsEpdForm.length > 1 ? 'ien' : ''} mit Umweltdaten`,
+                      (formData.oekodat_materials?.length > 0) && `${formData.oekodat_materials.length} Ökobaudat-EPD${formData.oekodat_materials.length > 1 ? 's' : ''}`,
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                  <EpdFullAnalysis selected={allMaterialsForLca} />
+                </div>
+              )}
 
               {/* Nachhaltigkeitsprinzipien */}
               <AccordionSection icon={Leaf} title={t('projectForm.sustainabilityTitle')} color="#15803d"

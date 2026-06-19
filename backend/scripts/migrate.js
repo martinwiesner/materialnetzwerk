@@ -377,6 +377,21 @@ tryAlter('ALTER TABLE projects ADD COLUMN license TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN material_id TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN cad_share_url TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN cad_preview_url TEXT');
+tryAlter('ALTER TABLE projects ADD COLUMN oekodat_materials TEXT');
+
+// ── materials: extended Ökobaudat indicators ──────────────────────────────────
+tryAlter('ALTER TABLE materials ADD COLUMN odp REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN ap REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN ep_terrestrial REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN ep_freshwater REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN ep_marine REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN pocp REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN hwd REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN nhwd REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN rwd REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN pere REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN penre REAL');
+tryAlter('ALTER TABLE materials ADD COLUMN perm REAL');
 
 db.close();
 console.log('✅ Migrations complete!');

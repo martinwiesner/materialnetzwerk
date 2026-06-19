@@ -6,8 +6,9 @@ import { projectService } from '../../services/projectService';
 import {
   ArrowLeft, Edit2, Trash2, Globe, Lock, Package,
   Calendar, User, Leaf, ChevronLeft, ChevronRight,
-  MapPin, ExternalLink, BookOpen, Users, Tag
+  MapPin, ExternalLink, BookOpen, Users, Tag, Database
 } from 'lucide-react';
+import { EpdFullAnalysis } from '../../components/projects/EpdAnalysis';
 
 function ImageCarousel({ images, apiBase }) {
   const t = useT();
@@ -113,6 +114,241 @@ function TagGroup({ title, items }) {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Ökobaudat EPD LCA helpers ────────────────────────────────────────────────
+
+const EPD_INDICATOR_ORDER = [
+  'GWP-total','GWP-fossil','GWP-biogenic','GWP-luluc',
+  'ODP','AP','EP-terrestrial','EP-freshwater','EP-marine','POCP',
+  'ADP-elements','ADP-fossil','ADP','WDP',
+  'HWD','NHWD','RWD','PERE','PENRE','PERM',
+];
+
+function epdSumMods(mods, keys) {
+  for (const k of keys) {
+    if (k in mods && mods[k] != null) return mods[k];
+  }
+  let s = 0, found = false;
+  for (const k of Object.keys(mods)) {
+    if (keys.includes(k) && mods[k] != null) { s += mods[k]; found = true; }
+  }
+  return found ? s : null;
+}
+
+function epdFmtNum(v) {
+  if (v == null || isNaN(v)) return '—';
+  if (v === 0) return '0';
+  if (Math.abs(v) < 0.0001) return v.toExponential(2);
+  if (Math.abs(v) >= 1000) return v.toFixed(0);
+  if (Math.abs(v) >= 100)  return v.toFixed(1);
+  if (Math.abs(v) >= 1)    return v.toFixed(2);
+  return v.toPrecision(3);
+}
+
+function epdComputeTotals(selected) {
+  const totals = {};
+  for (const epd of selected) {
+    const qty = Number(epd.quantity) || 1;
+    for (const [key, ind] of Object.entries(epd.indicators || {})) {
+      if (!totals[key]) totals[key] = { unit: ind.unit, mods: {} };
+      for (const [mod, val] of Object.entries(ind.mods || {})) {
+        if (val != null) totals[key].mods[mod] = (totals[key].mods[mod] || 0) + qty * val;
+      }
+    }
+  }
+  return totals;
+}
+
+// Convert a library material (with gwp data) into the unified EPD-entry format
+function libMatToEpdEntry(m) {
+  const perUnit = Number(m.effective_gwp_value) || 0;
+  const indicators = {};
+  if (perUnit !== 0 || m.gwp_value != null) {
+    indicators['GWP-total'] = { mods: { 'A1-A3': perUnit }, unit: 'kg CO₂e' };
+  }
+  if (m.gwp_fossil      != null) indicators['GWP-fossil']      = { mods: { 'A1-A3': Number(m.gwp_fossil)      }, unit: 'kg CO₂e' };
+  if (m.gwp_biogenic    != null) indicators['GWP-biogenic']    = { mods: { 'A1-A3': Number(m.gwp_biogenic)    }, unit: 'kg CO₂e' };
+  if (m.gwp_luluc       != null) indicators['GWP-luluc']       = { mods: { 'A1-A3': Number(m.gwp_luluc)       }, unit: 'kg CO₂e' };
+  if (m.adp_fossil      != null) indicators['ADP-fossil']      = { mods: { 'A1-A3': Number(m.adp_fossil)      }, unit: 'MJ' };
+  if (m.adp_elements    != null) indicators['ADP-elements']    = { mods: { 'A1-A3': Number(m.adp_elements)    }, unit: 'kg Sb eq.' };
+  if (m.water_consumption!=null) indicators['WDP']             = { mods: { 'A1-A3': Number(m.water_consumption)}, unit: 'm³' };
+  if (m.odp             != null) indicators['ODP']             = { mods: { 'A1-A3': Number(m.odp)             }, unit: 'kg CFC-11 eq.' };
+  if (m.ap              != null) indicators['AP']              = { mods: { 'A1-A3': Number(m.ap)              }, unit: 'mol H⁺ eq.' };
+  if (m.ep_terrestrial  != null) indicators['EP-terrestrial']  = { mods: { 'A1-A3': Number(m.ep_terrestrial)  }, unit: 'mol N eq.' };
+  if (m.ep_freshwater   != null) indicators['EP-freshwater']   = { mods: { 'A1-A3': Number(m.ep_freshwater)   }, unit: 'kg P eq.' };
+  if (m.ep_marine       != null) indicators['EP-marine']       = { mods: { 'A1-A3': Number(m.ep_marine)       }, unit: 'kg N eq.' };
+  if (m.pocp            != null) indicators['POCP']            = { mods: { 'A1-A3': Number(m.pocp)            }, unit: 'kg NMVOC eq.' };
+  if (m.hwd             != null) indicators['HWD']             = { mods: { 'A1-A3': Number(m.hwd)             }, unit: 'kg' };
+  if (m.nhwd            != null) indicators['NHWD']            = { mods: { 'A1-A3': Number(m.nhwd)            }, unit: 'kg' };
+  if (m.rwd             != null) indicators['RWD']             = { mods: { 'A1-A3': Number(m.rwd)             }, unit: 'kg' };
+  if (m.pere            != null) indicators['PERE']            = { mods: { 'A1-A3': Number(m.pere)            }, unit: 'MJ' };
+  if (m.penre           != null) indicators['PENRE']           = { mods: { 'A1-A3': Number(m.penre)           }, unit: 'MJ' };
+  if (m.perm            != null) indicators['PERM']            = { mods: { 'A1-A3': Number(m.perm)            }, unit: 'MJ' };
+  return {
+    uuid:         `lib-${m.material_id || m.id}`,
+    name:         m.material_name || m.name || 'Material',
+    category:     m.category || '',
+    declaredUnit: m.declared_unit || m.unit || 'kg',
+    quantity:     Number(m.quantity) || 1,
+    unit:         m.unit || m.declared_unit || 'kg',
+    gwpA1A3:      perUnit !== 0 ? perUnit : null,
+    gwpEoL:       null,
+    gwpD:         null,
+    indicators,
+    isLibraryMaterial: true,
+  };
+}
+
+function OekobaudatLcaSection({ project }) {
+  const oekodatMaterials  = safeJsonParse(project.oekodat_materials, []);
+  const libMatsWithGwp    = (project.materials || []).filter(m => m.has_gwp_data);
+  const libAsEpd          = libMatsWithGwp.map(libMatToEpdEntry);
+  // Library materials first so they appear on the left in the chart
+  const allMaterials      = [...libAsEpd, ...oekodatMaterials];
+
+  if (!allMaterials.length) return null;
+
+  const totals = epdComputeTotals(allMaterials);
+  const indicatorKeys = Object.keys(totals).sort((a, b) => {
+    const ia = EPD_INDICATOR_ORDER.indexOf(a), ib = EPD_INDICATOR_ORDER.indexOf(b);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+  });
+
+  // Summary cards for GWP + key indicators
+  const gwpMods = totals['GWP-total']?.mods || {};
+  const gwpA1A3Total = epdSumMods(gwpMods, ['A1-A3', 'A1', 'A2', 'A3']);
+  const gwpEoL      = epdSumMods(gwpMods, ['C3', 'C4']);
+  const gwpLifecycle = [gwpA1A3Total, gwpMods['B6'] ?? null, gwpEoL]
+    .reduce((s, v) => v != null ? s + v : s, 0);
+  const hasGwpLifecycle = gwpA1A3Total != null || gwpMods['B6'] != null || gwpEoL != null;
+
+  return (
+    <div className="p-6 border-t border-gray-200">
+      <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-1">
+        <Leaf className="w-5 h-5 text-emerald-600" />
+        Umweltwirkung – Gesamtbilanz
+      </h2>
+      <p className="text-xs text-gray-400 mb-5">
+        {[
+          oekodatMaterials.length > 0 && `${oekodatMaterials.length} Ökobaudat-EPD${oekodatMaterials.length > 1 ? 's' : ''}`,
+          libAsEpd.length > 0 && `${libAsEpd.length} Bibliotheks-Material${libAsEpd.length > 1 ? 'ien' : ''} mit Umweltdaten`,
+        ].filter(Boolean).join(' · ')}
+      </p>
+
+      {/* Summary cards */}
+      {hasGwpLifecycle && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-6">
+          {gwpA1A3Total != null && (
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+              <p className="text-[10px] text-emerald-700 font-semibold uppercase tracking-wider mb-1">GWP A1–A3</p>
+              <p className="text-sm font-bold text-emerald-900 font-mono leading-tight">{epdFmtNum(gwpA1A3Total)}</p>
+              <p className="text-[10px] text-emerald-600">kg CO₂ eq.</p>
+            </div>
+          )}
+          {gwpEoL != null && (
+            <div className="bg-teal-50 border border-teal-100 rounded-xl p-3">
+              <p className="text-[10px] text-teal-700 font-semibold uppercase tracking-wider mb-1">GWP C3+C4 (EoL)</p>
+              <p className="text-sm font-bold text-teal-900 font-mono leading-tight">{epdFmtNum(gwpEoL)}</p>
+              <p className="text-[10px] text-teal-600">kg CO₂ eq.</p>
+            </div>
+          )}
+          {hasGwpLifecycle && (
+            <div className="bg-green-700 border border-green-800 rounded-xl p-3">
+              <p className="text-[10px] text-green-200 font-semibold uppercase tracking-wider mb-1">GWP Gesamt (A–C)</p>
+              <p className="text-sm font-bold text-white font-mono leading-tight">{epdFmtNum(gwpLifecycle)}</p>
+              <p className="text-[10px] text-green-300">kg CO₂ eq.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Material list — library materials + EPD materials */}
+      <div className="space-y-2 mb-5">
+        {allMaterials.map(epd => {
+          const qty     = Number(epd.quantity) || 1;
+          const gwpA1A3 = epd.gwpA1A3 != null ? epd.gwpA1A3 * qty : null;
+          const isLib   = !!epd.isLibraryMaterial;
+          return (
+            <div key={epd.uuid}
+              className={`flex items-center justify-between px-3 py-2.5 border rounded-lg gap-3 ${
+                isLib ? 'bg-blue-50 border-blue-100' : 'bg-emerald-50 border-emerald-100'
+              }`}>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="text-sm font-medium text-gray-900 truncate">{epd.name}</p>
+                  {isLib
+                    ? <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase tracking-wide"><Database className="w-2.5 h-2.5" />Bibliothek</span>
+                    : <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded uppercase tracking-wide">EPD</span>
+                  }
+                  {epd.norm && <span className="px-1 py-0.5 bg-blue-100 text-blue-600 text-[10px] rounded">{epd.norm}</span>}
+                </div>
+                {epd.category && <p className="text-xs text-gray-400 truncate mt-0.5">{epd.category}</p>}
+                <p className="text-xs text-gray-500 mt-0.5">{qty} {epd.unit || epd.declaredUnit || ''}</p>
+              </div>
+              {gwpA1A3 != null && (
+                <span className="flex-shrink-0 text-[11px] font-mono font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-lg px-2 py-0.5">
+                  {epdFmtNum(gwpA1A3)} kg CO₂ eq.
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Full indicator table */}
+      {indicatorKeys.length > 0 && (
+        <div className="border border-emerald-200 rounded-xl overflow-hidden">
+          <div className="bg-emerald-700 px-3 py-2">
+            <p className="text-xs font-bold text-white">Alle Umweltkategorien – Gesamtbilanz</p>
+            <p className="text-[10px] text-emerald-200 mt-0.5">Gesamt = A1–A3 + B6 + C3 + C4 · D ist ein Gutschrift-Modul (separat ausgewiesen)</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-emerald-50">
+                  <th className="text-left px-3 py-2 font-semibold text-gray-700 border-b border-emerald-100 whitespace-nowrap">Indikator</th>
+                  <th className="text-left px-2 py-2 font-semibold text-gray-500 border-b border-emerald-100 whitespace-nowrap">Einheit</th>
+                  <th className="text-right px-2 py-2 font-semibold text-emerald-700 border-b border-emerald-100 whitespace-nowrap">A1–A3</th>
+                  <th className="text-right px-2 py-2 font-semibold text-gray-600 border-b border-emerald-100 whitespace-nowrap">B6</th>
+                  <th className="text-right px-2 py-2 font-semibold text-gray-600 border-b border-emerald-100 whitespace-nowrap">C3+C4</th>
+                  <th className="text-right px-2 py-2 font-semibold text-blue-600 border-b border-emerald-100 whitespace-nowrap">D</th>
+                  <th className="text-right px-3 py-2 font-semibold text-emerald-800 border-b border-emerald-100 whitespace-nowrap bg-emerald-100">Gesamt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {indicatorKeys.map((key, i) => {
+                  const { unit, mods } = totals[key];
+                  const a1a3      = epdSumMods(mods, ['A1-A3', 'A1', 'A2', 'A3']);
+                  const b6        = mods['B6'] ?? null;
+                  const eol       = epdSumMods(mods, ['C3', 'C4']);
+                  const d         = mods['D'] ?? null;
+                  const lifecycle = [a1a3, b6, eol].reduce((s, v) => v != null ? s + v : s, 0);
+                  const hasLifecycle = a1a3 != null || b6 != null || eol != null;
+                  return (
+                    <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-3 py-1.5 font-semibold text-gray-800 whitespace-nowrap">{key}</td>
+                      <td className="px-2 py-1.5 text-gray-400 whitespace-nowrap">{unit}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-emerald-700 font-medium">{epdFmtNum(a1a3)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-gray-500">{epdFmtNum(b6)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-gray-500">{epdFmtNum(eol)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-blue-600">{epdFmtNum(d)}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums font-bold text-emerald-800 bg-emerald-50">
+                        {hasLifecycle ? epdFmtNum(lifecycle) : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Per-material analysis: contribution chart + breakdown table (all sources combined) */}
+      <EpdFullAnalysis selected={allMaterials} />
     </div>
   );
 }
@@ -291,7 +527,7 @@ function OekobilanzSection({ project }) {
 const deviceMemory = navigator.deviceMemory ?? (window.matchMedia('(pointer: coarse)').matches ? 2 : 8);
 const wasmCapable = deviceMemory >= 2;
 
-function CadEmbed({ shareUrl, previewUrl }) {
+function CadEmbed({ shareUrl }) {
   const [active, setActive] = useState(false);
   const [forceLoad, setForceLoad] = useState(false);
 
@@ -607,8 +843,16 @@ export default function ProjectDetail() {
           )}
         </div>
 
-        {/* Ökobilanz / LCA Section */}
-        <OekobilanzSection project={project} />
+        {/* Ökobilanz / LCA Section (library materials) — only when no combined view is available */}
+        {(() => {
+          const oekodatMaterials = safeJsonParse(project.oekodat_materials, []);
+          const libMatsWithGwp   = (project.materials || []).filter(m => m.has_gwp_data);
+          const hasCombined      = oekodatMaterials.length > 0 || libMatsWithGwp.length > 0;
+          return !hasCombined ? <OekobilanzSection project={project} /> : null;
+        })()}
+
+        {/* Combined EPD + library LCA Section */}
+        <OekobaudatLcaSection project={project} />
 
         {/* Time effort + Tools */}
         {(project.time_effort || project.tools) && (

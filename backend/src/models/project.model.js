@@ -156,8 +156,9 @@ const Project = {
       'status','is_public','is_available','license',
       'cad_share_url',
       'cad_preview_url',
+      'oekodat_materials',
     ];
-    const jsonFields = new Set(['steps','references']);
+    const jsonFields = new Set(['steps','references','oekodat_materials']);
     const boolFields = new Set(['is_public','is_available']);
     const fields = [], values = [];
     for (const f of allowed) {
