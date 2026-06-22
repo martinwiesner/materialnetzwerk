@@ -83,8 +83,8 @@ export const createMaterial = (req, res) => {
       created_by: req.user.id
     };
 
-    // Enforce predefined categories
-    if (!materialData.category || !MaterialCategory.exists(materialData.category)) {
+    // Category is optional; only validate if a non-empty value is provided
+    if (materialData.category && !MaterialCategory.exists(materialData.category)) {
       return res.status(400).json({ message: 'Invalid category. Please select a predefined category.' });
     }
 
@@ -119,7 +119,7 @@ export const updateMaterial = (req, res) => {
       const currentCategory = material.category;
       // Allow keeping legacy value unchanged; enforce for changes
       const isChanging = newCategory !== currentCategory;
-      if (isChanging && (!newCategory || !MaterialCategory.exists(newCategory))) {
+      if (isChanging && newCategory && !MaterialCategory.exists(newCategory)) {
         return res.status(400).json({ message: 'Invalid category. Please select a predefined category.' });
       }
     }
@@ -304,12 +304,12 @@ function scorePageForEpd(text) {
 }
 
 const EPD_EXTRACT_PROMPT = `Du bist Experte für Umweltproduktdeklarationen (EPDs) nach EN 15804+A2.
-Du erhältst den extrahierten Text einer EPD${''/* placeholder, extended below */} und sollst alle relevanten Felder extrahieren.
+Du erhältst den extrahierten Text einer EPD und sollst alle relevanten Felder extrahieren.
 
 WICHTIGE HINWEISE:
 - Für LCA-Zahlenwerte: Verwende IMMER den Wert für Phase A1-A3 (Herstellungsphase). Falls nur Einzelmodule (A1, A2, A3) vorliegen: summiere diese.
 - Deutsche Dezimalnotation: "32,1" = 32.1, wissenschaftliche Notation "1,10E-06" = 0.0000011
-- Felder die nicht eindeutig gefunden wurden WEGLASSEN
+- Felder die nicht eindeutig gefunden wurden WEGLASSEN (nicht als null oder "" ausgeben)
 
 Gib folgende JSON-Struktur zurück:
 {
@@ -321,7 +321,10 @@ Gib folgende JSON-Struktur zurück:
     "lifecycle_scope": "A1-A3 | A1-A5 | A1-D",
     "tech_density": 123.4,
     "category": "eines von: Dämmmaterial, Holz, Metall, Kunststoff, Stein, Keramik, Textil, Glas, Papier, Verbundstoff, Beton, Ziegel, Sonstiges",
+    "material_type": "primary | secondary_rückbau | secondary_restposten | secondary_überschuss | secondary_upcycling | secondary_eigenproduktion — EPDs sind fast immer Neuware (primary), nur abweichen wenn EPD explizit Recycling-/Rückbauprodukt deklariert",
     "cert_epd": true,
+    "cert_cradle_to_cradle": false,
+    "cert_fsc_pefc": false,
     "gwp_fossil": Zahl,
     "gwp_biogenic": Zahl,
     "gwp_luluc": Zahl,
@@ -340,6 +343,12 @@ Gib folgende JSON-Struktur zurück:
     "pere": Zahl,
     "penre": Zahl,
     "perm": Zahl,
+    "sust_climate_description": "1-3 Sätze qualitative Zusammenfassung des Klimaimpakts und der wichtigsten Umweltwirkungen laut EPD",
+    "circularity": "Kreislauffähigkeit, Recyclingfähigkeit, Rezyklat-Anteil laut EPD",
+    "human_health": "VOC-Emissionen, Schadstoffaussagen, relevante Gesundheitsaspekte laut EPD",
+    "processing_sustainability": "Verarbeitung, Einbau, Entsorgungshinweise laut EPD",
+    "principles_consistency": ["Nachwachsende Rohstoffe", "Recycelte Rohstoffe", "Recyclinggerecht", "Kompostierbar"],
+    "principles_efficiency": ["Schadstofffrei", "Naturraumerhaltend", "Faire Materialgewinnung", "Regional"],
     "source_url": "URL falls vorhanden",
     "notes": "EPD-Nummer falls vorhanden"
   },
@@ -350,10 +359,20 @@ Gib folgende JSON-Struktur zurück:
     "vision_helped": true | false,
     "per_field": {
       "name": "high | medium | low",
-      "gwp_fossil": "high | medium | low"
+      "category": "high | medium | low",
+      "material_type": "high | medium | low",
+      "gwp_fossil": "high | medium | low",
+      "sust_climate_description": "high | medium | low",
+      "principles_consistency": "high | medium | low",
+      "principles_efficiency": "high | medium | low"
     }
   }
 }
+
+Hinweise zu den neuen Feldern:
+- principles_consistency: Nur Werte aus exakt dieser Liste aufnehmen die durch EPD-Inhalt belegt sind: ["Nachwachsende Rohstoffe", "Recycelte Rohstoffe", "Recyclinggerecht", "Kompostierbar"]
+- principles_efficiency: Nur Werte aus exakt dieser Liste: ["Schadstofffrei", "Naturraumerhaltend", "Faire Materialgewinnung", "Regional"]
+- Leere Arrays weglassen (nicht [] ausgeben)
 
 confidence.score Richtlinien:
 - 90-100: Tabellenstruktur eindeutig, alle Spalten/Zeilen klar, A1-A3-Werte zweifelsfrei
@@ -439,7 +458,7 @@ export const parseEpdFromPdf = async (req, res) => {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await client.chat.completions.create({
       model: 'gpt-4o',
-      max_tokens: 2800,
+      max_tokens: 4000,
       messages: [{ role: 'user', content: [textPart, ...imageParts] }],
     });
 

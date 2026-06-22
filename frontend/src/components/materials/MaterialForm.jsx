@@ -59,24 +59,38 @@ function safeJsonParse(value, fallback) {
 // ── EPD field metadata for the import preview ─────────────────────────────────
 const EPD_FIELD_LABELS = {
   name: 'Produktname', short_description: 'Kurzbeschreibung', manufacturer: 'Hersteller',
-  category: 'Kategorie', declared_unit: 'Deklarierte Einheit', lifecycle_scope: 'Systemgrenze',
-  tech_density: 'Dichte (kg/m³)', cert_epd: 'EPD-Zertifizierung',
+  category: 'Kategorie', material_type: 'Materialtyp',
+  declared_unit: 'Deklarierte Einheit', lifecycle_scope: 'Systemgrenze',
+  tech_density: 'Dichte (kg/m³)',
+  cert_epd: 'EPD-Zertifizierung', cert_cradle_to_cradle: 'Cradle-to-Cradle', cert_fsc_pefc: 'FSC / PEFC',
   gwp_fossil: 'GWP fossil (kg CO₂e)', gwp_biogenic: 'GWP biogen (kg CO₂e)', gwp_luluc: 'GWP luluc (kg CO₂e)', gwp_value: 'GWP gesamt (kg CO₂e)',
   odp: 'ODP', ap: 'AP', ep_terrestrial: 'EP terrestrisch', ep_freshwater: 'EP Süßwasser',
   ep_marine: 'EP Meeresgewässer', pocp: 'POCP', adp_elements: 'ADPE', adp_fossil: 'ADPF (MJ)',
   water_consumption: 'WDP (m³)', hwd: 'HWD', nhwd: 'NHWD', rwd: 'RWD',
   pere: 'PERE (MJ)', penre: 'PENRE (MJ)', perm: 'PERM (MJ)',
+  sust_climate_description: 'Klimawandel (Beschreibung)',
+  circularity: 'Kreislauffähigkeit',
+  human_health: 'Human Health (VOC)',
+  processing_sustainability: 'Be- & Verarbeitung',
+  principles_consistency: 'Konsistenz',
+  principles_efficiency: 'Effizienz',
   source_url: 'EPD-URL', notes: 'EPD-Nummer',
 };
 
-// Fields that map directly to form text fields vs. special handling
+const EPD_MT_LABELS = {
+  primary: 'Neuware', secondary_rückbau: 'Rückbau', secondary_restposten: 'Produktionsrest',
+  secondary_überschuss: 'Überschuss', secondary_upcycling: 'Upcycling', secondary_eigenproduktion: 'Eigenproduktion',
+};
+
 const EPD_GROUP_ORDER = [
-  ['name', 'short_description', 'manufacturer', 'category'],
-  ['declared_unit', 'lifecycle_scope', 'tech_density', 'cert_epd'],
+  ['name', 'short_description', 'manufacturer', 'category', 'material_type'],
+  ['declared_unit', 'lifecycle_scope', 'tech_density', 'cert_epd', 'cert_cradle_to_cradle', 'cert_fsc_pefc'],
   ['gwp_value', 'gwp_fossil', 'gwp_biogenic', 'gwp_luluc'],
   ['odp', 'ap', 'ep_terrestrial', 'ep_freshwater', 'ep_marine', 'pocp'],
   ['adp_elements', 'adp_fossil', 'water_consumption', 'hwd', 'nhwd', 'rwd'],
   ['pere', 'penre', 'perm'],
+  ['sust_climate_description', 'circularity', 'human_health', 'processing_sustainability'],
+  ['principles_consistency', 'principles_efficiency'],
   ['source_url', 'notes'],
 ];
 
@@ -120,7 +134,12 @@ function EpdPdfDropZone({ onApply }) {
       setConfidence(result.confidence || null);
       setMeta(result.meta || null);
       const init = {};
-      Object.keys(data).forEach(k => { if (EPD_FIELD_LABELS[k]) init[k] = true; });
+      Object.keys(data).forEach(k => {
+        if (!EPD_FIELD_LABELS[k]) return;
+        // Skip empty arrays
+        if (Array.isArray(data[k]) && data[k].length === 0) return;
+        init[k] = true;
+      });
       setSelected(init);
       setStatus('preview');
     } catch (e) {
@@ -239,8 +258,14 @@ function EpdPdfDropZone({ onApply }) {
                         {EPD_FIELD_LABELS[k]}
                       </span>
                       <span className="text-[11px] font-medium text-gray-800 leading-tight truncate"
-                        title={String(extracted[k])}>
-                        {k === 'cert_epd' ? '✓' : String(extracted[k])}
+                        title={Array.isArray(extracted[k]) ? extracted[k].join(', ') : String(extracted[k])}>
+                        {Array.isArray(extracted[k])
+                          ? extracted[k].join(', ')
+                          : typeof extracted[k] === 'boolean'
+                            ? (extracted[k] ? '✓' : '✗')
+                            : k === 'material_type'
+                              ? (EPD_MT_LABELS[extracted[k]] || extracted[k])
+                              : String(extracted[k])}
                       </span>
                     </label>
                   );
@@ -1672,14 +1697,21 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 setFormData(prev => {
                   const next = { ...prev };
                   Object.entries(fields).forEach(([k, v]) => {
-                    if (k === 'cert_epd') { next.cert_epd = Boolean(v); return; }
-                    if (k === 'gwp_value' || k === 'gwp_fossil' || k === 'gwp_biogenic' || k === 'gwp_luluc' ||
-                        k === 'odp' || k === 'ap' || k === 'ep_terrestrial' || k === 'ep_freshwater' ||
-                        k === 'ep_marine' || k === 'pocp' || k === 'adp_elements' || k === 'adp_fossil' ||
-                        k === 'water_consumption' || k === 'hwd' || k === 'nhwd' || k === 'rwd' ||
-                        k === 'pere' || k === 'penre' || k === 'perm' || k === 'tech_density') {
-                      next[k] = v != null ? String(v) : '';
+                    // Boolean certifications
+                    if (k === 'cert_epd' || k === 'cert_cradle_to_cradle' || k === 'cert_fsc_pefc') {
+                      next[k] = Boolean(v); return;
+                    }
+                    // Array principle fields — replace directly
+                    if (k === 'principles_consistency' || k === 'principles_efficiency') {
+                      if (Array.isArray(v) && v.length > 0) next[k] = v;
                       return;
+                    }
+                    // Numeric LCA fields → stringify for controlled inputs
+                    if (['gwp_value','gwp_fossil','gwp_biogenic','gwp_luluc','odp','ap',
+                         'ep_terrestrial','ep_freshwater','ep_marine','pocp','adp_elements',
+                         'adp_fossil','water_consumption','hwd','nhwd','rwd',
+                         'pere','penre','perm','tech_density'].includes(k)) {
+                      next[k] = v != null ? String(v) : ''; return;
                     }
                     if (k in next) next[k] = v;
                   });
