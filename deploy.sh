@@ -67,13 +67,50 @@ fi
 # ── 1. Git commit (nur explizit gelistete Dateien, kein -A wegen .env-Risiko) ─
 if git rev-parse --git-dir > /dev/null 2>&1; then
   echo "📝 Committing to git..."
+
+  # Stash unstaged changes so they don't block rebase if remote has diverged
+  STASH_NEEDED=false
+  if ! git diff --quiet; then
+    git stash push -m "deploy-script auto-stash" 2>/dev/null && STASH_NEEDED=true
+  fi
+
+  # Pull remote changes first (rebase avoids merge commits)
+  if git remote get-url origin &>/dev/null; then
+    echo "   ↓ Syncing with remote..."
+    if ! git pull --rebase origin main 2>&1; then
+      echo "   ⚠️  git pull --rebase fehlgeschlagen — lokale Konflikte? Bitte manuell prüfen."
+      echo "      (Deploy wird fortgesetzt, Push ggf. nicht möglich)"
+      git rebase --abort 2>/dev/null || true
+    fi
+  fi
+
+  # Restore stash
+  if [ "$STASH_NEEDED" = true ]; then
+    git stash pop 2>/dev/null || true
+  fi
+
   git add \
     backend/src/ backend/scripts/ \
     frontend/src/ frontend/public/ \
     docker-compose.yml deploy.sh \
     2>/dev/null || true
-  git commit -m "$COMMIT_MSG" 2>/dev/null || echo "   (nothing new to commit)"
-  git push 2>/dev/null || echo "   (no remote configured or push failed)"
+
+  if git commit -m "$COMMIT_MSG" 2>/dev/null; then
+    echo "   ✅ Committed: $COMMIT_MSG"
+  else
+    echo "   (nichts neues zu committen)"
+  fi
+
+  # Push — sichtbare Fehlermeldung statt stilles Scheitern
+  echo "   ↑ Pushing to GitHub..."
+  if git push origin main 2>&1; then
+    echo "   ✅ GitHub aktuell"
+  else
+    echo "   ⚠️  Push fehlgeschlagen — Code wurde NICHT auf GitHub aktualisiert."
+    echo "      Mögliche Ursachen: Token abgelaufen, Branch-Konflikt, kein Netz."
+    echo "      Bitte manuell prüfen: git push origin main"
+    echo "      (Deploy wird trotzdem fortgesetzt)"
+  fi
 fi
 
 # ── 2. Dateien übertragen — bei Fehler: ABBRUCH ───────────────────────────────

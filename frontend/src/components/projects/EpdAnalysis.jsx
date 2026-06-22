@@ -263,6 +263,196 @@ function BreakdownTable({ selected, modKeys, modLabel }) {
   );
 }
 
+// ── Lifecycle phase definitions for bar chart ─────────────────────────────────
+
+const BAR_PHASES = [
+  { id: 'H', label: 'Herstellung (H)', mods: ['A1-A3','A1','A2','A3','A4','A5'], color: '#2563eb' },
+  { id: 'E', label: 'Erneuerung (E)',  mods: ['B1','B2','B3','B4','B5','B6','B7'], color: '#7c3aed' },
+  { id: 'R', label: 'Entsorgung (R)',  mods: ['C1','C2','C3','C4'], color: '#b45309' },
+  { id: 'D', label: 'D',               mods: ['D'], color: '#94a3b8' },
+];
+
+function niceStep(roughStep) {
+  if (!roughStep || isNaN(roughStep) || roughStep <= 0) return 1;
+  const exp = Math.floor(Math.log10(roughStep));
+  const pow = Math.pow(10, exp);
+  const norm = roughStep / pow;
+  if (norm < 1.5) return pow;
+  if (norm < 3.5) return 2 * pow;
+  if (norm < 7.5) return 5 * pow;
+  return 10 * pow;
+}
+
+function niceRange(min, max) {
+  const span = max - min || 1;
+  const step = niceStep(span / 5);
+  const lo = Math.floor(min / step) * step;
+  const hi = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let t = lo; t <= hi + step * 0.001; t = Math.round((t + step) * 1e12) / 1e12) {
+    ticks.push(t);
+  }
+  return { ticks, lo, hi };
+}
+
+function PerMaterialBarChart({ selected }) {
+  const [indicator, setIndicator] = useState('GWP-total');
+
+  const indicators = getIndicators(selected);
+  const activeInd = indicators.includes(indicator) ? indicator : (indicators[0] || 'GWP-total');
+  const indicatorDef = INDICATOR_DEFS[activeInd];
+  const indicatorUnit = selected.find(e => e.indicators?.[activeInd])?.indicators?.[activeInd]?.unit
+    || indicatorDef?.unit || '';
+
+  // Which phases actually have data for this indicator?
+  const activePhasesForInd = BAR_PHASES.filter(ph =>
+    selected.some(epd => {
+      const mods = epd.indicators?.[activeInd]?.mods || {};
+      return ph.mods.some(m => mods[m] != null);
+    })
+  );
+
+  // Per-material, per-phase values (scaled by quantity)
+  const matData = selected.map((epd, i) => {
+    const qty = Number(epd.quantity) || 1;
+    const mods = epd.indicators?.[activeInd]?.mods || {};
+    const phaseVals = activePhasesForInd.map(ph => {
+      let sum = null;
+      for (const m of ph.mods) {
+        if (mods[m] != null) sum = (sum ?? 0) + mods[m];
+      }
+      return sum != null ? sum * qty : null;
+    });
+    return { name: epd.name, color: MAT_COLORS[i % MAT_COLORS.length], phaseVals };
+  });
+
+  const allVals = matData.flatMap(m => m.phaseVals).filter(v => v != null);
+  if (!allVals.length || !activePhasesForInd.length) {
+    return (
+      <div className="border border-gray-200 rounded-xl p-4 text-xs text-gray-400 italic text-center">
+        Keine Phasendaten für diesen Indikator verfügbar.
+      </div>
+    );
+  }
+
+  const posMax = Math.max(...allVals.filter(v => v >= 0), 0);
+  const negMin = Math.min(...allVals.filter(v => v < 0), 0);
+  const { ticks, lo, hi } = niceRange(negMin, posMax);
+  const totalRange = hi - lo || 1;
+
+  // SVG layout
+  const ML = 58, MR = 10, MT = 12, MB = 52;
+  const VW = 480, VH = 220;
+  const CW = VW - ML - MR;
+  const CH = VH - MT - MB;
+  const nMat = matData.length;
+  const nPh = activePhasesForInd.length;
+  const groupW = CW / nMat;
+  const barW = Math.min(Math.floor(groupW / (nPh + 1)), 22);
+  const groupPad = (groupW - nPh * barW) / 2;
+
+  const yPx = (v) => MT + CH * (1 - (v - lo) / totalRange);
+  const zeroY = yPx(0);
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-gray-50 border-b border-gray-200 px-3 py-2 flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+          {indicatorDef?.label || activeInd} je Material
+        </span>
+        <select
+          value={activeInd}
+          onChange={e => setIndicator(e.target.value)}
+          className="ml-auto text-xs border border-gray-300 rounded-md px-2 py-0.5 bg-white text-gray-700 focus:ring-1 focus:ring-emerald-400 outline-none">
+          {indicators.map(k => (
+            <option key={k} value={k}>{k} [{INDICATOR_DEFS[k]?.unit || ''}]</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Phase legend */}
+      <div className="flex flex-wrap gap-4 px-4 pt-3 pb-1">
+        {activePhasesForInd.map(ph => (
+          <div key={ph.id} className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: ph.color }} />
+            <span className="text-[11px] text-gray-600">{ph.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* SVG bar chart */}
+      <div className="px-2 pb-3">
+        <svg viewBox={`0 0 ${VW} ${VH}`} className="w-full" style={{ height: '220px' }}>
+          {/* Y-axis */}
+          <line x1={ML} y1={MT} x2={ML} y2={MT + CH} stroke="#e5e7eb" strokeWidth={1} />
+
+          {/* Grid lines + Y tick labels */}
+          {ticks.map((t, ti) => {
+            const y = yPx(t);
+            if (y < MT - 2 || y > MT + CH + 2) return null;
+            const isZero = Math.abs(t) < totalRange * 0.001;
+            return (
+              <g key={ti}>
+                <line x1={ML} y1={y} x2={ML + CW} y2={y}
+                  stroke={isZero ? '#6b7280' : '#e5e7eb'}
+                  strokeWidth={isZero ? 1.5 : 1}
+                  strokeDasharray={isZero ? undefined : '3 3'} />
+                <text x={ML - 5} y={y + 3.5} textAnchor="end" fontSize={9} fill="#9ca3af">
+                  {fmtNum(t)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Y-axis unit label */}
+          <text
+            x={8} y={MT + CH / 2}
+            textAnchor="middle"
+            fontSize={8} fill="#9ca3af"
+            transform={`rotate(-90, 8, ${MT + CH / 2})`}
+          >
+            {indicatorUnit}
+          </text>
+
+          {/* Bars */}
+          {matData.map((mat, mi) => {
+            const gx = ML + mi * groupW;
+            return (
+              <g key={mi}>
+                {mat.phaseVals.map((val, pi) => {
+                  if (val == null) return null;
+                  const bx = gx + groupPad + pi * barW;
+                  const by = val >= 0 ? yPx(val) : zeroY;
+                  const bh = Math.max(Math.abs(yPx(val) - zeroY), 1);
+                  return (
+                    <rect key={pi} x={bx} y={by} width={barW - 1} height={bh}
+                      fill={activePhasesForInd[pi].color} opacity={0.82} rx={1.5}>
+                      <title>{mat.name} — {activePhasesForInd[pi].label}: {fmtNum(val)} {indicatorUnit}</title>
+                    </rect>
+                  );
+                })}
+
+                {/* Material name label */}
+                <text
+                  x={gx + groupW / 2} y={MT + CH + 14}
+                  textAnchor="middle" fontSize={9} fill="#374151"
+                  style={{ fontWeight: 500 }}>
+                  {shortLabel(mat.name, 2)}
+                </text>
+                <text
+                  x={gx + groupW / 2} y={MT + CH + 24}
+                  textAnchor="middle" fontSize={8} fill="#9ca3af">
+                  {`${Number(selected[mi]?.quantity) || 1} ${selected[mi]?.unit || selected[mi]?.declaredUnit || ''}`}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 // ── Public: full analysis block (chart + table) ───────────────────────────────
 
 export function EpdFullAnalysis({ selected }) {
@@ -319,6 +509,9 @@ export function EpdFullAnalysis({ selected }) {
           <MatLegend selected={selected} indicatorKey={activeIndicator} modKeys={modKeys} />
         </div>
       </div>
+
+      {/* Per-material lifecycle phase bar chart */}
+      <PerMaterialBarChart selected={selected} />
 
       {/* Breakdown table */}
       <BreakdownTable selected={selected} modKeys={modKeys} modLabel={modLabel} />

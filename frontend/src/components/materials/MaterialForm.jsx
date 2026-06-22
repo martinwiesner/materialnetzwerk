@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { materialService, materialActorService } from '../../services/materialService';
+import { materialService, materialActorService, parseEpdPdf } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { inventoryService } from '../../services/inventoryService';
 import { MapPin, X, Plus, Trash2, Users, Package, Upload, Search, Tag,
-  ChevronDown, ChevronUp, Leaf, Wrench, Recycle, FlaskConical, Info } from 'lucide-react';
+  ChevronDown, ChevronUp, Leaf, Wrench, Recycle, FlaskConical, Info,
+  FileText, CheckCircle2, AlertCircle, Loader2, Check } from 'lucide-react';
 import GeolocateButton from '../shared/GeolocateButton';
 import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
@@ -53,6 +54,254 @@ function safeJsonParse(value, fallback) {
   } catch {
     return fallback;
   }
+}
+
+// ── EPD field metadata for the import preview ─────────────────────────────────
+const EPD_FIELD_LABELS = {
+  name: 'Produktname', short_description: 'Kurzbeschreibung', manufacturer: 'Hersteller',
+  category: 'Kategorie', declared_unit: 'Deklarierte Einheit', lifecycle_scope: 'Systemgrenze',
+  tech_density: 'Dichte (kg/m³)', cert_epd: 'EPD-Zertifizierung',
+  gwp_fossil: 'GWP fossil (kg CO₂e)', gwp_biogenic: 'GWP biogen (kg CO₂e)', gwp_luluc: 'GWP luluc (kg CO₂e)', gwp_value: 'GWP gesamt (kg CO₂e)',
+  odp: 'ODP', ap: 'AP', ep_terrestrial: 'EP terrestrisch', ep_freshwater: 'EP Süßwasser',
+  ep_marine: 'EP Meeresgewässer', pocp: 'POCP', adp_elements: 'ADPE', adp_fossil: 'ADPF (MJ)',
+  water_consumption: 'WDP (m³)', hwd: 'HWD', nhwd: 'NHWD', rwd: 'RWD',
+  pere: 'PERE (MJ)', penre: 'PENRE (MJ)', perm: 'PERM (MJ)',
+  source_url: 'EPD-URL', notes: 'EPD-Nummer',
+};
+
+// Fields that map directly to form text fields vs. special handling
+const EPD_GROUP_ORDER = [
+  ['name', 'short_description', 'manufacturer', 'category'],
+  ['declared_unit', 'lifecycle_scope', 'tech_density', 'cert_epd'],
+  ['gwp_value', 'gwp_fossil', 'gwp_biogenic', 'gwp_luluc'],
+  ['odp', 'ap', 'ep_terrestrial', 'ep_freshwater', 'ep_marine', 'pocp'],
+  ['adp_elements', 'adp_fossil', 'water_consumption', 'hwd', 'nhwd', 'rwd'],
+  ['pere', 'penre', 'perm'],
+  ['source_url', 'notes'],
+];
+
+// Confidence level → visual style
+const CONF_STYLE = {
+  high:   { dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', label: 'Hoch' },
+  medium: { dot: 'bg-amber-400',   text: 'text-amber-700',   bg: 'bg-amber-50 border-amber-200',     label: 'Mittel' },
+  low:    { dot: 'bg-red-400',     text: 'text-red-700',     bg: 'bg-red-50 border-red-200',          label: 'Gering' },
+};
+
+function ConfidenceDot({ level }) {
+  const s = CONF_STYLE[level] || CONF_STYLE.medium;
+  return (
+    <span title={`Konfidenz: ${s.label}`}
+      className={`inline-block w-2 h-2 rounded-full flex-shrink-0 mt-1 ${s.dot}`} />
+  );
+}
+
+function EpdPdfDropZone({ onApply }) {
+  const [dragOver, setDragOver] = useState(false);
+  const [status, setStatus] = useState('idle'); // idle | loading | preview | error
+  const [extracted, setExtracted] = useState(null);
+  const [confidence, setConfidence] = useState(null);
+  const [meta, setMeta] = useState(null);
+  const [error, setError] = useState('');
+  const [selected, setSelected] = useState({});
+  const inputRef = useRef(null);
+
+  const processFile = async (file) => {
+    if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
+      setError('Bitte eine PDF-Datei auswählen.');
+      setStatus('error');
+      return;
+    }
+    setStatus('loading');
+    setError('');
+    try {
+      const result = await parseEpdPdf(file);
+      const data = result.data || {};
+      setExtracted(data);
+      setConfidence(result.confidence || null);
+      setMeta(result.meta || null);
+      const init = {};
+      Object.keys(data).forEach(k => { if (EPD_FIELD_LABELS[k]) init[k] = true; });
+      setSelected(init);
+      setStatus('preview');
+    } catch (e) {
+      setError(e?.response?.data?.message || 'EPD-Analyse fehlgeschlagen');
+      setStatus('error');
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    processFile(e.dataTransfer.files[0]);
+  };
+
+  const handleApply = () => {
+    const toApply = {};
+    Object.entries(selected).forEach(([k, on]) => {
+      if (on && extracted[k] !== undefined) toApply[k] = extracted[k];
+    });
+    onApply(toApply);
+    setStatus('idle');
+    setExtracted(null);
+    setConfidence(null);
+    setMeta(null);
+  };
+
+  const toggleAll = (val) => {
+    const next = {};
+    Object.keys(selected).forEach(k => { next[k] = val; });
+    setSelected(next);
+  };
+
+  if (status === 'preview' && extracted) {
+    const groups = EPD_GROUP_ORDER
+      .map(keys => keys.filter(k => extracted[k] !== undefined && EPD_FIELD_LABELS[k]))
+      .filter(g => g.length > 0);
+    const totalFields = Object.keys(selected).length;
+    const checkedFields = Object.values(selected).filter(Boolean).length;
+    const conf = confidence;
+    const overallLevel = conf?.overall || 'medium';
+    const confScore = conf?.score;
+    const overallStyle = CONF_STYLE[overallLevel] || CONF_STYLE.medium;
+
+    return (
+      <div className="border border-violet-200 rounded-xl overflow-hidden bg-violet-50/20 mb-3">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2 bg-violet-100/60 border-b border-violet-200">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-violet-600" />
+            <span className="text-xs font-semibold text-violet-800">EPD erkannt – {totalFields} Felder</span>
+            {meta?.usedVision && (
+              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded font-medium">+ Vision</span>
+            )}
+          </div>
+          <button type="button" onClick={() => { setStatus('idle'); setExtracted(null); setConfidence(null); }}
+            className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+        </div>
+
+        {/* Confidence banner */}
+        {conf && (
+          <div className={`flex items-start gap-2 px-3 py-2 border-b ${overallStyle.bg} border-opacity-60`}>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-[11px] font-semibold ${overallStyle.text}`}>
+                  Konfidenz: {overallStyle.label}
+                  {confScore != null && ` (${confScore}/100)`}
+                </span>
+                {meta?.usedVision && (
+                  <span className="text-[10px] text-blue-600">Seitenbilder analysiert (Seiten {meta.epdPages?.join(', ')})</span>
+                )}
+                {!meta?.usedVision && (
+                  <span className="text-[10px] text-gray-400">Nur Textanalyse</span>
+                )}
+              </div>
+              {conf.summary && (
+                <p className="text-[11px] text-gray-600 mt-0.5 leading-snug">{conf.summary}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Stichproben-Hinweis */}
+        <div className="flex items-start gap-1.5 px-3 py-2 bg-amber-50 border-b border-amber-100">
+          <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-800 leading-snug">
+            <strong>Bitte stichprobenhaft prüfen:</strong> Vergleiche 2–3 numerische Werte (z. B. GWP fossil, ODP) mit der Original-EPD, bevor du speicherst. Besonders bei Feldern mit mittlerer oder geringer Konfidenz.
+          </p>
+        </div>
+
+        {/* Field list */}
+        <div className="px-3 py-2">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-[11px] text-gray-500">{checkedFields} von {totalFields} ausgewählt</span>
+            <button type="button" onClick={() => toggleAll(true)} className="text-[11px] text-violet-600 hover:underline">Alle</button>
+            <button type="button" onClick={() => toggleAll(false)} className="text-[11px] text-gray-400 hover:underline">Keine</button>
+            <div className="ml-auto flex items-center gap-2 text-[10px] text-gray-400">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />sicher</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />unsicher</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" />prüfen</span>
+            </div>
+          </div>
+
+          <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+            {groups.map((keys, gi) => (
+              <div key={gi} className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5">
+                {keys.map(k => {
+                  const fieldConf = conf?.per_field?.[k] || 'medium';
+                  return (
+                    <label key={k} className="flex items-start gap-1.5 cursor-pointer py-0.5">
+                      <input type="checkbox" checked={!!selected[k]}
+                        onChange={() => setSelected(p => ({ ...p, [k]: !p[k] }))}
+                        className="mt-0.5 w-3.5 h-3.5 text-violet-600 border-gray-300 rounded flex-shrink-0" />
+                      <ConfidenceDot level={fieldConf} />
+                      <span className="text-[11px] text-gray-500 leading-tight flex-shrink-0 min-w-[110px]">
+                        {EPD_FIELD_LABELS[k]}
+                      </span>
+                      <span className="text-[11px] font-medium text-gray-800 leading-tight truncate"
+                        title={String(extracted[k])}>
+                        {k === 'cert_epd' ? '✓' : String(extracted[k])}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 mt-3">
+            <button type="button" onClick={handleApply} disabled={checkedFields === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 text-white rounded-lg text-xs font-medium hover:bg-violet-700 disabled:opacity-40 transition-colors">
+              <Check className="w-3.5 h-3.5" /> {checkedFields} Felder übernehmen
+            </button>
+            <button type="button" onClick={() => { setStatus('idle'); setExtracted(null); setConfidence(null); }}
+              className="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs hover:bg-gray-50 transition-colors">
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-3">
+      {status === 'loading' && (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 px-3 py-3 border border-violet-200 rounded-xl bg-violet-50/40 text-xs text-violet-700">
+            <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+            <div>
+              <p className="font-medium">EPD wird analysiert…</p>
+              <p className="text-[10px] text-violet-500 mt-0.5">Text-Extraktion → EPD-Seiten erkennen → Screenshots → KI-Analyse</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="flex items-start gap-2 px-3 py-2.5 border border-red-200 rounded-xl bg-red-50 text-xs text-red-700 mb-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
+          <button type="button" onClick={() => setStatus('idle')} className="ml-auto text-red-400 hover:text-red-600">✕</button>
+        </div>
+      )}
+      {(status === 'idle' || status === 'error') && (
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => inputRef.current?.click()}
+          className={`flex flex-col items-center justify-center gap-1.5 px-4 py-4 border-2 border-dashed rounded-xl cursor-pointer transition-colors text-center
+            ${dragOver ? 'border-violet-400 bg-violet-50' : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/30 bg-gray-50/50'}`}
+        >
+          <FileText className={`w-6 h-6 ${dragOver ? 'text-violet-500' : 'text-gray-300'}`} />
+          <span className="text-xs font-medium text-gray-500">EPD als PDF hier ablegen</span>
+          <span className="text-[10px] text-gray-400">oder klicken zum Auswählen · EN 15804+A2 · Text + Vision-Analyse</span>
+          <input ref={inputRef} type="file" accept=".pdf,application/pdf" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = ''; }} />
+        </div>
+      )}
+    </div>
+  );
 }
 
 const PRINCIPLES = {
@@ -1419,6 +1668,24 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               filled={!!(formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '' || formData.declared_unit || formData.lifecycle_scope)}
             >
               <p className="text-[11px] text-gray-400 mb-3">{t('materialForm.epdHint')}</p>
+              <EpdPdfDropZone onApply={(fields) => {
+                setFormData(prev => {
+                  const next = { ...prev };
+                  Object.entries(fields).forEach(([k, v]) => {
+                    if (k === 'cert_epd') { next.cert_epd = Boolean(v); return; }
+                    if (k === 'gwp_value' || k === 'gwp_fossil' || k === 'gwp_biogenic' || k === 'gwp_luluc' ||
+                        k === 'odp' || k === 'ap' || k === 'ep_terrestrial' || k === 'ep_freshwater' ||
+                        k === 'ep_marine' || k === 'pocp' || k === 'adp_elements' || k === 'adp_fossil' ||
+                        k === 'water_consumption' || k === 'hwd' || k === 'nhwd' || k === 'rwd' ||
+                        k === 'pere' || k === 'penre' || k === 'perm' || k === 'tech_density') {
+                      next[k] = v != null ? String(v) : '';
+                      return;
+                    }
+                    if (k in next) next[k] = v;
+                  });
+                  return next;
+                });
+              }} />
               {(() => {
                 const f = parseFloat(formData.gwp_fossil), b = parseFloat(formData.gwp_biogenic), l = parseFloat(formData.gwp_luluc);
                 const hasAny = formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '';

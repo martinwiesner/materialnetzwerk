@@ -20,10 +20,21 @@ import {
   deleteMaterialFile,
   getMaterialActors,
   setMaterialActors,
+  parseEpdFromPdf,
 } from '../controllers/material.controller.js';
 import protect, { optionalAuth } from '../middleware/auth.middleware.js';
 import { uploadMaterialImages as multerMatImages, uploadMaterialFiles as multerMatFiles } from '../middleware/upload.middleware.js';
 import Material from '../models/material.model.js';
+import multer from 'multer';
+
+const uploadPdf = multer({
+  dest: '/tmp/epd-uploads/',
+  limits: { fileSize: 30 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    const ok = file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf');
+    ok ? cb(null, true) : cb(new Error('Nur PDF-Dateien erlaubt'), false);
+  },
+});
 
 const router = express.Router();
 
@@ -208,6 +219,8 @@ router.put('/:id', protect,
   */
   (req, res) => updateMaterial(req, res)
 );
+
+router.post('/parse-epd', protect, uploadPdf.single('pdf'), (req, res) => parseEpdFromPdf(req, res));
 
 router.delete('/:id', protect,
   /*

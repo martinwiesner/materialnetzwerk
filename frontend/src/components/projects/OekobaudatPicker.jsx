@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Search, X, Plus, Loader2, Leaf, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Search, X, Plus, Loader2, Leaf, ChevronDown, ChevronUp, Trash2, AlertTriangle } from 'lucide-react';
 import { EpdFullAnalysis } from './EpdAnalysis';
 
 const PROXY = 'https://oebd-proxy.martin-wiesner.workers.dev';
@@ -422,7 +422,7 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
           {epd.category && <p className="text-xs text-gray-400 truncate">{epd.category}</p>}
 
           {/* Quantity row */}
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-2 pt-1 flex-wrap">
             <span className="text-xs text-gray-500 whitespace-nowrap">Menge:</span>
             <input
               type="number"
@@ -437,14 +437,35 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
               value={unit}
               onChange={e => onChange({ ...epd, unit: e.target.value })}
               placeholder={epd.declaredUnit || 'Einheit'}
-              className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
+              className={`w-20 px-2 py-1 border rounded-lg text-xs focus:ring-2 outline-none bg-white ${
+                epd.declaredUnit && unit && unit !== epd.declaredUnit
+                  ? 'border-amber-400 focus:ring-amber-300 text-amber-800'
+                  : 'border-gray-300 focus:ring-emerald-400'
+              }`}
             />
             {epd.declaredUnit && (
               <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                (EPD-Bezug: {epd.declaredUnit})
+                EPD-Einheit: <strong>{epd.declaredUnit}</strong>
               </span>
             )}
           </div>
+          {/* Unit mismatch warning */}
+          {epd.declaredUnit && unit && unit !== epd.declaredUnit && (
+            <div className="flex items-start gap-1.5 mt-1 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-amber-800 leading-snug">
+                  Einheit <strong>{unit}</strong> weicht von EPD-Bezugsgröße <strong>{epd.declaredUnit}</strong> ab.
+                  Die Menge wird direkt mit dem EPD-Wert multipliziert — bitte Menge in <strong>{epd.declaredUnit}</strong> angeben.
+                </p>
+              </div>
+              <button type="button"
+                onClick={() => onChange({ ...epd, unit: epd.declaredUnit })}
+                className="text-[10px] text-amber-700 underline whitespace-nowrap hover:text-amber-900 flex-shrink-0">
+                Auf {epd.declaredUnit} setzen
+              </button>
+            </div>
+          )}
 
           {/* Quick GWP summary scaled by quantity */}
           {scaledGwpA1A3 != null && (

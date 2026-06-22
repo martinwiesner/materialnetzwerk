@@ -5,6 +5,8 @@
 
 import Material from '../models/material.model.js';
 import MaterialCategory from '../models/materialCategory.model.js';
+import { readFileSync, unlinkSync } from 'fs';
+import OpenAI from 'openai';
 
 const isAdmin = (u) => u?.is_admin === 1 || u?.is_admin === true;
 
@@ -276,5 +278,204 @@ export const setMaterialActors = (req, res) => {
     res.json({ actor_ids: actorIds });
   } catch (error) {
     res.status(500).json({ message: 'Failed to set actors', error: error.message });
+  }
+};
+
+// ── EPD PDF parsing ──────────────────────────────────────────────────────────
+
+// Keywords that strongly indicate an EPD LCA results table page
+const EPD_HIGH_KEYWORDS = ['GWP', 'ODP', 'POCP', 'ADPE', 'ADPF', 'PERE', 'PENRE', 'PERM', 'HWD', 'NHWD', 'RWD', 'WDP'];
+const EPD_MED_KEYWORDS  = ['A1-A3', 'ÖKOBILANZ', 'OKOBILANZ', 'LCA', 'UMWELTWIRKUNG', 'RESSOURCENINANSPRUCHNAHME',
+                           'DEKLARIERTE EINHEIT', 'DECLARED UNIT', 'EN 15804', 'KG CO', 'MOL H', 'MOL N'];
+
+function scorePageForEpd(text) {
+  if (!text || text.trim().length < 20) return 0;
+  const t = text.toUpperCase();
+  let score = 0;
+  for (const k of EPD_HIGH_KEYWORDS) if (t.includes(k)) score += 3;
+  for (const k of EPD_MED_KEYWORDS)  if (t.includes(k)) score += 2;
+  // Scientific notation numbers are common in EPD tables
+  const sciMatches = (text.match(/\d[,.]?\d*\s*[Ee][+\-]?\d+/g) || []).length;
+  score += Math.min(sciMatches, 6);
+  // Many numbers = table-like structure
+  const numCount = (text.match(/[-]?\d+[,.]\d+/g) || []).length;
+  score += Math.min(Math.floor(numCount / 8), 3);
+  return score;
+}
+
+const EPD_EXTRACT_PROMPT = `Du bist Experte für Umweltproduktdeklarationen (EPDs) nach EN 15804+A2.
+Du erhältst den extrahierten Text einer EPD${''/* placeholder, extended below */} und sollst alle relevanten Felder extrahieren.
+
+WICHTIGE HINWEISE:
+- Für LCA-Zahlenwerte: Verwende IMMER den Wert für Phase A1-A3 (Herstellungsphase). Falls nur Einzelmodule (A1, A2, A3) vorliegen: summiere diese.
+- Deutsche Dezimalnotation: "32,1" = 32.1, wissenschaftliche Notation "1,10E-06" = 0.0000011
+- Felder die nicht eindeutig gefunden wurden WEGLASSEN
+
+Gib folgende JSON-Struktur zurück:
+{
+  "fields": {
+    "name": "Produktname",
+    "short_description": "1-2 Sätze Beschreibung",
+    "manufacturer": "Hersteller",
+    "declared_unit": "z.B. 1 m³",
+    "lifecycle_scope": "A1-A3 | A1-A5 | A1-D",
+    "tech_density": 123.4,
+    "category": "eines von: Dämmmaterial, Holz, Metall, Kunststoff, Stein, Keramik, Textil, Glas, Papier, Verbundstoff, Beton, Ziegel, Sonstiges",
+    "cert_epd": true,
+    "gwp_fossil": Zahl,
+    "gwp_biogenic": Zahl,
+    "gwp_luluc": Zahl,
+    "odp": Zahl,
+    "ap": Zahl,
+    "ep_terrestrial": Zahl,
+    "ep_freshwater": Zahl,
+    "ep_marine": Zahl,
+    "pocp": Zahl,
+    "adp_elements": Zahl,
+    "adp_fossil": Zahl,
+    "water_consumption": Zahl,
+    "hwd": Zahl,
+    "nhwd": Zahl,
+    "rwd": Zahl,
+    "pere": Zahl,
+    "penre": Zahl,
+    "perm": Zahl,
+    "source_url": "URL falls vorhanden",
+    "notes": "EPD-Nummer falls vorhanden"
+  },
+  "confidence": {
+    "overall": "high | medium | low",
+    "score": 0-100,
+    "summary": "Kurze Einschätzung (1-2 Sätze): was war klar erkennbar, was war unsicher",
+    "vision_helped": true | false,
+    "per_field": {
+      "name": "high | medium | low",
+      "gwp_fossil": "high | medium | low"
+    }
+  }
+}
+
+confidence.score Richtlinien:
+- 90-100: Tabellenstruktur eindeutig, alle Spalten/Zeilen klar, A1-A3-Werte zweifelsfrei
+- 70-89: Meiste Werte erkannt, einzelne Felder leicht unsicher (z.B. Modulzuordnung)
+- 50-69: Einige Werte erkannt, Tabelle teils unklar oder Spalten schwer zuzuordnen
+- <50: Wenige oder keine LCA-Tabellen gefunden, Werte unzuverlässig
+
+Antworte NUR mit dem JSON-Objekt, keine Erklärungen außerhalb.`;
+
+function parseAiResponse(raw) {
+  const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/, '').trim();
+  return JSON.parse(cleaned);
+}
+
+export const parseEpdFromPdf = async (req, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ message: 'Keine PDF-Datei hochgeladen' });
+  if (!process.env.OPENAI_API_KEY) {
+    try { unlinkSync(file.path); } catch {}
+    return res.status(503).json({ message: 'OpenAI API-Key nicht konfiguriert' });
+  }
+
+  try {
+    const { PDFParse } = await import('pdf-parse');
+    const buffer = readFileSync(file.path);
+
+    // ── Phase 1: Text extraction ──────────────────────────────────────────────
+    const parser = new PDFParse({ data: buffer });
+    const textResult = await parser.getText();
+    const fullText = textResult.text || '';
+    const pages = Array.isArray(textResult.pages) ? textResult.pages : [];
+
+    if (!fullText || fullText.trim().length < 50) {
+      return res.status(422).json({ message: 'PDF enthält keinen lesbaren Text (möglicherweise gescannt/verschlüsselt)' });
+    }
+
+    // ── Phase 2: Score pages, identify EPD table pages ────────────────────────
+    const scored = pages.map(p => ({
+      num: p.num || 1,
+      text: p.text || '',
+      score: scorePageForEpd(p.text || ''),
+    }));
+
+    const epdPageNums = scored
+      .filter(p => p.score >= 6)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map(p => p.num);
+
+    // ── Phase 3: Screenshot relevant pages for vision ─────────────────────────
+    const pageImages = [];
+    if (epdPageNums.length > 0) {
+      try {
+        const parser2 = new PDFParse({ data: buffer });
+        const shots = await parser2.getScreenshot({ partial: epdPageNums, desiredWidth: 1400 });
+        for (const pg of (shots.pages || [])) {
+          if (pg.dataUrl) pageImages.push({ pageNum: pg.pageNumber, dataUrl: pg.dataUrl });
+        }
+      } catch (e) {
+        // Non-fatal — continue without vision
+        console.warn('[EPD-parse] Screenshot failed:', e.message);
+      }
+    }
+
+    const usedVision = pageImages.length > 0;
+
+    // ── Phase 4: Build GPT-4o message (text + optional vision) ───────────────
+    const relevantText = epdPageNums.length > 0
+      ? scored.filter(p => epdPageNums.includes(p.num)).map(p => `[Seite ${p.num}]\n${p.text}`).join('\n\n')
+        + '\n\n[Weitere Seiten (Kontext)]\n' + fullText.slice(0, 8000)
+      : fullText.slice(0, 28000);
+
+    const visionNote = usedVision
+      ? `\n\nZUSATZ: ${pageImages.length} Seiten-Screenshots der LCA-Tabellen (Seiten ${epdPageNums.join(', ')}) sind ebenfalls angehängt. Nutze die Bilder um die Tabellenstruktur zu verifizieren — besonders für die korrekte Spaltenzuordnung der A1-A3-Werte.`
+      : '\n\nHINWEIS: Nur Text verfügbar, kein Seitenbild. Sei konservativer bei der Confidence-Bewertung.';
+
+    const textPart = { type: 'text', text: EPD_EXTRACT_PROMPT + visionNote + '\n\nEPD-Text:\n' + relevantText.slice(0, 22000) };
+    const imageParts = pageImages.map(img => ({
+      type: 'image_url',
+      image_url: { url: img.dataUrl, detail: 'high' },
+    }));
+
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      max_tokens: 2800,
+      messages: [{ role: 'user', content: [textPart, ...imageParts] }],
+    });
+
+    // ── Phase 5: Parse response ───────────────────────────────────────────────
+    const raw = response.choices[0]?.message?.content ?? '';
+    let parsed;
+    try {
+      parsed = parseAiResponse(raw);
+    } catch {
+      return res.status(422).json({ message: 'KI-Antwort konnte nicht geparst werden', raw });
+    }
+
+    const fields = parsed.fields || parsed;
+    const confidence = parsed.confidence || null;
+
+    // Compute gwp_value from components if missing
+    if (!fields.gwp_value) {
+      const f = parseFloat(fields.gwp_fossil), b = parseFloat(fields.gwp_biogenic), l = parseFloat(fields.gwp_luluc);
+      if (!isNaN(f) || !isNaN(b) || !isNaN(l)) {
+        fields.gwp_value = (isNaN(f) ? 0 : f) + (isNaN(b) ? 0 : b) + (isNaN(l) ? 0 : l);
+      }
+    }
+
+    res.json({
+      data: fields,
+      confidence,
+      meta: {
+        totalPages: pages.length || 1,
+        epdPages: epdPageNums,
+        usedVision,
+        screenshotPages: pageImages.map(p => p.pageNum),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'EPD-Analyse fehlgeschlagen', error: error.message });
+  } finally {
+    try { unlinkSync(file.path); } catch {}
   }
 };

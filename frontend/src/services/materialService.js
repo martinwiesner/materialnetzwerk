@@ -77,6 +77,15 @@ export const materialImageService = {
   },
 };
 
+export const parseEpdPdf = async (pdfFile) => {
+  const formData = new FormData();
+  formData.append('pdf', pdfFile);
+  const response = await api.post('/materials/parse-epd', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
 export const materialActorService = {
   getActors: async (materialId) => {
     const response = await api.get(`/materials/${materialId}/actors`);
