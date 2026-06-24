@@ -748,7 +748,7 @@ export default function OekobaudatPicker({ selected = [], onChange }) {
                     type="text"
                     value={query}
                     onChange={e => setQuery(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && search()}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); search(); } }}
                     placeholder="Material suchen (z. B. Beton, Holz, Ziegel, Dämm)…"
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none"
                   />

@@ -294,8 +294,8 @@ function scorePageForEpd(text) {
   let score = 0;
   for (const k of EPD_HIGH_KEYWORDS) if (t.includes(k)) score += 3;
   for (const k of EPD_MED_KEYWORDS)  if (t.includes(k)) score += 2;
-  // Scientific notation numbers are common in EPD tables
-  const sciMatches = (text.match(/\d[,.]?\d*\s*[Ee][+\-]?\d+/g) || []).length;
+  // Scientific notation numbers (including negative) are common in EPD tables
+  const sciMatches = (text.match(/[-−]?\d[,.]?\d*\s*[Ee][+\-]?\d+/g) || []).length;
   score += Math.min(sciMatches, 6);
   // Many numbers = table-like structure
   const numCount = (text.match(/[-]?\d+[,.]\d+/g) || []).length;
@@ -309,6 +309,7 @@ Du erhältst den extrahierten Text einer EPD und sollst alle relevanten Felder e
 WICHTIGE HINWEISE:
 - Für LCA-Zahlenwerte: Verwende IMMER den Wert für Phase A1-A3 (Herstellungsphase). Falls nur Einzelmodule (A1, A2, A3) vorliegen: summiere diese.
 - Deutsche Dezimalnotation: "32,1" = 32.1, wissenschaftliche Notation "1,10E-06" = 0.0000011
+- NEGATIVE WERTE: Sehr wichtig — GWP-biogenic ist bei Holz/Biomasse oft NEGATIV (gespeicherter Kohlenstoff). Negative Werte können im PDF als "-2,45", "−2,45" (Gedankenstrich), "- 2,45" (mit Leerzeichen) oder "-2,45E+00" erscheinen. Gib diese IMMER als negativen Float aus, z.B. -2.45
 - Felder die nicht eindeutig gefunden wurden WEGLASSEN (nicht als null oder "" ausgeben)
 
 Gib folgende JSON-Struktur zurück:

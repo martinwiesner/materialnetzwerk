@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 const INDICATOR_DEFS = {
   'GWP-total':      { label: 'GWP gesamt',              unit: 'kg CO₂ eq.',    phase: 'Klimawandel',  desc: 'Gesamtes Treibhausgaspotenzial: fossil + biogen + Landnutzungsänderung.' },
@@ -466,8 +467,27 @@ export function EpdFullAnalysis({ selected }) {
   const modKeys  = MODULE_GROUPS[modGroup] || MODULE_GROUPS['A1–A3'];
   const modLabel = modGroup;
 
+  const unitMismatches = selected.filter(
+    epd => epd.declaredUnit && epd.unit && epd.unit !== epd.declaredUnit
+  );
+
   return (
     <div className="space-y-4 mt-4">
+      {/* Unit mismatch warnings */}
+      {unitMismatches.length > 0 && (
+        <div className="space-y-1.5">
+          {unitMismatches.map(epd => (
+            <div key={epd.uuid} className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <span>
+                <strong>{epd.name}</strong>: Einheit <strong>{epd.unit}</strong> weicht von EPD-Bezugsgröße <strong>{epd.declaredUnit}</strong> ab —
+                die Menge {Number(epd.quantity) || 1} wird direkt mit dem EPD-Wert multipliziert. Bitte Menge in <strong>{epd.declaredUnit}</strong> angeben (Projekt bearbeiten → Ökobaudat-Abschnitt).
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Section header */}
       <div className="flex items-center gap-2">
         <div className="h-px flex-1 bg-gray-200" />
