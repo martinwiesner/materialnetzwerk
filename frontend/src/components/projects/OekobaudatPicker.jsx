@@ -4,10 +4,21 @@ import { EpdFullAnalysis } from './EpdAnalysis';
 
 const PROXY = 'https://oebd-proxy.martin-wiesner.workers.dev';
 
-// Strip leading quantity ("1 ", "0,075 ") so "1 t" and "t" compare equal
+// Normalize unit string for comparison: strip leading number, resolve synonyms
 function normalizeUnit(u) {
   if (!u) return '';
-  return u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
+  let s = u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
+  // Synonyms: metric ton / tonne / t
+  if (['metric ton', 'metric tons', 'tonne', 'tonnes', 'tonnen', 'metrische tonne'].includes(s)) s = 't';
+  // m³ variants
+  if (['m3', 'cubic meter', 'cubic metre', 'kubikmeter'].includes(s)) s = 'm³';
+  // m² variants
+  if (['m2', 'square meter', 'square metre', 'quadratmeter'].includes(s)) s = 'm²';
+  // kg variants
+  if (['kilogramm', 'kilogram', 'kilograms', 'kilograms'].includes(s)) s = 'kg';
+  // piece
+  if (['piece', 'pieces', 'stück', 'stk', 'pce', 'pcs', 'unit', 'units'].includes(s)) s = 'stk';
+  return s;
 }
 const BASE  = 'https://oekobaudat.de/OEKOBAU.DAT/resource';
 
@@ -407,13 +418,15 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
 
   const qty = epd.quantity ?? 1;
   const unit = epd.unit ?? epd.declaredUnit ?? '';
+  const uf   = epd.uncertainty_factor ?? 1;
 
   const sortedKeys = Object.keys(epd.indicators || {}).sort((a, b) => {
     const ia = INDICATOR_ORDER.indexOf(a), ib = INDICATOR_ORDER.indexOf(b);
     return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
   });
 
-  const scaledGwpA1A3 = epd.gwpA1A3 != null ? epd.gwpA1A3 * qty : null;
+  const unitMismatch = epd.declaredUnit && unit && normalizeUnit(unit) !== normalizeUnit(epd.declaredUnit);
+  const scaledGwpA1A3 = epd.gwpA1A3 != null ? epd.gwpA1A3 * qty * uf : null;
 
   return (
     <div className="bg-emerald-50 border border-emerald-200 rounded-xl overflow-hidden">
@@ -427,15 +440,18 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
           </div>
           {epd.category && <p className="text-xs text-gray-400 truncate">{epd.category}</p>}
 
-          {/* Quantity row */}
+          {/* Quantity + unit row */}
           <div className="flex items-center gap-2 pt-1 flex-wrap">
             <span className="text-xs text-gray-500 whitespace-nowrap">Menge:</span>
             <input
-              type="number"
-              min="0"
-              step="any"
+              type="text"
+              inputMode="decimal"
               value={qty}
-              onChange={e => onChange({ ...epd, quantity: parseFloat(e.target.value) || 0 })}
+              onChange={e => {
+                const raw = e.target.value.replace(',', '.');
+                const val = parseFloat(raw);
+                onChange({ ...epd, quantity: isNaN(val) ? e.target.value : val });
+              }}
               className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
             />
             <input
@@ -443,41 +459,60 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
               value={unit}
               onChange={e => onChange({ ...epd, unit: e.target.value })}
               placeholder={epd.declaredUnit || 'Einheit'}
-              className={`w-20 px-2 py-1 border rounded-lg text-xs focus:ring-2 outline-none bg-white ${
-                epd.declaredUnit && unit && normalizeUnit(unit) !== normalizeUnit(epd.declaredUnit)
-                  ? 'border-amber-400 focus:ring-amber-300 text-amber-800'
-                  : 'border-gray-300 focus:ring-emerald-400'
+              className={`w-24 px-2 py-1 border rounded-lg text-xs focus:ring-2 outline-none bg-white ${
+                unitMismatch ? 'border-amber-400 focus:ring-amber-300 text-amber-800' : 'border-gray-300 focus:ring-emerald-400'
               }`}
             />
             {epd.declaredUnit && (
               <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                EPD-Einheit: <strong>{epd.declaredUnit}</strong>
+                EPD-Bezug: <strong>{epd.declaredUnit}</strong>
               </span>
             )}
           </div>
+
+          {/* Uncertainty factor row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500 whitespace-nowrap">Unsicherheit ×</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={uf}
+              onChange={e => {
+                const raw = e.target.value.replace(',', '.');
+                const val = parseFloat(raw);
+                onChange({ ...epd, uncertainty_factor: isNaN(val) ? e.target.value : val });
+              }}
+              className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
+            />
+            <span className="text-[10px] text-gray-400">(1.0 = kein Aufschlag)</span>
+          </div>
+
           {/* Unit mismatch warning */}
-          {epd.declaredUnit && unit && normalizeUnit(unit) !== normalizeUnit(epd.declaredUnit) && (
+          {unitMismatch && (
             <div className="flex items-start gap-1.5 mt-1 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] text-amber-800 leading-snug">
-                  Einheit <strong>{unit}</strong> weicht von EPD-Bezugsgröße <strong>{epd.declaredUnit}</strong> ab.
-                  Die Menge wird direkt mit dem EPD-Wert multipliziert — bitte Menge in <strong>{epd.declaredUnit}</strong> angeben.
+                  Einheit <strong>{unit}</strong> ≠ EPD-Bezugsgröße <strong>{epd.declaredUnit}</strong>.
+                  Bitte Menge direkt in <strong>{epd.declaredUnit}</strong> eingeben — der EPD-Wert bezieht sich auf genau diese Einheit.
+                  Beispiel: wenn du 2&nbsp;t hast und die EPD pro kg deklariert, trage <strong>2000</strong> ein.
                 </p>
               </div>
               <button type="button"
                 onClick={() => onChange({ ...epd, unit: epd.declaredUnit })}
                 className="text-[10px] text-amber-700 underline whitespace-nowrap hover:text-amber-900 flex-shrink-0">
-                Auf {epd.declaredUnit} setzen
+                Einheit zurücksetzen
               </button>
             </div>
           )}
 
-          {/* Quick GWP summary scaled by quantity */}
+          {/* Quick GWP summary scaled by quantity × uncertainty */}
           {scaledGwpA1A3 != null && (
             <p className="text-xs font-medium text-emerald-700">
               GWP A1–A3 gesamt: <strong>{fmtNum(scaledGwpA1A3)} kg CO₂ eq.</strong>
-              <span className="font-normal text-gray-400 ml-1">({fmtNum(epd.gwpA1A3)} × {qty})</span>
+              <span className="font-normal text-gray-400 ml-1">
+                ({fmtNum(epd.gwpA1A3)} × {qty}{uf !== 1 ? ` × ${uf}` : ''})
+              </span>
             </p>
           )}
         </div>

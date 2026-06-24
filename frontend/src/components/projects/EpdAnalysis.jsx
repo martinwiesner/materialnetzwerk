@@ -3,7 +3,13 @@ import { AlertTriangle } from 'lucide-react';
 
 function normalizeUnit(u) {
   if (!u) return '';
-  return u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
+  let s = u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
+  if (['metric ton', 'metric tons', 'tonne', 'tonnes', 'tonnen', 'metrische tonne'].includes(s)) s = 't';
+  if (['m3', 'cubic meter', 'cubic metre', 'kubikmeter'].includes(s)) s = 'm³';
+  if (['m2', 'square meter', 'square metre', 'quadratmeter'].includes(s)) s = 'm²';
+  if (['kilogramm', 'kilogram', 'kilograms'].includes(s)) s = 'kg';
+  if (['piece', 'pieces', 'stück', 'stk', 'pce', 'pcs', 'unit', 'units'].includes(s)) s = 'stk';
+  return s;
 }
 
 const INDICATOR_DEFS = {
@@ -88,9 +94,10 @@ function getIndicators(selected) {
 
 function getVal(epd, indicatorKey, modKeys) {
   const qty = Number(epd.quantity) || 1;
+  const uf  = Number(epd.uncertainty_factor) || 1;
   const mods = epd.indicators?.[indicatorKey]?.mods || {};
   const v = sumMods(mods, modKeys);
-  return v != null ? v * qty : null;
+  return v != null ? v * qty * uf : null;
 }
 
 // ── Stacked horizontal bar showing each material's share ─────────────────────
