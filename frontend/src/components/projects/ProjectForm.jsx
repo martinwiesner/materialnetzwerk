@@ -762,9 +762,13 @@ export default function ProjectForm({ project, onClose }) {
                                 <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
                               ))}
                             </select>
-                            <input type="number" step="0.01" min="0" value={mat.quantity}
-                              onChange={(e) => updateMaterial(i, 'quantity', parseFloat(e.target.value) || 0)}
-                              placeholder={t('common.quantity')} required
+                            <input type="text" inputMode="decimal" value={mat.quantity}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(',', '.');
+                                const val = parseFloat(raw);
+                                updateMaterial(i, 'quantity', isNaN(val) ? e.target.value : val);
+                              }}
+                              placeholder={t('common.quantity')}
                               className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
                             <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, 'unit', e.target.value)}
                               placeholder={t('common.unit')}
