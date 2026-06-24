@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
+function normalizeUnit(u) {
+  if (!u) return '';
+  return u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
+}
+
 const INDICATOR_DEFS = {
   'GWP-total':      { label: 'GWP gesamt',              unit: 'kg CO₂ eq.',    phase: 'Klimawandel',  desc: 'Gesamtes Treibhausgaspotenzial: fossil + biogen + Landnutzungsänderung.' },
   'GWP-fossil':     { label: 'GWP fossil',              unit: 'kg CO₂ eq.',    phase: 'Klimawandel',  desc: 'Emissionen aus Kohle, Öl und Gas — Haupttreiber des Klimawandels.' },
@@ -468,7 +473,7 @@ export function EpdFullAnalysis({ selected }) {
   const modLabel = modGroup;
 
   const unitMismatches = selected.filter(
-    epd => epd.declaredUnit && epd.unit && epd.unit !== epd.declaredUnit
+    epd => epd.declaredUnit && epd.unit && normalizeUnit(epd.unit) !== normalizeUnit(epd.declaredUnit)
   );
 
   return (

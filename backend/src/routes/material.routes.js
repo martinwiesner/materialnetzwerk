@@ -31,8 +31,11 @@ const uploadPdf = multer({
   dest: '/tmp/epd-uploads/',
   limits: { fileSize: 30 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
-    const ok = file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf');
-    ok ? cb(null, true) : cb(new Error('Nur PDF-Dateien erlaubt'), false);
+    const name = file.originalname.toLowerCase();
+    const ok = file.mimetype === 'application/pdf'   || name.endsWith('.pdf')  ||
+               file.mimetype === 'application/json'  || name.endsWith('.json') ||
+               file.mimetype === 'application/xml'   || file.mimetype === 'text/xml' || name.endsWith('.xml');
+    ok ? cb(null, true) : cb(new Error('Nur PDF, JSON oder XML erlaubt'), false);
   },
 });
 

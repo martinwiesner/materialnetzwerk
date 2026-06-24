@@ -3,6 +3,12 @@ import { Search, X, Plus, Loader2, Leaf, ChevronDown, ChevronUp, Trash2, AlertTr
 import { EpdFullAnalysis } from './EpdAnalysis';
 
 const PROXY = 'https://oebd-proxy.martin-wiesner.workers.dev';
+
+// Strip leading quantity ("1 ", "0,075 ") so "1 t" and "t" compare equal
+function normalizeUnit(u) {
+  if (!u) return '';
+  return u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
+}
 const BASE  = 'https://oekobaudat.de/OEKOBAU.DAT/resource';
 
 const DATASETS = [
@@ -438,7 +444,7 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
               onChange={e => onChange({ ...epd, unit: e.target.value })}
               placeholder={epd.declaredUnit || 'Einheit'}
               className={`w-20 px-2 py-1 border rounded-lg text-xs focus:ring-2 outline-none bg-white ${
-                epd.declaredUnit && unit && unit !== epd.declaredUnit
+                epd.declaredUnit && unit && normalizeUnit(unit) !== normalizeUnit(epd.declaredUnit)
                   ? 'border-amber-400 focus:ring-amber-300 text-amber-800'
                   : 'border-gray-300 focus:ring-emerald-400'
               }`}
@@ -450,7 +456,7 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
             )}
           </div>
           {/* Unit mismatch warning */}
-          {epd.declaredUnit && unit && unit !== epd.declaredUnit && (
+          {epd.declaredUnit && unit && normalizeUnit(unit) !== normalizeUnit(epd.declaredUnit) && (
             <div className="flex items-start gap-1.5 mt-1 px-2 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">

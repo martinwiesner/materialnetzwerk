@@ -388,14 +388,58 @@ function parseAiResponse(raw) {
   return JSON.parse(cleaned);
 }
 
+async function runEpdPrompt(textContent, client) {
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o',
+    max_tokens: 4000,
+    messages: [{ role: 'user', content: EPD_EXTRACT_PROMPT + '\n\nEPD-Text:\n' + textContent.slice(0, 28000) }],
+  });
+  const raw = response.choices[0]?.message?.content ?? '';
+  const parsed = parseAiResponse(raw);
+  const fields = parsed.fields || parsed;
+  const confidence = parsed.confidence || null;
+  if (!fields.gwp_value) {
+    const f = parseFloat(fields.gwp_fossil), b = parseFloat(fields.gwp_biogenic), l = parseFloat(fields.gwp_luluc);
+    if (!isNaN(f) || !isNaN(b) || !isNaN(l)) fields.gwp_value = (isNaN(f)?0:f)+(isNaN(b)?0:b)+(isNaN(l)?0:l);
+  }
+  return { fields, confidence };
+}
+
 export const parseEpdFromPdf = async (req, res) => {
   const file = req.file;
-  if (!file) return res.status(400).json({ message: 'Keine PDF-Datei hochgeladen' });
+  if (!file) return res.status(400).json({ message: 'Keine Datei hochgeladen' });
   if (!process.env.OPENAI_API_KEY) {
     try { unlinkSync(file.path); } catch {}
     return res.status(503).json({ message: 'OpenAI API-Key nicht konfiguriert' });
   }
 
+  const ext = file.originalname.toLowerCase().split('.').pop();
+  const isJson = ext === 'json' || file.mimetype === 'application/json';
+  const isXml  = ext === 'xml'  || file.mimetype === 'application/xml' || file.mimetype === 'text/xml';
+
+  // ── JSON / XML: read text, send directly to GPT ──────────────────────────
+  if (isJson || isXml) {
+    try {
+      const raw = readFileSync(file.path, 'utf8');
+      let textContent = raw;
+      if (isJson) {
+        try { textContent = JSON.stringify(JSON.parse(raw), null, 2); } catch { /* use raw */ }
+      }
+      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const { fields, confidence } = await runEpdPrompt(textContent, client);
+      return res.json({
+        data: fields,
+        confidence,
+        meta: { format: isJson ? 'json' : 'xml', usedVision: false },
+      });
+    } catch (error) {
+      return res.status(500).json({ message: 'EPD-Analyse fehlgeschlagen', error: error.message });
+    } finally {
+      try { unlinkSync(file.path); } catch {}
+    }
+  }
+
+  // ── PDF: existing dual-approach flow ─────────────────────────────────────
   try {
     const { PDFParse } = await import('pdf-parse');
     const buffer = readFileSync(file.path);

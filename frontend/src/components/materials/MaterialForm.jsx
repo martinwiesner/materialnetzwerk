@@ -120,8 +120,10 @@ function EpdPdfDropZone({ onApply }) {
   const inputRef = useRef(null);
 
   const processFile = async (file) => {
-    if (!file || !file.name.toLowerCase().endsWith('.pdf')) {
-      setError('Bitte eine PDF-Datei auswählen.');
+    const name = file?.name?.toLowerCase() ?? '';
+    const ok = name.endsWith('.pdf') || name.endsWith('.json') || name.endsWith('.xml');
+    if (!file || !ok) {
+      setError('Bitte eine PDF-, JSON- oder XML-Datei auswählen.');
       setStatus('error');
       return;
     }
@@ -319,9 +321,9 @@ function EpdPdfDropZone({ onApply }) {
             ${dragOver ? 'border-violet-400 bg-violet-50' : 'border-gray-200 hover:border-violet-300 hover:bg-violet-50/30 bg-gray-50/50'}`}
         >
           <FileText className={`w-6 h-6 ${dragOver ? 'text-violet-500' : 'text-gray-300'}`} />
-          <span className="text-xs font-medium text-gray-500">EPD als PDF hier ablegen</span>
-          <span className="text-[10px] text-gray-400">oder klicken zum Auswählen · EN 15804+A2 · Text + Vision-Analyse</span>
-          <input ref={inputRef} type="file" accept=".pdf,application/pdf" className="hidden"
+          <span className="text-xs font-medium text-gray-500">EPD hier ablegen</span>
+          <span className="text-[10px] text-gray-400">PDF · JSON · XML · EN 15804+A2 · KI-Analyse</span>
+          <input ref={inputRef} type="file" accept=".pdf,.json,.xml,application/pdf,application/json,application/xml,text/xml" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) processFile(f); e.target.value = ''; }} />
         </div>
       )}
