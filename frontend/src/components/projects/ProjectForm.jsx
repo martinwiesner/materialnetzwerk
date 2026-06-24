@@ -1,4 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
+
+function normalizeUnit(u) {
+  if (!u) return '';
+  let s = u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
+  if (['metric ton', 'metric tons', 'tonne', 'tonnes', 'tonnen'].includes(s)) s = 't';
+  if (['m3', 'cubic meter', 'cubic metre', 'kubikmeter'].includes(s)) s = 'm³';
+  if (['m2', 'square meter', 'square metre', 'quadratmeter'].includes(s)) s = 'm²';
+  if (['kilogramm', 'kilogram', 'kilograms'].includes(s)) s = 'kg';
+  if (['piece', 'pieces', 'stück', 'stk', 'pce', 'pcs', 'unit', 'units'].includes(s)) s = 'stk';
+  return s;
+}
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
@@ -751,7 +762,7 @@ export default function ProjectForm({ project, onClose }) {
                       const gwpVal = selectedMat?.gwp_value;
                       const gwpUnit = selectedMat?.gwp_unit;
                       const denominator = gwpUnit?.split('/')?.[1]?.trim();
-                      const unitMismatch = denominator && mat.unit && mat.unit.trim() !== denominator;
+                      const unitMismatch = denominator && mat.unit && normalizeUnit(mat.unit) !== normalizeUnit(denominator);
                       return (
                         <div key={i} className="space-y-1">
                           <div className="flex gap-2 items-center">
@@ -762,12 +773,8 @@ export default function ProjectForm({ project, onClose }) {
                                 <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
                               ))}
                             </select>
-                            <input type="text" inputMode="decimal" value={mat.quantity}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(',', '.');
-                                const val = parseFloat(raw);
-                                updateMaterial(i, 'quantity', isNaN(val) ? e.target.value : val);
-                              }}
+                            <input type="number" step="any" min="0" value={mat.quantity}
+                              onChange={(e) => updateMaterial(i, 'quantity', e.target.value === '' ? '' : parseFloat(e.target.value))}
                               placeholder={t('common.quantity')}
                               className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
                             <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, 'unit', e.target.value)}
