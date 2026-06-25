@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Settings, Check, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Check, AlertCircle, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
 import { useSettings, useUpdateSetting } from '../../hooks/useSettings';
 import { useAuthStore } from '../../store/authStore';
 import { Navigate } from 'react-router-dom';
+import AdminDashboard from './AdminDashboard';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ function ListField({ label, settingKey, currentValue, hint }) {
 export default function AdminPanel() {
   const user = useAuthStore((s) => s.user);
   const { data: settings, isLoading } = useSettings();
+  const [tab, setTab] = useState('dashboard');
 
   if (!user?.is_admin) return <Navigate to="/" replace />;
 
@@ -151,7 +153,7 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -160,9 +162,42 @@ export default function AdminPanel() {
         </div>
         <div>
           <h1 className="text-lg font-bold text-gray-900">Admin-Panel</h1>
-          <p className="text-xs text-gray-500">Plattform-Texte bearbeiten</p>
+          <p className="text-xs text-gray-500">Plattform-Verwaltung</p>
         </div>
       </div>
+
+      {/* Tab navigation */}
+      <div className="flex gap-1 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setTab('dashboard')}
+          className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            tab === 'dashboard'
+              ? 'border-gray-900 text-gray-900'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <BarChart2 className="w-4 h-4" />
+          Dashboard
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('settings')}
+          className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            tab === 'settings'
+              ? 'border-gray-900 text-gray-900'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          Einstellungen
+        </button>
+      </div>
+
+      {/* Tab content */}
+      {tab === 'dashboard' && <AdminDashboard />}
+
+      {tab === 'settings' && <div className="space-y-8">
 
       {/* ── Benachrichtigungen ─────────────────────────────────────────────── */}
       <section className="space-y-3">
@@ -285,6 +320,8 @@ export default function AdminPanel() {
           />
         </FieldCard>
       </section>
+
+      </div>}
 
     </div>
   );
