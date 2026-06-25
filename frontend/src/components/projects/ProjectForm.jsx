@@ -214,13 +214,15 @@ function libEntryFromFormMat(formMat, libFull) {
   addInd('PERE',           'pere',              'MJ');
   addInd('PENRE',          'penre',             'MJ');
   addInd('PERM',           'perm',              'MJ');
+  const gwpDenominator = libFull.gwp_unit?.split('/')?.[1]?.trim() || null;
+  const declaredUnit = libFull.declared_unit || gwpDenominator || 'kg';
   return {
     uuid: `lib-${libFull.id}`,
     name: libFull.name,
     category: libFull.category || '',
-    declaredUnit: libFull.declared_unit || libFull.unit || 'kg',
+    declaredUnit,
     quantity: Number(formMat.quantity) || 1,
-    unit: formMat.unit || libFull.unit || libFull.declared_unit || 'kg',
+    unit: formMat.unit || declaredUnit,
     gwpA1A3: perUnit !== 0 ? perUnit : null,
     gwpEoL: null, gwpD: null,
     indicators,

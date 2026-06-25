@@ -426,7 +426,16 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
   });
 
   const unitMismatch = epd.declaredUnit && unit && normalizeUnit(unit) !== normalizeUnit(epd.declaredUnit);
-  const scaledGwpA1A3 = epd.gwpA1A3 != null ? epd.gwpA1A3 * qty * uf : null;
+  // Apply mass unit conversion (e.g. user enters kg but EPD is per t)
+  function toKg(u) { const n=normalizeUnit(u); return n==='kg'?1:n==='t'?1000:n==='g'?0.001:null; }
+  function convFactor(from, to) {
+    const f=normalizeUnit(from), t=normalizeUnit(to);
+    if (!f||!t||f===t) return 1;
+    const fK=toKg(f), tK=toKg(t);
+    return (fK!=null&&tK!=null&&tK!==0) ? fK/tK : 1;
+  }
+  const effectiveQty = qty * convFactor(unit, epd.declaredUnit || unit);
+  const scaledGwpA1A3 = epd.gwpA1A3 != null ? epd.gwpA1A3 * effectiveQty * uf : null;
 
   return (
     <div className="bg-emerald-50 border border-emerald-200 rounded-xl overflow-hidden">
@@ -505,7 +514,7 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
             <p className="text-xs font-medium text-emerald-700">
               GWP A1–A3 gesamt: <strong>{fmtNum(scaledGwpA1A3)} kg CO₂ eq.</strong>
               <span className="font-normal text-gray-400 ml-1">
-                ({fmtNum(epd.gwpA1A3)} × {qty}{uf !== 1 ? ` × ${uf}` : ''})
+                ({fmtNum(epd.gwpA1A3)} × {effectiveQty !== qty ? `${qty} ${unit} = ${fmtNum(effectiveQty)} ${epd.declaredUnit || ''}` : qty}{uf !== 1 ? ` × ${uf}` : ''})
               </span>
             </p>
           )}

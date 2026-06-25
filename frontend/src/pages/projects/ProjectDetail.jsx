@@ -148,10 +148,29 @@ function epdFmtNum(v) {
   return v.toPrecision(3);
 }
 
+function epdNormUnit(u) {
+  if (!u) return '';
+  let s = u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
+  if (['metric ton','metric tons','tonne','tonnes','tonnen'].includes(s)) s = 't';
+  if (['m3','cubic meter','cubic metre','kubikmeter'].includes(s)) s = 'm³';
+  if (['kilogramm','kilogram','kilograms'].includes(s)) s = 'kg';
+  return s;
+}
+function epdUnitConv(fromUnit, toUnit) {
+  function toKg(u) { return u==='kg'?1:u==='t'?1000:u==='g'?0.001:null; }
+  const f = epdNormUnit(fromUnit), t = epdNormUnit(toUnit);
+  if (!f||!t||f===t) return 1;
+  const fK=toKg(f), tK=toKg(t);
+  return (fK!=null&&tK!=null&&tK!==0) ? fK/tK : 1;
+}
+function epdGetQty(epd) {
+  return (Number(epd.quantity) || 1) * epdUnitConv(epd.unit, epd.declaredUnit);
+}
+
 function epdComputeTotals(selected) {
   const totals = {};
   for (const epd of selected) {
-    const qty = Number(epd.quantity) || 1;
+    const qty = epdGetQty(epd);
     for (const [key, ind] of Object.entries(epd.indicators || {})) {
       if (!totals[key]) totals[key] = { unit: ind.unit, mods: {} };
       for (const [mod, val] of Object.entries(ind.mods || {})) {
@@ -187,13 +206,15 @@ function libMatToEpdEntry(m) {
   if (m.pere            != null) indicators['PERE']            = { mods: { 'A1-A3': Number(m.pere)            }, unit: 'MJ' };
   if (m.penre           != null) indicators['PENRE']           = { mods: { 'A1-A3': Number(m.penre)           }, unit: 'MJ' };
   if (m.perm            != null) indicators['PERM']            = { mods: { 'A1-A3': Number(m.perm)            }, unit: 'MJ' };
+  const gwpDenominator = m.gwp_unit?.split('/')?.[1]?.trim() || null;
+  const declaredUnit = m.declared_unit || gwpDenominator || 'kg';
   return {
     uuid:         `lib-${m.material_id || m.id}`,
     name:         m.material_name || m.name || 'Material',
     category:     m.category || '',
-    declaredUnit: m.declared_unit || m.unit || 'kg',
+    declaredUnit,
     quantity:     Number(m.quantity) || 1,
-    unit:         m.unit || m.declared_unit || 'kg',
+    unit:         m.unit || declaredUnit,
     gwpA1A3:      perUnit !== 0 ? perUnit : null,
     gwpEoL:       null,
     gwpD:         null,

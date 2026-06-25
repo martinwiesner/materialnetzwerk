@@ -12,6 +12,22 @@ function normalizeUnit(u) {
   return s;
 }
 
+// Returns how many "toUnit" fit in one "fromUnit". Returns 1 if units are equal or incompatible.
+function unitConvFactor(fromUnit, toUnit) {
+  function toKg(u) {
+    if (u === 'kg') return 1;
+    if (u === 't')  return 1000;
+    if (u === 'g')  return 0.001;
+    return null;
+  }
+  const from = normalizeUnit(fromUnit);
+  const to   = normalizeUnit(toUnit);
+  if (!from || !to || from === to) return 1;
+  const fK = toKg(from), tK = toKg(to);
+  if (fK != null && tK != null && tK !== 0) return fK / tK;
+  return 1; // incompatible units (e.g. t vs m³) — no conversion possible
+}
+
 const INDICATOR_DEFS = {
   'GWP-total':      { label: 'GWP gesamt',              unit: 'kg CO₂ eq.',    phase: 'Klimawandel',  desc: 'Gesamtes Treibhausgaspotenzial: fossil + biogen + Landnutzungsänderung.' },
   'GWP-fossil':     { label: 'GWP fossil',              unit: 'kg CO₂ eq.',    phase: 'Klimawandel',  desc: 'Emissionen aus Kohle, Öl und Gas — Haupttreiber des Klimawandels.' },
@@ -93,10 +109,11 @@ function getIndicators(selected) {
 }
 
 function getVal(epd, indicatorKey, modKeys) {
-  const qty = Number(epd.quantity) || 1;
-  const uf  = Number(epd.uncertainty_factor) || 1;
+  const conv = unitConvFactor(epd.unit, epd.declaredUnit);
+  const qty  = (Number(epd.quantity) || 1) * conv;
+  const uf   = Number(epd.uncertainty_factor) || 1;
   const mods = epd.indicators?.[indicatorKey]?.mods || {};
-  const v = sumMods(mods, modKeys);
+  const v    = sumMods(mods, modKeys);
   return v != null ? v * qty * uf : null;
 }
 
