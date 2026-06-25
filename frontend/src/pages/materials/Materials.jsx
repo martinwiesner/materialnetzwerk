@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../services/materialService';
 import { inventoryService } from '../../services/inventoryService';
-import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked, Store, Download, FileText } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked, Store, Download, FileText, Scale } from 'lucide-react';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportMaterialsToCSV, exportMaterialsToPDF } from '../../utils/exportUtils';
 import { useToast } from '../../store/toastStore';
@@ -16,6 +16,7 @@ import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import RzzDecoration from '../../components/ui/RzzDecoration';
 import { useT } from '../../i18n/useT';
 import { MEDIA_BASE } from '../../services/api';
+import { useCompareStore } from '../../store/compareStore';
 
 function getMaterialImage(material) {
   // 1. Real DB image takes priority
@@ -57,6 +58,7 @@ export default function Materials() {
   const t = useT();
   const { isAuthenticated, token, user } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
+  const compare = useCompareStore();
 
   const requireAuth = () => {
     if (isAuthenticated && token) return true;
@@ -631,6 +633,19 @@ export default function Materials() {
                   </div>
 
                   <div className="flex gap-1">
+                    <button
+                      type="button"
+                      title={compare.isSelected(material.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
+                      onClick={(e) => { e.stopPropagation(); compare.toggle('materials', material.id); }}
+                      disabled={!compare.isSelected(material.id) && !compare.canAdd('materials')}
+                      className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
+                        compare.isSelected(material.id)
+                          ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                          : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50'
+                      }`}
+                    >
+                      <Scale className="w-4 h-4" />
+                    </button>
                     <BookmarkButton
                       entityType="material"
                       entityId={material.id}

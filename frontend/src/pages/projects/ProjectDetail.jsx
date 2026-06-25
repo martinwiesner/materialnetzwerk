@@ -6,7 +6,7 @@ import { projectService } from '../../services/projectService';
 import {
   ArrowLeft, Edit2, Trash2, Globe, Lock, Package,
   Calendar, User, Leaf, ChevronLeft, ChevronRight,
-  MapPin, ExternalLink, BookOpen, Users, Tag, Database
+  MapPin, ExternalLink, BookOpen, Users, Tag, Database, FileDown
 } from 'lucide-react';
 import { EpdFullAnalysis } from '../../components/projects/EpdAnalysis';
 
@@ -638,6 +638,18 @@ export default function ProjectDetail() {
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    try {
+      await projectService.downloadPdf(id, `projekt-${id}.pdf`);
+    } catch (err) {
+      console.error('PDF download failed', err);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   const { data: project, isLoading, error } = useQuery({
     queryKey: ['project', id],
@@ -1046,7 +1058,20 @@ export default function ProjectDetail() {
         url={`${window.location.origin}/projects/${project.id}`}
         title={project.name}
         onPrint={() => exportProjectPoster(project)}
-        actions={<BookmarkButton entityType="project" entityId={project.id} showCount size="md" />}
+        actions={
+          <>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={pdfLoading}
+              title="Projektdatenblatt als PDF herunterladen"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50"
+            >
+              <FileDown size={15} />
+              {pdfLoading ? 'Lade…' : 'PDF'}
+            </button>
+            <BookmarkButton entityType="project" entityId={project.id} showCount size="md" />
+          </>
+        }
       />
 
       {showForm && (

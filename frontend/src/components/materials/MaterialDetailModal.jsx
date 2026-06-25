@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2 } from 'lucide-react';
+import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2, FileDown } from 'lucide-react';
 import { OwnerLine } from '../shared/ContactButton';
 import SharePrintBar from '../shared/SharePrintBar';
 import BookmarkButton from '../shared/BookmarkButton';
@@ -8,6 +8,7 @@ import MaterialIdSection from '../shared/MaterialIdSection';
 import { exportMaterialPoster } from '../../utils/exportUtils';
 import { MEDIA_BASE } from '../../services/api';
 import { useT } from '../../i18n/useT';
+import { materialService } from '../../services/materialService';
 
 const API_BASE = MEDIA_BASE;
 
@@ -102,6 +103,18 @@ function ImageGallery({ images, name }) {
 
 export default function MaterialDetailModal({ material, onClose, onEdit, onDelete, canEdit = false }) {
   const t = useT();
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  async function handleDownloadPdf() {
+    setPdfLoading(true);
+    try {
+      await materialService.downloadPdf(material.id, `material-${material.material_id || material.id}.pdf`);
+    } catch (err) {
+      console.error('PDF download failed', err);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   const similarIds = useMemo(() => {
     const parsed = safeJsonParse(material?.similar_material_ids, []);
@@ -545,7 +558,20 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
           url={`${window.location.origin}/materials/${material.id}`}
           title={material.name}
           onPrint={() => exportMaterialPoster(material)}
-          actions={<BookmarkButton entityType="material" entityId={material.id} showCount size="md" />}
+          actions={
+            <>
+              <button
+                onClick={handleDownloadPdf}
+                disabled={pdfLoading}
+                title="Datenblatt als PDF herunterladen"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:opacity-50"
+              >
+                <FileDown size={15} />
+                {pdfLoading ? 'Lade…' : 'PDF'}
+              </button>
+              <BookmarkButton entityType="material" entityId={material.id} showCount size="md" />
+            </>
+          }
         />
       </div>
     </div>

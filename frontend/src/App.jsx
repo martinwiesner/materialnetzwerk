@@ -24,6 +24,7 @@ import GesuchDetail from './pages/gesuch/GesuchDetail';
 import AngebotDetail from './pages/angebot/AngebotDetail';
 import IdResolver from './pages/IdResolver';
 import AdminPanel from './pages/admin/AdminPanel';
+import ComparePage from './pages/compare/ComparePage';
 
 // Protected route wrapper
 function ProtectedRoute({ children }) {
@@ -106,6 +107,7 @@ export default function App() {
           <Route path="gesuch/:id" element={<GesuchDetail />} />
           <Route path="angebot/:id" element={<AngebotDetail />} />
           <Route path="admin" element={<AdminPanel />} />
+          <Route path="compare" element={<ComparePage />} />
           {/* Legacy routes */}
           <Route path="offers" element={<Navigate to="/" replace />} />
           <Route path="marketplace" element={<Navigate to="/" replace />} />

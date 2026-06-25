@@ -30,6 +30,16 @@ export const materialService = {
     const response = await api.delete(`/materials/${id}`);
     return response.data;
   },
+
+  downloadPdf: async (id, filename) => {
+    const response = await api.get(`/materials/${id}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || `material-${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
 // appended
 

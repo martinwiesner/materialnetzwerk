@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
-import { Plus, Search, Edit2, Trash2, FolderOpen, Eye, Globe, Lock, MapPinned, List, Leaf, Tag, Download, FileText } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, FolderOpen, Eye, Globe, Lock, MapPinned, List, Leaf, Tag, Download, FileText, Scale } from 'lucide-react';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectsToCSV, exportProjectsToPDF } from '../../utils/exportUtils';
 import { Link } from 'react-router-dom';
@@ -12,6 +12,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import RzzDecoration from '../../components/ui/RzzDecoration';
 import { useToast } from '../../store/toastStore';
+import { useCompareStore } from '../../store/compareStore';
 import { OwnerLine } from '../../components/shared/ContactButton';
 import { formatDate } from '../../utils/dates';
 import { useT } from '../../i18n/useT';
@@ -67,6 +68,7 @@ export default function Projects() {
   });
 
   const toast = useToast();
+  const compare = useCompareStore();
 
   const deleteMutation = useMutation({
     mutationFn: projectService.delete,
@@ -433,6 +435,19 @@ export default function Projects() {
                         </div>
                       </div>
                       <div className="flex gap-1">
+                        <button
+                          type="button"
+                          title={compare.isSelected(project.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
+                          onClick={(e) => { e.stopPropagation(); compare.toggle('projects', project.id); }}
+                          disabled={!compare.isSelected(project.id) && !compare.canAdd('projects')}
+                          className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
+                            compare.isSelected(project.id)
+                              ? 'text-project-600 bg-project-50 hover:bg-project-100'
+                              : 'text-gray-400 hover:text-project-500 hover:bg-project-50'
+                          }`}
+                        >
+                          <Scale className="w-4 h-4" />
+                        </button>
                         <BookmarkButton
                           entityType="project"
                           entityId={project.id}

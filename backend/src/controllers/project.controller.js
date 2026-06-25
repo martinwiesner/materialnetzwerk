@@ -6,6 +6,7 @@
 import Project from '../models/project.model.js';
 import { getDB } from '../config/db.js';
 import { unlinkSync, existsSync } from 'fs';
+import { generateProjectPdf } from '../utils/projectPdfGenerator.js';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -391,5 +392,19 @@ export const setProjectActors = (req, res) => {
     res.json({ actor_ids: actorIds });
   } catch (error) {
     res.status(500).json({ message: 'Failed to set actors', error: error.message });
+  }
+};
+
+export const downloadProjectPdf = async (req, res) => {
+  try {
+    const project = Project.findByIdWithDetails(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
+    const pdfBuffer = await generateProjectPdf(project);
+    const filename = `projekt-${(project.material_id || project.id).replace(/[^a-z0-9-]/gi, '_')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    res.status(500).json({ message: 'PDF-Generierung fehlgeschlagen', error: error.message });
   }
 };

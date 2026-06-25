@@ -31,6 +31,16 @@ export const projectService = {
     return response.data;
   },
 
+  downloadPdf: async (id, filename) => {
+    const response = await api.get(`/projects/${id}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || `projekt-${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
   // ── Images ──────────────────────────────────────────────────────────────
 
   getImages: async (projectId) => {

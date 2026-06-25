@@ -43,6 +43,7 @@ import GuidelinesOverlay from './shared/GuidelinesOverlay';
 import AGBOverlay from './shared/AGBOverlay';
 import IncomingRequestsPanel from './requests/IncomingRequestsPanel';
 import MyRequestsPanel from './requests/MyRequestsPanel';
+import CompareBar from './compare/CompareBar';
 import { messageService } from '../services/messageService';
 import { materialRequestService } from '../services/materialRequestService';
 import { authService } from '../services/authService';
@@ -779,6 +780,8 @@ export default function Layout() {
       <main className="mx-auto max-w-[1400px] p-4 lg:p-6">
         <Outlet />
       </main>
+
+      <CompareBar />
 
       {/* Footer */}
       <footer className="mx-auto max-w-[1400px] px-4 pb-6 pt-2">

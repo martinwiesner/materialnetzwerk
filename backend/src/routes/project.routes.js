@@ -24,6 +24,7 @@ import {
   setProjectActors,
   uploadCadPreview,
   deleteCadPreview,
+  downloadProjectPdf,
 } from '../controllers/project.controller.js';
 import protect, { optionalAuth } from '../middleware/auth.middleware.js';
 import upload, { uploadProjectFiles as multerProjFiles, uploadCadPreview as multerCadPreview } from '../middleware/upload.middleware.js';
@@ -359,6 +360,9 @@ router.delete('/:id/files/:fileId', protect, (req, res) => deleteProjectFile(req
 // CAD preview (GLB) routes
 router.post('/:id/cad-preview', protect, multerCadPreview.single('file'), (req, res) => uploadCadPreview(req, res));
 router.delete('/:id/cad-preview', protect, (req, res) => deleteCadPreview(req, res));
+
+// PDF download
+router.get('/:id/pdf', protect, (req, res) => downloadProjectPdf(req, res));
 
 // Actor association routes
 router.get('/:id/actors', optionalAuth, (req, res) => getProjectActors(req, res));

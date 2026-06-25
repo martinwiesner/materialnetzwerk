@@ -7,6 +7,7 @@ import Material from '../models/material.model.js';
 import MaterialCategory from '../models/materialCategory.model.js';
 import { readFileSync, unlinkSync } from 'fs';
 import OpenAI from 'openai';
+import { generateMaterialPdf } from '../utils/materialPdfGenerator.js';
 
 const isAdmin = (u) => u?.is_admin === 1 || u?.is_admin === true;
 
@@ -154,6 +155,20 @@ export const deleteMaterial = (req, res) => {
     res.json({ message: 'Material deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete material', error: error.message });
+  }
+};
+
+export const downloadMaterialPdf = async (req, res) => {
+  try {
+    const material = Material.findById(req.params.id);
+    if (!material) return res.status(404).json({ message: 'Material not found' });
+    const pdfBuffer = await generateMaterialPdf(material);
+    const filename = `material-${(material.material_id || material.id).replace(/[^a-z0-9-]/gi, '_')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    res.status(500).json({ message: 'PDF-Generierung fehlgeschlagen', error: error.message });
   }
 };
 
