@@ -49,8 +49,8 @@ router.get('/stats', protect, adminOnly, (req, res) => {
         u.id,
         COALESCE(u.first_name || ' ' || u.last_name, u.email) as display_name,
         u.email,
-        (SELECT COUNT(*) FROM materials WHERE owner_id = u.id) as mat_count,
-        (SELECT COUNT(*) FROM projects  WHERE owner_id = u.id) as proj_count
+        (SELECT COUNT(*) FROM materials WHERE created_by = u.id) as mat_count,
+        (SELECT COUNT(*) FROM projects  WHERE owner_id  = u.id) as proj_count
       FROM users u
       ORDER BY (mat_count + proj_count) DESC
       LIMIT 8
