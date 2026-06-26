@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Plus, Globe, Package, FolderOpen, X, Map as MapIcon, LayoutList, Users, BookOpen } from 'lucide-react';
+import { Search, Plus, Globe, Package, FolderOpen, X, Map as MapIcon, LayoutList, Users, BookOpen, LocateFixed } from 'lucide-react';
 import clsx from 'clsx';
 
 import { materialService } from '../../services/materialService';
@@ -514,6 +514,65 @@ export default function Explore() {
   const [filterMode, setFilterMode] = useState('all');
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
 
+  // ── split-panel drag (desktop only) ─────────────────────────────────────────
+  const splitContainerRef = useRef(null);
+  const isDragging = useRef(false);
+  const [splitPct, setSplitPct] = useState(62);
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!isDragging.current || !splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const pct = Math.max(25, Math.min(80, ((clientX - rect.left) / rect.width) * 100));
+      setSplitPct(pct);
+    }
+    function onEnd() { isDragging.current = false; }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+    };
+  }, []);
+
+  // ── radius filter ────────────────────────────────────────────────────────────
+  const [radiusCenter, setRadiusCenter] = useState(null);
+  const [radiusKm, setRadiusKm] = useState(50);
+  const [radiusActive, setRadiusActive] = useState(false);
+  const [radiusLoading, setRadiusLoading] = useState(false);
+  const [radiusClickMode, setRadiusClickMode] = useState(false);
+
+  function activateMyLocation() {
+    if (!navigator.geolocation) { setRadiusClickMode(true); return; }
+    setRadiusLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setRadiusCenter({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setRadiusActive(true);
+        setRadiusLoading(false);
+        setRadiusClickMode(false);
+      },
+      () => {
+        setRadiusLoading(false);
+        setRadiusClickMode(true); // fallback: let user click on map
+      },
+      { timeout: 6000 }
+    );
+  }
+
+  function handleMapSetRadius(center) {
+    setRadiusCenter(center);
+    setRadiusActive(true);
+    setRadiusClickMode(false);
+  }
+
+  function deactivateRadius() {
+    setRadiusActive(false);
+    setRadiusCenter(null);
+    setRadiusClickMode(false);
+  }
+
   const [selected, setSelected] = useState(null);
   const [offerDetailId, setOfferDetailId] = useState(null);
   const [actorDetail, setActorDetail] = useState(null);
@@ -631,10 +690,20 @@ export default function Explore() {
       if (e.type === 'material' && !showMaterials) return false;
       if (e.type === 'project' && !showProjects) return false;
       if (e.type === 'actor' && !showActors) return false;
-      if (e.type === 'gesuch') return true; // always show gesuche in 'all' mode
+      if (e.type === 'gesuch') {
+        // still apply radius to gesuche
+        if (radiusActive && radiusCenter && e.location) {
+          if (distKm(radiusCenter.lat, radiusCenter.lon, e.location.lat, e.location.lon) > radiusKm) return false;
+        }
+        return true;
+      }
+      // radius filter
+      if (radiusActive && radiusCenter && e.location) {
+        if (distKm(radiusCenter.lat, radiusCenter.lon, e.location.lat, e.location.lon) > radiusKm) return false;
+      }
       return true;
     });
-  }, [entities, showMaterials, showProjects, showActors, filterMode]);
+  }, [entities, showMaterials, showProjects, showActors, filterMode, radiusActive, radiusCenter, radiusKm]);
 
   const mapEntities = filteredEntities;
 
@@ -867,6 +936,74 @@ export default function Explore() {
             </div>
           </div>
 
+          {/* Radius filter — md+ only */}
+          <div className="hidden md:flex items-center gap-1.5 flex-shrink-0">
+            {radiusClickMode ? (
+              <>
+                <span className="text-xs text-blue-600 font-medium animate-pulse">
+                  Auf Karte klicken…
+                </span>
+                <button
+                  type="button"
+                  onClick={deactivateRadius}
+                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Abbrechen"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </>
+            ) : radiusActive ? (
+              <>
+                {[5, 50, 500].map((km) => (
+                  <button
+                    key={km}
+                    type="button"
+                    onClick={() => setRadiusKm(km)}
+                    className={clsx(
+                      'px-2 py-1 rounded-full text-xs font-medium border transition-colors',
+                      radiusKm === km
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                    )}
+                  >
+                    {km} km
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  min="1"
+                  max="5000"
+                  value={[5, 50, 500].includes(radiusKm) ? '' : radiusKm}
+                  placeholder="km"
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(v) && v > 0) setRadiusKm(v);
+                  }}
+                  className="w-16 px-2 py-1 text-xs border border-gray-200 rounded-full text-center outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300"
+                />
+                <button
+                  type="button"
+                  onClick={deactivateRadius}
+                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Umkreissuche deaktivieren"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={activateMyLocation}
+                disabled={radiusLoading}
+                title="Nach meinem Standort filtern"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                <LocateFixed className="w-3.5 h-3.5" />
+                {radiusLoading ? '…' : 'Umkreis'}
+              </button>
+            )}
+          </div>
+
           <div className="ml-auto flex items-center flex-shrink-0">
             <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
               <button
@@ -896,81 +1033,136 @@ export default function Explore() {
         </div>
       </div>
 
-      {/* Main split */}
-      <div className={clsx('grid gap-4', showMap ? 'grid-cols-1 xl:grid-cols-[1.6fr_1fr]' : 'grid-cols-1')}>
-        {showMap && (
-          <div data-onboarding="explore-map" className="bg-white rounded-2xl border border-gray-200 overflow-hidden isolate">
-            <div className="h-[42vh] sm:h-[55vh] xl:h-[70vh] min-h-[260px] sm:min-h-[380px] xl:min-h-[520px]">
-              <ExploreMap
-                entities={mapEntities}
-                selected={selected}
-                onSelect={setSelected}
-                connections={connections}
-                matchConnections={matchConnections}
-                search={search}
-                invalidateKey={`${showMaterialForm}-${showOfferForm}-${showProjectForm}-${!!offerDetailId}`}
-                onOpenDetails={(e) => {
+      {/* shared entity list content — used in both layouts */}
+      {(() => {
+        const mapProps = {
+          entities: mapEntities,
+          selected,
+          onSelect: setSelected,
+          connections,
+          matchConnections,
+          search,
+          radiusCenter: radiusActive ? radiusCenter : null,
+          radiusKm,
+          onSetRadiusCenter: radiusClickMode ? handleMapSetRadius : null,
+          invalidateKey: `${showMaterialForm}-${showOfferForm}-${showProjectForm}-${!!offerDetailId}`,
+          onOpenDetails: (e) => {
+            if (e.type === 'material') navigate(`/materials/${e.raw?.id}`);
+            if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
+            if (e.type === 'offer') setOfferDetailId(e.raw?.id);
+            if (e.type === 'actor') setActorDetail(e.raw);
+            if (e.type === 'gesuch') navigate(`/gesuch/${e.raw?.id}`);
+          },
+        };
+
+        const entityCards = isLoading ? (
+          <div className="text-center py-10">
+            <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
+          </div>
+        ) : filteredEntities.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">{t('explore.empty')}</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {filteredEntities.map((e) => (
+              <EntityCard
+                key={e.id}
+                entity={e}
+                active={selected?.id === e.id}
+                onSelect={() => setSelected(e)}
+                onOpenDetails={() => {
                   if (e.type === 'material') navigate(`/materials/${e.raw?.id}`);
                   if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
                   if (e.type === 'offer') setOfferDetailId(e.raw?.id);
                   if (e.type === 'actor') setActorDetail(e.raw);
                   if (e.type === 'gesuch') navigate(`/gesuch/${e.raw?.id}`);
                 }}
+                onPrint={e.type === 'gesuch' ? () => exportGesuchPoster(e.raw) : undefined}
+                onPrintOffer={e.type === 'material' && e.offerRaw ? () => exportAngebotPoster(e.offerRaw) : undefined}
+                onRequest={
+                  e.type === 'material' && e.offerRaw
+                    ? () => {
+                        if (!isAuthenticated) {
+                          openAuth({ tab: 'login', reason: 'Bitte melde dich an, um Material anzufragen.' });
+                        } else if (!user || e.offerRaw?.owner_id !== user.id) {
+                          setRequestItem(e.offerRaw);
+                        }
+                      }
+                    : undefined
+                }
               />
-            </div>
+            ))}
           </div>
-        )}
+        );
 
-        <div data-onboarding="entity-list" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        const listHeader = (
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
             <div>
               <div className="font-semibold text-gray-900">{t('explore.surroundings')}</div>
               <div className="text-xs text-gray-500">{filteredEntities.length} {t('explore.entries')}</div>
             </div>
           </div>
+        );
 
-          <div className="max-h-[70vh] min-h-[520px] overflow-y-auto p-4">
-            {isLoading ? (
-              <div className="text-center py-10">
-                <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
+        return (
+          <>
+            {/* ── Mobile layout (< xl): stacked, map fixed height ──────────── */}
+            <div className="xl:hidden grid grid-cols-1 gap-4">
+              {showMap && (
+                <div data-onboarding="explore-map" className="bg-white rounded-2xl border border-gray-200 overflow-hidden isolate">
+                  <div className="h-[42vh] sm:h-[55vh] min-h-[260px] sm:min-h-[380px]">
+                    <ExploreMap {...mapProps} />
+                  </div>
+                </div>
+              )}
+              <div data-onboarding="entity-list" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                {listHeader}
+                <div className="max-h-[60vh] min-h-[320px] overflow-y-auto p-4">{entityCards}</div>
               </div>
-            ) : filteredEntities.length === 0 ? (
-              <div className="text-center py-10 text-gray-500">{t('explore.empty')}</div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {filteredEntities.map((e) => (
-                  <EntityCard
-                    key={e.id}
-                    entity={e}
-                    active={selected?.id === e.id}
-                    onSelect={() => setSelected(e)}
-                    onOpenDetails={() => {
-                      if (e.type === 'material') navigate(`/materials/${e.raw?.id}`);
-                      if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
-                      if (e.type === 'offer') setOfferDetailId(e.raw?.id);
-                      if (e.type === 'actor') setActorDetail(e.raw);
-                      if (e.type === 'gesuch') navigate(`/gesuch/${e.raw?.id}`);
-                    }}
-                    onPrint={e.type === 'gesuch' ? () => exportGesuchPoster(e.raw) : undefined}
-                    onPrintOffer={e.type === 'material' && e.offerRaw ? () => exportAngebotPoster(e.offerRaw) : undefined}
-                    onRequest={
-                      e.type === 'material' && e.offerRaw
-                        ? () => {
-                            if (!isAuthenticated) {
-                              openAuth({ tab: 'login', reason: 'Bitte melde dich an, um Material anzufragen.' });
-                            } else if (!user || e.offerRaw?.owner_id !== user.id) {
-                              setRequestItem(e.offerRaw);
-                            }
-                          }
-                        : undefined
-                    }
-                  />
-                ))}
+            </div>
+
+            {/* ── Desktop layout (xl+): side-by-side with drag handle ───────── */}
+            <div
+              ref={splitContainerRef}
+              className="hidden xl:flex items-stretch gap-0 h-[78vh]"
+            >
+              {showMap && (
+                <>
+                  <div
+                    data-onboarding="explore-map"
+                    className="bg-white rounded-2xl border border-gray-200 overflow-hidden isolate shrink-0"
+                    style={{ width: `${splitPct}%` }}
+                  >
+                    <div className="h-full">
+                      <ExploreMap {...mapProps} />
+                    </div>
+                  </div>
+
+                  {/* Drag handle */}
+                  <div
+                    className="mx-1.5 w-3 flex items-center justify-center cursor-col-resize group shrink-0 rounded-lg hover:bg-primary-50 transition-colors"
+                    onMouseDown={(e) => { e.preventDefault(); isDragging.current = true; }}
+                    title="Breite anpassen"
+                  >
+                    <div className="flex flex-col gap-1">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div key={i} className="w-1 h-1 rounded-full bg-gray-300 group-hover:bg-primary-400 transition-colors" />
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div
+                data-onboarding="entity-list"
+                className="flex-1 bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col min-w-0"
+              >
+                {listHeader}
+                <div className="flex-1 overflow-y-auto p-4">{entityCards}</div>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
+            </div>
+          </>
+        );
+      })()}
 
       {showMaterialForm && (
         <MaterialForm

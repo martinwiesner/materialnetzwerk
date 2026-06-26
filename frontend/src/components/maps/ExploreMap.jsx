@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -239,6 +239,15 @@ function createMatchIcon() {
   });
 }
 
+function MapClickHandler({ onSetRadiusCenter }) {
+  useMapEvents({
+    click(e) {
+      onSetRadiusCenter({ lat: e.latlng.lat, lon: e.latlng.lng });
+    },
+  });
+  return null;
+}
+
 export default function ExploreMap({
   entities = [],
   selected = null,
@@ -248,6 +257,9 @@ export default function ExploreMap({
   onOpenDetails,
   invalidateKey,
   search = '',
+  radiusCenter = null,
+  radiusKm = 10,
+  onSetRadiusCenter = null,
 }) {
   useEffect(() => {
     L.Marker.prototype.options.icon = createDefaultIcon();
@@ -292,6 +304,18 @@ export default function ExploreMap({
         entities={entities}
         search={search}
       />
+
+      {/* Map-click handler for radius center selection */}
+      {onSetRadiusCenter && <MapClickHandler onSetRadiusCenter={onSetRadiusCenter} />}
+
+      {/* Radius circle */}
+      {radiusCenter && (
+        <Circle
+          center={[radiusCenter.lat, radiusCenter.lon]}
+          radius={radiusKm * 1000}
+          pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.08, weight: 2, dashArray: '6 4' }}
+        />
+      )}
 
       {/* Connection lines — rendered below markers */}
       {polylines.map((l) => {
