@@ -25,6 +25,7 @@ import { useT } from '../../i18n/useT';
 import AiAnalyzeButton from '../shared/AiAnalyzeButton';
 import OekobaudatPicker from './OekobaudatPicker';
 import { EpdFullAnalysis } from './EpdAnalysis';
+import ProjectIdematSection from './ProjectIdematSection';
 
 const API_BASE = MEDIA_BASE;
 
@@ -106,6 +107,7 @@ const emptyForm = {
   license: '',
   cad_share_url: '',
   oekodat_materials: [],
+  idemat_lca_items: [],
 };
 
 function StepAiButton({ stepIndex, onUpload, ensureDraft, onStepResult }) {
@@ -257,11 +259,12 @@ export default function ProjectForm({ project, onClose }) {
   useEffect(() => {
     if (!draftId) return;
     const timer = setTimeout(() => {
-      const { name, description, content, time_effort, tools, steps, oekodat_materials } = formData;
+      const { name, description, content, time_effort, tools, steps, oekodat_materials, idemat_lca_items } = formData;
       projectService.update(draftId, {
         name, description, content, time_effort, tools,
         steps: steps?.length ? steps : null,
         oekodat_materials: oekodat_materials?.length ? oekodat_materials : null,
+        idemat_lca_items: idemat_lca_items?.length ? idemat_lca_items : null,
       }).catch(() => {});
     }, 800);
     return () => clearTimeout(timer);
@@ -321,6 +324,7 @@ export default function ProjectForm({ project, onClose }) {
         license: project.license || '',
         cad_share_url: project.cad_share_url || '',
         oekodat_materials: safeJsonParse(project.oekodat_materials, []),
+        idemat_lca_items: safeJsonParse(project.idemat_lca_items, []),
       });
     }
   }, [project]);
@@ -355,6 +359,7 @@ export default function ProjectForm({ project, onClose }) {
     steps: formData.steps?.length ? formData.steps : null,
     references: formData.references?.length ? formData.references : null,
     oekodat_materials: formData.oekodat_materials?.length ? formData.oekodat_materials : null,
+    idemat_lca_items: formData.idemat_lca_items?.length ? formData.idemat_lca_items : null,
   });
 
   const createMutation = useMutation({
@@ -817,6 +822,19 @@ export default function ProjectForm({ project, onClose }) {
                 <OekobaudatPicker
                   selected={formData.oekodat_materials || []}
                   onChange={(items) => setFormData(f => ({ ...f, oekodat_materials: items }))}
+                />
+              </AccordionSection>
+
+              {/* IDEMAT 2026 LCA */}
+              <AccordionSection icon={Leaf} title="IDEMAT 2026 – Prozess-Ökobilanz (EF 3.1)" color="#047857"
+                filled={formData.idemat_lca_items?.length > 0}
+                defaultOpen={!!(project?.idemat_lca_items && safeJsonParse(project?.idemat_lca_items, []).length > 0)}>
+                <p className="text-xs text-gray-500 mb-3">
+                  Prozesse aus der IDEMAT 2026-Datenbank (TU Delft, 2 472 Einträge) hinzufügen und Mengen angeben. EF 3.1 Gesamtscore wird automatisch berechnet.
+                </p>
+                <ProjectIdematSection
+                  items={formData.idemat_lca_items || []}
+                  onChange={(items) => setFormData(f => ({ ...f, idemat_lca_items: items }))}
                 />
               </AccordionSection>
 

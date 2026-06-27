@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { materialService, materialActorService, parseEpdPdf } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
@@ -12,11 +13,112 @@ import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
 import InfoTooltip from '../shared/InfoTooltip';
 import AiAnalyzeButton from '../shared/AiAnalyzeButton';
+import { idematService } from '../../services/idematService';
 
 import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
 const API_BASE = MEDIA_BASE;
+
+// ── IDEMAT process linker (used inside AccordionSection) ──────────────────────
+function IdematLinker({ processId, onSelect, onClear }) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState(null);
+  const inputRef = useRef(null);
+
+  const { data: results = [], isFetching } = useQuery({
+    queryKey: ['idemat-search', q],
+    queryFn: () => idematService.search(q),
+    enabled: q.trim().length >= 2,
+    staleTime: 60_000,
+  });
+
+  const { data: linked } = useQuery({
+    queryKey: ['idemat-process', processId],
+    queryFn: () => idematService.getById(processId),
+    enabled: Boolean(processId),
+    staleTime: 5 * 60_000,
+  });
+
+  function openDropdown() {
+    if (inputRef.current) setRect(inputRef.current.getBoundingClientRect());
+    setOpen(true);
+  }
+
+  function fmtPt(v) {
+    if (v == null) return '—';
+    if (Math.abs(v) >= 0.001) return v.toLocaleString('de-DE', { maximumFractionDigits: 5 });
+    return v.toExponential(3);
+  }
+
+  function handleResultMouseDown(e, r) {
+    e.preventDefault();
+    onSelect(r);
+    setQ('');
+    setOpen(false);
+  }
+
+  const dropdown = open && q.trim().length >= 2 && rect ? createPortal(
+    <div
+      style={{ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 99999 }}
+      className="bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto"
+    >
+      {isFetching && <div className="px-3 py-2 text-xs text-gray-400">Suche…</div>}
+      {!isFetching && results.length === 0 && (
+        <div className="px-3 py-2 text-xs text-gray-400">Keine Treffer</div>
+      )}
+      {results.map((r) => (
+        <button key={r.id} type="button"
+          onMouseDown={(e) => handleResultMouseDown(e, r)}
+          className="w-full text-left px-3 py-2 hover:bg-emerald-50 border-b border-gray-50 last:border-0">
+          <div className="text-xs font-medium text-gray-900 truncate">{r.name}</div>
+          <div className="flex gap-2 mt-0.5">
+            <span className="text-[10px] text-gray-500">{r.category}</span>
+            <span className="text-[10px] text-gray-400">/{r.unit}</span>
+            <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)} Pt</span>
+          </div>
+        </button>
+      ))}
+    </div>,
+    document.getElementById('root')
+  ) : null;
+
+  return (
+    <div className="space-y-2">
+      {linked && (
+        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+          <Leaf className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-medium text-gray-900 truncate">{linked.name}</div>
+            <div className="text-[10px] text-emerald-700 font-mono">{fmtPt(linked.ef31_total)} Pt · EF 3.1</div>
+          </div>
+          <button type="button" onClick={onClear}
+            className="p-1 text-gray-400 hover:text-red-500 flex-shrink-0">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={q}
+            onChange={(e) => { setQ(e.target.value); openDropdown(); }}
+            onFocus={openDropdown}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            placeholder={linked ? 'Prozess ändern…' : 'Prozess suchen (z.B. steel, wood, concrete)…'}
+            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+          />
+        </div>
+        {dropdown}
+      </div>
+    </div>
+  );
+}
 
 // ── Accordion section ─────────────────────────────────────────────────────────
 
@@ -437,6 +539,7 @@ const initialFormState = {
   pere: '',
   penre: '',
   perm: '',
+  idemat_process_id: null,
 };
 
 export default function MaterialForm({ material, onClose, enableOfferOnCreate = false, initialMode }) {
@@ -621,6 +724,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         pere: material.pere ?? '',
         penre: material.penre ?? '',
         perm: material.perm ?? '',
+        idemat_process_id: material.idemat_process_id || null,
       });
     }
   }, [material]);
@@ -859,6 +963,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       pere:              formData.pere              !== '' ? parseFloat(formData.pere)              : null,
       penre:             formData.penre             !== '' ? parseFloat(formData.penre)             : null,
       perm:              formData.perm              !== '' ? parseFloat(formData.perm)              : null,
+      idemat_process_id: formData.idemat_process_id || null,
 
       // normalize arrays/JSON
       similar_material_ids: JSON.stringify(similarIds),
@@ -1783,6 +1888,24 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   </div>
                 ))}
               </div>
+            </AccordionSection>
+
+            {/* IDEMAT 2026 Prozess-Link */}
+            <AccordionSection
+              icon={Leaf}
+              title="IDEMAT 2026 — Prozess verknüpfen"
+              color="#047857"
+              filled={!!formData.idemat_process_id}
+              defaultOpen={!!formData.idemat_process_id}
+            >
+              <p className="text-[11px] text-gray-400 mb-3">
+                Ordne diesem Material einen Prozess aus der IDEMAT 2026-Datenbank zu (TU Delft, 2 472 Einträge). Der EF 3.1 Gesamtscore wird im Materialsteckbrief angezeigt.
+              </p>
+              <IdematLinker
+                processId={formData.idemat_process_id}
+                onSelect={(entry) => setFormData(f => ({ ...f, idemat_process_id: entry.id }))}
+                onClear={() => setFormData(f => ({ ...f, idemat_process_id: null }))}
+              />
             </AccordionSection>
 
             {/* 5. Kreislauf & Zertifizierung */}

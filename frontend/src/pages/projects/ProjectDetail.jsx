@@ -9,6 +9,8 @@ import {
   MapPin, ExternalLink, BookOpen, Users, Tag, Database, FileDown
 } from 'lucide-react';
 import { EpdFullAnalysis } from '../../components/projects/EpdAnalysis';
+import { CombinedProductLca } from '../../components/projects/CombinedProductLca';
+import LcaExportDialog from '../../components/projects/LcaExportDialog';
 
 function ImageCarousel({ images, apiBase }) {
   const t = useT();
@@ -374,6 +376,185 @@ function OekobaudatLcaSection({ project }) {
   );
 }
 
+// ── IDEMAT EF 3.1 Section ────────────────────────────────────────────────────
+
+const EF31_CATS = [
+  { key: 'climate_change',      label: 'Klimawandel',               unit: 'Pt' },
+  { key: 'particulate_matter',  label: 'Feinstaub',                 unit: 'Pt' },
+  { key: 'acidification',       label: 'Versauerung',               unit: 'Pt' },
+  { key: 'resource_fossils',    label: 'Ressourcen (fossil)',        unit: 'Pt' },
+  { key: 'ecotox_freshwater',   label: 'Ökotox. Süßwasser',         unit: 'Pt' },
+  { key: 'human_tox_cancer',    label: 'Tox. Mensch (krebserr.)',   unit: 'Pt' },
+  { key: 'human_tox_noncancer', label: 'Tox. Mensch (nicht-k.)',   unit: 'Pt' },
+  { key: 'eutroph_freshwater',  label: 'Eutrophierung (SW)',        unit: 'Pt' },
+  { key: 'eutroph_marine',      label: 'Eutrophierung (Meer)',      unit: 'Pt' },
+  { key: 'eutroph_terrestrial', label: 'Eutrophierung (terrestr.)', unit: 'Pt' },
+  { key: 'photochem_ozone',     label: 'Photosmog',                 unit: 'Pt' },
+  { key: 'ionising_radiation',  label: 'Ionisierende Strahlung',    unit: 'Pt' },
+  { key: 'land_use',            label: 'Landnutzung',               unit: 'Pt' },
+  { key: 'ozone_depletion',     label: 'Ozonabbau',                 unit: 'Pt' },
+  { key: 'resource_minerals',   label: 'Ressourcen (mineralisch)',  unit: 'Pt' },
+  { key: 'water_use',           label: 'Wassernutzung',             unit: 'Pt' },
+];
+
+function fmtPt(v) {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  if (isNaN(n)) return '—';
+  if (n === 0) return '0';
+  if (Math.abs(n) >= 0.001) return n.toLocaleString('de-DE', { maximumFractionDigits: 5 });
+  return n.toExponential(3);
+}
+
+function IdematLcaSection({ project }) {
+  const items = safeJsonParse(project.idemat_lca_items, []);
+  if (!items.length) return null;
+
+  const grandTotal = items.reduce((s, it) => s + (it.ef31_total ?? 0) * it.quantity, 0);
+
+  // Per-category totals across all processes
+  const catTotals = EF31_CATS.map(({ key }) =>
+    items.reduce((s, it) => s + ((it.ef31?.[key] ?? 0) * it.quantity), 0)
+  );
+  const maxCat = Math.max(...catTotals.map(Math.abs), 1e-99);
+
+  return (
+    <div className="p-6 border-t border-gray-200">
+      <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-1">
+        <Leaf className="w-5 h-5 text-emerald-600" />
+        IDEMAT 2026 – Prozess-Ökobilanz (EF 3.1)
+      </h2>
+      <p className="text-xs text-gray-400 mb-5">
+        {items.length} Prozess{items.length > 1 ? 'e' : ''} · IDEMAT 2026 (TU Delft, CC BY-NC) · EF 3.1-Methode · Einheit: Pt (Punkte)
+      </p>
+
+      {/* Summary card */}
+      <div className="bg-emerald-700 rounded-xl p-4 flex items-center gap-4 mb-6">
+        <Leaf className="w-7 h-7 text-emerald-200 flex-shrink-0" />
+        <div>
+          <p className="text-[10px] text-emerald-200 font-semibold uppercase tracking-wider">EF 3.1 Gesamtscore</p>
+          <p className="text-2xl font-mono font-bold text-white leading-tight">
+            {fmtPt(grandTotal)}
+            <span className="text-sm font-normal text-emerald-300 ml-2">Pt</span>
+          </p>
+        </div>
+      </div>
+
+      {/* Process list */}
+      <div className="space-y-2 mb-6">
+        {items.map((it) => {
+          const subtotal = (it.ef31_total ?? 0) * it.quantity;
+          const pct = grandTotal !== 0 ? Math.abs(subtotal / grandTotal) * 100 : 0;
+          return (
+            <div key={it.id} className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{it.name}</p>
+                  <p className="text-xs text-gray-500">{it.category} · {it.quantity} {it.unit}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-mono font-bold text-emerald-800">{fmtPt(subtotal)} Pt</p>
+                  <p className="text-[10px] text-gray-400">{pct.toFixed(1)} % des Gesamtscores</p>
+                </div>
+              </div>
+              <div className="mt-2 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.max(2, pct)}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Per-category bar chart */}
+      <div className="border border-emerald-200 rounded-xl overflow-hidden mb-6">
+        <div className="bg-emerald-700 px-4 py-2.5">
+          <p className="text-xs font-bold text-white">Alle 16 EF 3.1-Kategorien – Gesamtbilanz</p>
+          <p className="text-[10px] text-emerald-200 mt-0.5">Summe aller Prozesse × Menge</p>
+        </div>
+        <div className="p-4 space-y-3">
+          {EF31_CATS.map(({ key, label }, i) => {
+            const val = catTotals[i];
+            const barW = maxCat > 0 ? Math.max(2, Math.abs(val) / maxCat * 100) : 2;
+            return (
+              <div key={key}>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs text-gray-700 min-w-0 truncate">{label}</span>
+                  <span className="text-xs font-mono text-gray-800 flex-shrink-0">{fmtPt(val)} Pt</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${barW}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Full indicator table: rows = categories, columns = processes */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <div className="bg-gray-800 px-4 py-2.5">
+          <p className="text-xs font-bold text-white">Detailtabelle – EF 3.1 je Prozess</p>
+          <p className="text-[10px] text-gray-300 mt-0.5">Werte = Prozess-Pt × Menge · alle Einheiten in Pt</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-gray-50">
+                <th className="text-left px-3 py-2 font-semibold text-gray-700 border-b border-gray-200 whitespace-nowrap sticky left-0 bg-gray-50">
+                  Kategorie
+                </th>
+                {items.map((it) => (
+                  <th key={it.id} className="text-right px-2 py-2 font-medium text-emerald-700 border-b border-gray-200 whitespace-nowrap max-w-[120px]">
+                    <div className="truncate max-w-[120px]" title={it.name}>{it.name}</div>
+                    <div className="text-[9px] text-gray-400 font-normal">{it.quantity} {it.unit}</div>
+                  </th>
+                ))}
+                <th className="text-right px-3 py-2 font-semibold text-emerald-800 border-b border-gray-200 whitespace-nowrap bg-emerald-50">
+                  Gesamt
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {EF31_CATS.map(({ key, label }, i) => {
+                const total = catTotals[i];
+                return (
+                  <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-3 py-1.5 font-medium text-gray-800 whitespace-nowrap sticky left-0" style={{ background: 'inherit' }}>
+                      {label}
+                    </td>
+                    {items.map((it) => {
+                      const val = (it.ef31?.[key] ?? 0) * it.quantity;
+                      return (
+                        <td key={it.id} className="px-2 py-1.5 text-right tabular-nums text-gray-600">
+                          {fmtPt(val)}
+                        </td>
+                      );
+                    })}
+                    <td className="px-3 py-1.5 text-right tabular-nums font-bold text-emerald-800 bg-emerald-50">
+                      {fmtPt(total)}
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr className="bg-emerald-100 font-bold">
+                <td className="px-3 py-2 text-emerald-900 sticky left-0 bg-emerald-100">EF 3.1 Total</td>
+                {items.map((it) => (
+                  <td key={it.id} className="px-2 py-2 text-right tabular-nums text-emerald-800">
+                    {fmtPt((it.ef31_total ?? 0) * it.quantity)}
+                  </td>
+                ))}
+                <td className="px-3 py-2 text-right tabular-nums font-bold text-emerald-900 bg-emerald-200">
+                  {fmtPt(grandTotal)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Helpers for LCA computation ─────────────────────────────────────────────
 
 function computeContributions(materials, valueField, effectiveField) {
@@ -639,6 +820,7 @@ export default function ProjectDetail() {
   const { user, isAuthenticated } = useAuthStore();
   const [showForm, setShowForm] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [showLcaExport, setShowLcaExport] = useState(false);
 
   async function handleDownloadPdf() {
     setPdfLoading(true);
@@ -708,6 +890,15 @@ export default function ProjectDetail() {
   const cons = safeJsonParse(project.principles_consistency, []);
   const eff = safeJsonParse(project.principles_efficiency, []);
   const gen = safeJsonParse(project.general_sustainability_principles, []);
+
+  // Pre-computed LCA data — shared between CombinedProductLca render and LcaExportDialog
+  const lcaEpdMats = (() => {
+    const oekodatMats = safeJsonParse(project.oekodat_materials, []);
+    const libMats = (project.materials || []).filter(m => m.has_gwp_data);
+    return [...libMats.map(libMatToEpdEntry), ...oekodatMats];
+  })();
+  const lcaIdematItems = safeJsonParse(project.idemat_lca_items, []);
+  const hasLcaData = lcaEpdMats.length > 0 || lcaIdematItems.length > 0;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -886,6 +1077,16 @@ export default function ProjectDetail() {
 
         {/* Combined EPD + library LCA Section */}
         <OekobaudatLcaSection project={project} />
+
+        {/* IDEMAT 2026 EF 3.1 Section */}
+        <IdematLcaSection project={project} />
+
+        {/* Combined product LCA — materials + processes in EF 3.1 Pt */}
+        {hasLcaData && (
+          <div className="bg-white rounded-xl border border-gray-200">
+            <CombinedProductLca epdMats={lcaEpdMats} idematItems={lcaIdematItems} />
+          </div>
+        )}
 
         {/* Time effort + Tools */}
         {(project.time_effort || project.tools) && (
@@ -1069,6 +1270,16 @@ export default function ProjectDetail() {
               <FileDown size={15} />
               {pdfLoading ? 'Lade…' : 'PDF'}
             </button>
+            {hasLcaData && (
+              <button
+                onClick={() => setShowLcaExport(true)}
+                title="Umweltkennwerte (LightLCA) als PDF exportieren"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
+              >
+                <FileDown size={15} />
+                Umweltkennwerte (LightLCA)
+              </button>
+            )}
             <BookmarkButton entityType="project" entityId={project.id} showCount size="md" />
           </>
         }
@@ -1081,6 +1292,15 @@ export default function ProjectDetail() {
             setShowForm(false);
             queryClient.invalidateQueries({ queryKey: ['project', id] });
           }}
+        />
+      )}
+
+      {showLcaExport && (
+        <LcaExportDialog
+          project={project}
+          epdMats={lcaEpdMats}
+          idematItems={lcaIdematItems}
+          onClose={() => setShowLcaExport(false)}
         />
       )}
     </div>

@@ -22,6 +22,7 @@ import labelRoutes from './routes/label.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import aiRoutes from './routes/ai.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import idematRoutes from './routes/idemat.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -108,6 +109,7 @@ app.use('/api/labels', labelRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/idemat', idematRoutes);
 app.use('/api/id', resolverRoutes);
 app.use('/id', resolverRoutes);
 

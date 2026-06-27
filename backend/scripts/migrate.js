@@ -370,6 +370,9 @@ tryAlter('ALTER TABLE inventory ADD COLUMN swap_possible BOOLEAN DEFAULT 0');
 tryAlter('ALTER TABLE inventory ADD COLUMN available_for_gift BOOLEAN DEFAULT 0');
 tryAlter('ALTER TABLE inventory ADD COLUMN external_url TEXT');
 
+// ── projects: IDEMAT LCA items ────────────────────────────────────────────────
+tryAlter('ALTER TABLE projects ADD COLUMN idemat_lca_items TEXT');
+
 // ── projects: ensure all model columns exist (safe to re-run) ────────────────
 tryAlter('ALTER TABLE projects ADD COLUMN "references" TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN is_available BOOLEAN DEFAULT 0');
@@ -378,6 +381,9 @@ tryAlter('ALTER TABLE projects ADD COLUMN material_id TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN cad_share_url TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN cad_preview_url TEXT');
 tryAlter('ALTER TABLE projects ADD COLUMN oekodat_materials TEXT');
+
+// ── materials: IDEMAT process link ────────────────────────────────────────────
+tryAlter('ALTER TABLE materials ADD COLUMN idemat_process_id TEXT');
 
 // ── materials: extended Ökobaudat indicators ──────────────────────────────────
 tryAlter('ALTER TABLE materials ADD COLUMN odp REAL');

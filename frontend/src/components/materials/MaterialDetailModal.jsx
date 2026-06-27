@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2, FileDown } from 'lucide-react';
+import LcaSection from './LcaSection';
 import { OwnerLine } from '../shared/ContactButton';
 import SharePrintBar from '../shared/SharePrintBar';
 import BookmarkButton from '../shared/BookmarkButton';
@@ -508,6 +509,24 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
               </Section>
             )}
 
+          </div>
+
+          {/* LCA / IDEMAT — full width, below the 2-col grid */}
+          {(material.idemat_process_id || canEdit) && (
+            <div className="mt-4">
+              <section className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-200 flex items-center gap-3">
+                  <Leaf className="w-5 h-5 text-emerald-600" />
+                  <h3 className="text-sm font-semibold text-gray-900">Ökobilanz (LCA) — EF 3.1</h3>
+                </div>
+                <div className="p-5">
+                  <LcaSection material={material} canEdit={canEdit} />
+                </div>
+              </section>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
             <Section title={t('materialDetail.sections.furtherInfo')} icon={ExternalLink}>
               {envLinks.length ? (
                 <div className="space-y-2">

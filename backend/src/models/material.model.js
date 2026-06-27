@@ -27,6 +27,8 @@ const NEW_FIELDS = [
   // EPD / Ökobilanz-Grunddaten (EN 15804)
   'declared_unit','gwp_fossil','gwp_biogenic','gwp_luluc','adp_fossil','adp_elements','lifecycle_scope','water_consumption',
   'odp','ap','ep_terrestrial','ep_freshwater','ep_marine','pocp','hwd','nhwd','rwd','pere','penre','perm',
+  // IDEMAT 2026 linked process
+  'idemat_process_id',
 ];
 
 const BOOL_FIELDS = new Set(['is_reusable','is_transferable','is_giftable','use_indoor','use_outdoor','cert_epd','cert_cradle_to_cradle','cert_fsc_pefc']);
