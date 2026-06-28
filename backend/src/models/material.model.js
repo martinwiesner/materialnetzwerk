@@ -29,9 +29,11 @@ const NEW_FIELDS = [
   'odp','ap','ep_terrestrial','ep_freshwater','ep_marine','pocp','hwd','nhwd','rwd','pere','penre','perm',
   // IDEMAT 2026 linked process
   'idemat_process_id',
+  // Visibility / sharing
+  'visibility', 'share_actor_id', 'actor_members_can_edit',
 ];
 
-const BOOL_FIELDS = new Set(['is_reusable','is_transferable','is_giftable','use_indoor','use_outdoor','cert_epd','cert_cradle_to_cradle','cert_fsc_pefc']);
+const BOOL_FIELDS = new Set(['is_reusable','is_transferable','is_giftable','use_indoor','use_outdoor','cert_epd','cert_cradle_to_cradle','cert_fsc_pefc','actor_members_can_edit']);
 
 const Material = {
   findById: (id) => {
@@ -58,6 +60,29 @@ const Material = {
     if (filters.created_by) { query += ' AND m.created_by = ?'; params.push(filters.created_by); }
     if (filters.is_reusable !== undefined) { query += ' AND m.is_reusable = ?'; params.push(filters.is_reusable ? 1 : 0); }
     if (filters.search) { query += ' AND (m.name LIKE ? OR m.description LIKE ?)'; params.push(`%${filters.search}%`, `%${filters.search}%`); }
+
+    // Visibility filter — skip when listing own materials (my_materials mode)
+    if (!filters.created_by) {
+      const uid = filters.viewer_id || null;
+      if (uid) {
+        query += ` AND (
+          m.visibility = 'public'
+          OR m.created_by = ?
+          OR EXISTS (SELECT 1 FROM user_shares us WHERE us.entity_type='material' AND us.entity_id=m.id AND us.shared_with_user_id=?)
+          OR (m.visibility = 'actor' AND EXISTS (
+            SELECT 1 FROM material_shared_actors msa
+            WHERE msa.material_id = m.id AND (
+              EXISTS (SELECT 1 FROM user_actors ua WHERE ua.user_id=? AND ua.actor_id=msa.actor_id)
+              OR EXISTS (SELECT 1 FROM users vu WHERE vu.id=? AND vu.actor_id=msa.actor_id)
+            )
+          ))
+        )`;
+        params.push(uid, uid, uid, uid);
+      } else {
+        query += ` AND m.visibility = 'public'`;
+      }
+    }
+
     query += ' ORDER BY m.created_at DESC';
     if (filters.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
     if (filters.offset) { query += ' OFFSET ?'; params.push(filters.offset); }
@@ -127,6 +152,11 @@ const Material = {
       data.pere??null,
       data.penre??null,
       data.perm??null,
+      data.idemat_process_id||null,
+      // visibility
+      data.visibility || 'private',
+      data.share_actor_id || null,
+      data.actor_members_can_edit ? 1 : 0,
     ];
     const ph = cols.map(()=>'?').join(', ');
     db.prepare(`INSERT INTO materials (${cols.join(', ')}) VALUES (${ph})`).run(...vals);
@@ -170,10 +200,19 @@ const Material = {
 
   count: (filters = {}) => {
     const db = getDB();
-    let q = 'SELECT COUNT(*) as count FROM materials WHERE 1=1';
+    let q = 'SELECT COUNT(*) as count FROM materials m WHERE 1=1';
     const p = [];
-    if (filters.category) { q += ' AND category = ?'; p.push(filters.category); }
-    if (filters.created_by) { q += ' AND created_by = ?'; p.push(filters.created_by); }
+    if (filters.category) { q += ' AND m.category = ?'; p.push(filters.category); }
+    if (filters.created_by) { q += ' AND m.created_by = ?'; p.push(filters.created_by); }
+    if (!filters.created_by) {
+      const uid = filters.viewer_id || null;
+      if (uid) {
+        q += ` AND (m.visibility='public' OR m.created_by=? OR EXISTS (SELECT 1 FROM user_shares us WHERE us.entity_type='material' AND us.entity_id=m.id AND us.shared_with_user_id=?) OR (m.visibility='actor' AND EXISTS (SELECT 1 FROM material_shared_actors msa WHERE msa.material_id=m.id AND (EXISTS (SELECT 1 FROM user_actors ua WHERE ua.user_id=? AND ua.actor_id=msa.actor_id) OR EXISTS (SELECT 1 FROM users vu WHERE vu.id=? AND vu.actor_id=msa.actor_id)))))`;
+        p.push(uid, uid, uid, uid);
+      } else {
+        q += ` AND m.visibility='public'`;
+      }
+    }
     return db.prepare(q).get(...p).count;
   },
 

@@ -63,9 +63,15 @@ const User = {
   findByIdSecure: (id) => {
     const db = getDB();
     return db.prepare(`
-      SELECT id, email, first_name, last_name, is_admin, created_at, updated_at
+      SELECT id, email, first_name, last_name, is_admin, actor_id, created_at, updated_at
       FROM users WHERE id = ?
     `).get(id);
+  },
+
+  setActorId: (userId, actorId) => {
+    const db = getDB();
+    db.prepare(`UPDATE users SET actor_id = ? WHERE id = ?`).run(actorId ?? null, userId);
+    return User.findByIdSecure(userId);
   },
 
   /**

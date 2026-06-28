@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Settings, Check, AlertCircle, ChevronDown, ChevronUp, BarChart2 } from 'lucide-react';
+import { Settings, Check, AlertCircle, ChevronDown, ChevronUp, BarChart2, Users, Shield, ShieldOff } from 'lucide-react';
 import { useSettings, useUpdateSetting } from '../../hooks/useSettings';
 import { useAuthStore } from '../../store/authStore';
 import { Navigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
+import api from '../../services/api';
 import AdminDashboard from './AdminDashboard';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -135,6 +138,70 @@ function ListField({ label, settingKey, currentValue, hint }) {
   );
 }
 
+// ── UserList ───────────────────────────────────────────────────────────────────
+
+function UserList() {
+  const queryClient = useQueryClient();
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: () => api.get('/admin/users').then(r => r.data),
+  });
+
+  const patchUser = useMutation({
+    mutationFn: ({ id, ...body }) => api.patch(`/admin/users/${id}`, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+  });
+
+  if (isLoading) return <p className="text-sm text-gray-400 py-6 text-center">Lade Nutzerliste…</p>;
+  if (!users.length) return <p className="text-sm text-gray-400">Keine Nutzer gefunden.</p>;
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-200">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-xs text-gray-400 border-b border-gray-100 bg-gray-50">
+            <th className="text-left px-4 py-2.5 font-medium">Nutzer</th>
+            <th className="text-left px-4 py-2.5 font-medium">Akteur</th>
+            <th className="text-right px-4 py-2.5 font-medium">Mat.</th>
+            <th className="text-right px-4 py-2.5 font-medium">Proj.</th>
+            <th className="text-right px-4 py-2.5 font-medium">Admin</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map(u => (
+            <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+              <td className="px-4 py-2.5">
+                <p className="font-medium text-gray-800 truncate max-w-[180px]">
+                  {[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}
+                </p>
+                <p className="text-xs text-gray-400 truncate max-w-[180px]">{u.email}</p>
+              </td>
+              <td className="px-4 py-2.5 text-gray-500 text-xs truncate max-w-[140px]">
+                {u.actor_name || <span className="text-gray-300">–</span>}
+              </td>
+              <td className="px-4 py-2.5 text-right text-gray-600">{u.mat_count}</td>
+              <td className="px-4 py-2.5 text-right text-gray-600">{u.proj_count}</td>
+              <td className="px-4 py-2.5 text-right">
+                <button
+                  onClick={() => patchUser.mutate({ id: u.id, is_admin: !u.is_admin })}
+                  title={u.is_admin ? 'Admin-Rechte entziehen' : 'Zum Admin machen'}
+                  className={`inline-flex items-center justify-center w-7 h-7 rounded-lg border transition-colors ${
+                    u.is_admin
+                      ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'
+                      : 'bg-white text-gray-300 border-gray-200 hover:text-gray-500'
+                  }`}
+                >
+                  {u.is_admin ? <Shield className="w-3.5 h-3.5" /> : <ShieldOff className="w-3.5 h-3.5" />}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function AdminPanel() {
@@ -182,6 +249,18 @@ export default function AdminPanel() {
         </button>
         <button
           type="button"
+          onClick={() => setTab('users')}
+          className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            tab === 'users'
+              ? 'border-gray-900 text-gray-900'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          Nutzer
+        </button>
+        <button
+          type="button"
           onClick={() => setTab('settings')}
           className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
             tab === 'settings'
@@ -196,6 +275,12 @@ export default function AdminPanel() {
 
       {/* Tab content */}
       {tab === 'dashboard' && <AdminDashboard />}
+      {tab === 'users' && (
+        <div className="space-y-4">
+          <p className="text-xs text-gray-400">{`Alle registrierten Nutzer — Klick auf den Schild-Button gibt Admin-Rechte.`}</p>
+          <UserList />
+        </div>
+      )}
 
       {tab === 'settings' && <div className="space-y-8">
 

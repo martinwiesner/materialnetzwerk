@@ -506,6 +506,7 @@ export default function Explore() {
 
   const [search, setSearch] = useState('');
   const [showMap, setShowMap] = useState(true);
+  const [mobileMapExpanded, setMobileMapExpanded] = useState(false);
   const [showMaterials, setShowMaterials] = useState(true);
   const [showOffers, setShowOffers] = useState(true);
   const [showProjects, setShowProjects] = useState(true);
@@ -1004,28 +1005,29 @@ export default function Explore() {
             )}
           </div>
 
-          <div className="ml-auto flex items-center flex-shrink-0">
+          {/* Map/List toggle — only relevant on desktop split view */}
+          <div className="hidden xl:flex ml-auto items-center flex-shrink-0">
             <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
               <button
                 onClick={() => setShowMap(true)}
                 className={clsx(
-                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium transition-colors',
+                  'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors',
                   showMap ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                 )}
                 title={t('explore.mapView')}
               >
-                <MapIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <MapIcon className="w-4 h-4" />
                 {t('common.map')}
               </button>
               <button
                 onClick={() => setShowMap(false)}
                 className={clsx(
-                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium transition-colors border-l border-gray-200',
+                  'inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-l border-gray-200',
                   !showMap ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
                 )}
                 title={t('explore.mapHide')}
               >
-                <LayoutList className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <LayoutList className="w-4 h-4" />
                 {t('common.list')}
               </button>
             </div>
@@ -1055,47 +1057,37 @@ export default function Explore() {
           },
         };
 
-        const entityCards = isLoading ? (
-          <div className="text-center py-10">
-            <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
-          </div>
-        ) : filteredEntities.length === 0 ? (
-          <div className="text-center py-10 text-gray-500">{t('explore.empty')}</div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4">
-            {filteredEntities.map((e) => (
-              <EntityCard
-                key={e.id}
-                entity={e}
-                active={selected?.id === e.id}
-                onSelect={() => setSelected(e)}
-                onOpenDetails={() => {
-                  if (e.type === 'material') navigate(`/materials/${e.raw?.id}`);
-                  if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
-                  if (e.type === 'offer') setOfferDetailId(e.raw?.id);
-                  if (e.type === 'actor') setActorDetail(e.raw);
-                  if (e.type === 'gesuch') navigate(`/gesuch/${e.raw?.id}`);
-                }}
-                onPrint={e.type === 'gesuch' ? () => exportGesuchPoster(e.raw) : undefined}
-                onPrintOffer={e.type === 'material' && e.offerRaw ? () => exportAngebotPoster(e.offerRaw) : undefined}
-                onRequest={
-                  e.type === 'material' && e.offerRaw
-                    ? () => {
-                        if (!isAuthenticated) {
-                          openAuth({ tab: 'login', reason: 'Bitte melde dich an, um Material anzufragen.' });
-                        } else if (!user || e.offerRaw?.owner_id !== user.id) {
-                          setRequestItem(e.offerRaw);
-                        }
-                      }
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-        );
+        const renderCards = (cards) => cards.map((e) => (
+          <EntityCard
+            key={e.id}
+            entity={e}
+            active={selected?.id === e.id}
+            onSelect={() => setSelected(e)}
+            onOpenDetails={() => {
+              if (e.type === 'material') navigate(`/materials/${e.raw?.id}`);
+              if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);
+              if (e.type === 'offer') setOfferDetailId(e.raw?.id);
+              if (e.type === 'actor') setActorDetail(e.raw);
+              if (e.type === 'gesuch') navigate(`/gesuch/${e.raw?.id}`);
+            }}
+            onPrint={e.type === 'gesuch' ? () => exportGesuchPoster(e.raw) : undefined}
+            onPrintOffer={e.type === 'material' && e.offerRaw ? () => exportAngebotPoster(e.offerRaw) : undefined}
+            onRequest={
+              e.type === 'material' && e.offerRaw
+                ? () => {
+                    if (!isAuthenticated) {
+                      openAuth({ tab: 'login', reason: 'Bitte melde dich an, um Material anzufragen.' });
+                    } else if (!user || e.offerRaw?.owner_id !== user.id) {
+                      setRequestItem(e.offerRaw);
+                    }
+                  }
+                : undefined
+            }
+          />
+        ));
 
-        const listHeader = (
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+        const desktopListHeader = (
+          <div className="hidden xl:flex p-4 border-b border-gray-200 items-center justify-between shrink-0">
             <div>
               <div className="font-semibold text-gray-900">{t('explore.surroundings')}</div>
               <div className="text-xs text-gray-500">{filteredEntities.length} {t('explore.entries')}</div>
@@ -1105,18 +1097,37 @@ export default function Explore() {
 
         return (
           <>
-            {/* ── Mobile layout (< xl): stacked, map fixed height ──────────── */}
-            <div className="xl:hidden grid grid-cols-1 gap-4">
-              {showMap && (
-                <div data-onboarding="explore-map" className="bg-white rounded-2xl border border-gray-200 overflow-hidden isolate">
-                  <div className="h-[42vh] sm:h-[55vh] min-h-[260px] sm:min-h-[380px]">
-                    <ExploreMap {...mapProps} />
-                  </div>
+            {/* ── Mobile layout (< xl): stacked ────────────────────────────── */}
+            <div className="xl:hidden flex flex-col gap-3">
+              {/* Map — collapsible on mobile */}
+              <div data-onboarding="explore-map" className="bg-white rounded-2xl border border-gray-200 overflow-hidden isolate">
+                <div
+                  className="transition-all duration-300 ease-in-out overflow-hidden"
+                  style={{ height: mobileMapExpanded ? '52vmax' : '155px', minHeight: mobileMapExpanded ? '220px' : '155px', maxHeight: mobileMapExpanded ? '62vh' : '155px' }}
+                >
+                  <ExploreMap {...mapProps} />
                 </div>
-              )}
-              <div data-onboarding="entity-list" className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-                {listHeader}
-                <div className="max-h-[60vh] min-h-[320px] overflow-y-auto p-4">{entityCards}</div>
+                <button
+                  type="button"
+                  onClick={() => setMobileMapExpanded(v => !v)}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 border-t border-gray-100 transition-colors"
+                >
+                  <MapIcon className="w-3.5 h-3.5" />
+                  {mobileMapExpanded ? 'Karte schließen' : 'Karte vergrößern'}
+                </button>
+              </div>
+
+              {/* Card list — no header on mobile, @container 2-col when ≥40rem */}
+              <div data-onboarding="entity-list" className="@container">
+                <div className="grid grid-cols-1 @[40rem]:grid-cols-2 gap-2.5">
+                  {isLoading ? (
+                    <div className="col-span-full text-center py-10">
+                      <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
+                    </div>
+                  ) : filteredEntities.length === 0 ? (
+                    <div className="col-span-full text-center py-10 text-gray-500">{t('explore.empty')}</div>
+                  ) : renderCards(filteredEntities)}
+                </div>
               </div>
             </div>
 
@@ -1154,10 +1165,22 @@ export default function Explore() {
 
               <div
                 data-onboarding="entity-list"
-                className="flex-1 bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col min-w-0"
+                className="flex-1 bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col min-w-0 @container"
               >
-                {listHeader}
-                <div className="flex-1 overflow-y-auto p-4">{entityCards}</div>
+                {desktopListHeader}
+                <div className="flex-1 overflow-y-auto p-4">
+                  {isLoading ? (
+                    <div className="text-center py-10">
+                      <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
+                    </div>
+                  ) : filteredEntities.length === 0 ? (
+                    <div className="text-center py-10 text-gray-500">{t('explore.empty')}</div>
+                  ) : (
+                    <div className="grid grid-cols-1 @[44rem]:grid-cols-2 gap-3">
+                      {renderCards(filteredEntities)}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </>

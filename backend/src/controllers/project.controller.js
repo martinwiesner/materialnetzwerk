@@ -110,6 +110,10 @@ export const updateProject = (req, res) => {
     }
 
     const { materials, ...projectFields } = req.body;
+    // Sync is_public → visibility so both fields stay consistent
+    if (projectFields.is_public !== undefined && projectFields.visibility === undefined) {
+      projectFields.visibility = projectFields.is_public ? 'public' : 'private';
+    }
     Project.update(req.params.id, projectFields);
 
     if (materials && Array.isArray(materials)) {

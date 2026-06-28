@@ -8,6 +8,7 @@ import MaterialCategory from '../models/materialCategory.model.js';
 import { readFileSync, unlinkSync } from 'fs';
 import OpenAI from 'openai';
 import { generateMaterialPdf } from '../utils/materialPdfGenerator.js';
+import { canViewMaterial, canEditMaterial } from '../utils/access.js';
 
 const isAdmin = (u) => u?.is_admin === 1 || u?.is_admin === true;
 
@@ -34,11 +35,13 @@ export const getMaterials = (req, res) => {
       filters.created_by = req.user.id;
     }
 
+    if (req.user?.id) filters.viewer_id = req.user.id;
+
     const materials = Material.findAll(filters);
-    // count() ignores limit/offset, but we pass only the relevant filters anyway
     const total = Material.count({
       category: filters.category,
       created_by: filters.created_by,
+      viewer_id: filters.viewer_id,
     });
 
     res.json({
@@ -63,6 +66,10 @@ export const getMaterialById = (req, res) => {
 
     if (!material) {
       return res.status(404).json({ message: 'Material not found' });
+    }
+
+    if (!canViewMaterial(req.user?.id, material)) {
+      return res.status(403).json({ message: 'Access denied' });
     }
 
     material.actors = Material.getActors(req.params.id);
@@ -109,8 +116,7 @@ export const updateMaterial = (req, res) => {
       return res.status(404).json({ message: 'Material not found' });
     }
 
-    // Check ownership
-    if (material.created_by !== req.user.id && !isAdmin(req.user)) {
+    if (!canEditMaterial(req.user.id, material) && !isAdmin(req.user)) {
       return res.status(403).json({ message: 'Not authorized to update this material' });
     }
 

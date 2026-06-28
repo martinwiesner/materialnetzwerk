@@ -58,6 +58,7 @@ const EMPTY = {
   address: '',
   latitude: null,
   longitude: null,
+  membership_mode: 'open',
 };
 
 export default function ActorForm({ actor, onClose }) {
@@ -79,6 +80,7 @@ export default function ActorForm({ actor, onClose }) {
     address: actor.address || '',
     latitude: actor.latitude ?? null,
     longitude: actor.longitude ?? null,
+    membership_mode: actor.membership_mode || 'open',
   } : EMPTY);
 
   const [images, setImages] = useState(actor?.images || []);
@@ -217,6 +219,23 @@ export default function ActorForm({ actor, onClose }) {
                 <option value="">{t('actorForm.chooseType')}</option>
                 {ACTOR_TYPES.map(tp => <option key={tp} value={tp}>{tp}</option>)}
               </select>
+            </div>
+          </div>
+
+          {/* Mitgliedschaft */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Beitritt</label>
+            <div className="flex rounded-xl border border-gray-200 overflow-hidden text-sm">
+              <button type="button"
+                onClick={() => setForm(f => ({ ...f, membership_mode: 'open' }))}
+                className={`flex-1 py-2 transition-colors ${form.membership_mode === 'open' ? 'bg-actor-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                Offen für alle
+              </button>
+              <button type="button"
+                onClick={() => setForm(f => ({ ...f, membership_mode: 'approval_required' }))}
+                className={`flex-1 py-2 border-l border-gray-200 transition-colors ${form.membership_mode === 'approval_required' ? 'bg-actor-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                Bestätigung erforderlich
+              </button>
             </div>
           </div>
 

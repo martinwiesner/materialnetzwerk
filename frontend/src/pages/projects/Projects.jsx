@@ -1,10 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
-import { Plus, Search, Edit2, Trash2, FolderOpen, Eye, Globe, Lock, MapPinned, List, Leaf, Tag, Download, FileText, Scale } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, FolderOpen, Globe, Lock, MapPinned, MapPin, List, Leaf, Tag, Download, FileText, Scale } from 'lucide-react';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectsToCSV, exportProjectsToPDF } from '../../utils/exportUtils';
-import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import ProjectForm from '../../components/projects/ProjectForm';
 import GeoMap from '../../components/maps/GeoMap';
@@ -17,23 +17,29 @@ import { OwnerLine } from '../../components/shared/ContactButton';
 import { formatDate } from '../../utils/dates';
 import { useT } from '../../i18n/useT';
 
-// 0 = empty, 1 = fully complete — more complete projects sort first
-function projectCompleteness(p) {
-  let score = 0;
-  if (p.images?.length > 0) score += 3;
-  if (p.description || p.content) score += 2;
-  if (p.latitude && p.longitude) score += 2;
-  if (p.tools) score += 1;
-  if (p.time_effort) score += 1;
-  try {
-    const steps = Array.isArray(p.steps) ? p.steps : JSON.parse(p.steps || '[]');
-    if (steps.some((s) => s?.text || s?.title)) score += 2;
-  } catch { /* ignore */ }
-  return score;
+// Lower score = higher in list (same weighting as Explore: recency 50%, completeness 30%, proximity 20%)
+function projectScore(p) {
+  // Completeness
+  let filled = 0, total = 0;
+  const chk = (v) => { total++; if (v) filled++; };
+  chk(p.images?.length > 0);
+  chk(p.description || p.content);
+  chk(p.latitude && p.longitude);
+  chk(p.tools);
+  chk(p.time_effort);
+  try { const s = Array.isArray(p.steps) ? p.steps : JSON.parse(p.steps || '[]'); chk(s.some(x => x?.text || x?.title)); } catch { chk(false); }
+  const incomplete = total > 0 ? 1 - filled / total : 0.5;
+
+  const rawDate = p.created_at || p.createdAt;
+  const ageDays = rawDate ? Math.max(0, (Date.now() - new Date(rawDate).getTime()) / 86400000) : 0;
+  const ageScore = Math.min(ageDays / 180, 1);
+
+  return ageScore * 0.60 + incomplete * 0.40;
 }
 
 export default function Projects() {
   const t = useT();
+  const navigate = useNavigate();
   const { isAuthenticated, token, user } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
 
@@ -105,7 +111,7 @@ export default function Projects() {
 
   const projectsBase = activeTab === 'my-projects' ? myProjects : publicProjects;
   const projectsFiltered = filterAvailable ? projectsBase.filter(p => p.is_available == 1) : projectsBase;
-  const projects = [...projectsFiltered].sort((a, b) => projectCompleteness(b) - projectCompleteness(a));
+  const projects = [...projectsFiltered].sort((a, b) => projectScore(a) - projectScore(b));
 
   const mapPoints = (projects || [])
     .filter((p) => p?.latitude && p?.longitude)
@@ -354,138 +360,126 @@ export default function Projects() {
           )}
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="@container">
+        <div className="grid grid-cols-1 @[34rem]:grid-cols-2 @[54rem]:grid-cols-3 gap-4">
           {projects.map((project) => {
             const imgUrl = getProjectImageUrl(project, import.meta.env.VITE_API_URL || '');
             const isOwner = isAuthenticated && (project.owner_id === user?.id || user?.is_admin);
             return (
-              <div key={project.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-                <div className="flex flex-col sm:flex-row">
-                  {/* Cover image */}
-                  <div className="relative w-full sm:w-64 h-44 sm:h-auto flex-shrink-0">
-                    {imgUrl ? (
-                      <img
-                        src={imgUrl}
-                        alt={project.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                        <FolderOpen className="w-10 h-10 text-gray-300" />
-                      </div>
-                    )}
-                    {project.is_available == 1 && (
-                      <div className="absolute top-2 left-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-500/90 text-white text-xs font-medium shadow-sm">
-                        <Tag className="w-3.5 h-3.5" />
-                        verfügbar
-                      </div>
-                    )}
+              <div
+                key={project.id}
+                className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => navigate(`/projects/${project.id}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/projects/${project.id}`); }}
+              >
+                {/* Image */}
+                <div className="relative">
+                  {imgUrl ? (
+                    <img src={imgUrl} alt={project.name} className="w-full h-44 object-cover" loading="lazy" />
+                  ) : (
+                    <div className="w-full h-44 bg-gray-100 flex items-center justify-center">
+                      <FolderOpen className="w-10 h-10 text-gray-300" />
+                    </div>
+                  )}
+
+                  {/* Overlay badges */}
+                  <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-sm text-gray-700 shadow-sm">
+                      <MapPin className="w-4 h-4" />
+                      <span className="truncate">{project.location_name || '—'}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {project.is_available == 1 && (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/90 text-white text-xs font-medium shadow-sm">
+                          <Tag className="w-3.5 h-3.5" />
+                          verfügbar
+                        </div>
+                      )}
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium shadow-sm ${statusColors[project.status] || statusColors.draft}`}>
+                        {statusLabels[project.status] || 'Entwurf'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-semibold text-gray-900 truncate">{project.name}</h3>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-project-50 text-project-700 text-xs rounded-full mt-1">
+                        {project.is_public ? <Globe className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                        {project.is_public ? 'Öffentlich' : 'Privat'}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <button
+                        type="button"
+                        title={compare.isSelected(project.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
+                        onClick={(e) => { e.stopPropagation(); compare.toggle('projects', project.id); }}
+                        disabled={!compare.isSelected(project.id) && !compare.canAdd('projects')}
+                        className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
+                          compare.isSelected(project.id)
+                            ? 'text-project-600 bg-project-50 hover:bg-project-100'
+                            : 'text-gray-400 hover:text-project-500 hover:bg-project-50'
+                        }`}
+                      >
+                        <Scale className="w-4 h-4" />
+                      </button>
+                      <BookmarkButton entityType="project" entityId={project.id} size="sm" showCount />
+                      {isOwner && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEdit(project); }}
+                            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                            title="Bearbeiten"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(project.id); }}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Löschen"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Content */}
-                  <div className="flex-1 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Link
-                            to={`/projects/${project.id}`}
-                            className="font-semibold text-lg text-gray-900 hover:text-primary-600 truncate"
-                          >
-                            {project.name}
-                          </Link>
-                          <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[project.status] || statusColors.draft}`}>
-                            {statusLabels[project.status] || 'Entwurf'}
-                          </span>
-                          {project.is_public ? (
-                            <Globe className="w-4 h-4 text-project-600" />
-                          ) : (
-                            <Lock className="w-4 h-4 text-gray-400" />
-                          )}
-                        </div>
-                        {project.description && (
-                          <p className="text-gray-600 text-sm mb-2 line-clamp-2">{project.description}</p>
-                        )}
-                        {project.owner_id && !isOwner && (
-                          <div className="mb-2">
-                            <OwnerLine
-                              ownerId={project.owner_id}
-                              ownerFirstName={project.owner_first_name}
-                              ownerLastName={project.owner_last_name}
-                              ownerEmail={project.owner_email}
-                              contextLabel={project.name}
-                            />
-                          </div>
-                        )}
-                        <p className="text-xs text-gray-400">
-                          {formatDate(project.created_at)}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {typeof project.total_gwp_value === 'number' && project.total_gwp_value > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-800">
-                              <Leaf className="w-3 h-3 text-green-600" />
-                              GWP {project.total_gwp_value.toFixed(3)} {project.total_gwp_unit || 'kg CO₂e'}
-                            </span>
-                          )}
-                          {project.location_name && (
-                            <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                              {project.location_name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          title={compare.isSelected(project.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
-                          onClick={(e) => { e.stopPropagation(); compare.toggle('projects', project.id); }}
-                          disabled={!compare.isSelected(project.id) && !compare.canAdd('projects')}
-                          className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
-                            compare.isSelected(project.id)
-                              ? 'text-project-600 bg-project-50 hover:bg-project-100'
-                              : 'text-gray-400 hover:text-project-500 hover:bg-project-50'
-                          }`}
-                        >
-                          <Scale className="w-4 h-4" />
-                        </button>
-                        <BookmarkButton
-                          entityType="project"
-                          entityId={project.id}
-                          size="sm"
-                          showCount
-                        />
-                        <Link
-                          to={`/projects/${project.id}`}
-                          className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                          title="Anzeigen"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                        {isOwner && (
-                          <>
-                            <button
-                              onClick={() => handleEdit(project)}
-                              className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                              title="Bearbeiten"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(project.id)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Löschen"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
+                  {project.description && (
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{project.description}</p>
+                  )}
+
+                  {project.owner_id && !isOwner && (
+                    <div className="mb-2">
+                      <OwnerLine
+                        ownerId={project.owner_id}
+                        ownerFirstName={project.owner_first_name}
+                        ownerLastName={project.owner_last_name}
+                        ownerEmail={project.owner_email}
+                        contextLabel={project.name}
+                      />
                     </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {typeof project.total_gwp_value === 'number' && project.total_gwp_value > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-800">
+                        <Leaf className="w-3 h-3 text-green-600" />
+                        GWP {project.total_gwp_value.toFixed(3)} {project.total_gwp_unit || 'kg CO₂e'}
+                      </span>
+                    )}
+                    <span className="text-xs text-gray-400 self-center">{formatDate(project.created_at)}</span>
                   </div>
                 </div>
               </div>
             );
           })}
+        </div>
         </div>
       )}
 

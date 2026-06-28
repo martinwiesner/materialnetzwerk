@@ -96,8 +96,11 @@ const Project = {
     let query = `SELECT p.*, u.first_name as owner_first_name, u.last_name as owner_last_name, u.email as owner_email,
       COALESCE((SELECT SUM(pm.quantity*COALESCE(m.gwp_value,COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0))) FROM project_materials pm JOIN materials m ON pm.material_id=m.id WHERE pm.project_id=p.id),0) AS total_gwp_value,
       'kg CO2e' AS total_gwp_unit
-      FROM projects p JOIN users u ON p.owner_id=u.id WHERE (p.is_public = 1 OR p.owner_id = ?)`;
-    const params = [userId];
+      FROM projects p JOIN users u ON p.owner_id=u.id WHERE (
+        p.is_public = 1 OR p.owner_id = ?
+        OR EXISTS (SELECT 1 FROM user_shares us WHERE us.entity_type='project' AND us.entity_id=p.id AND us.shared_with_user_id=?)
+      )`;
+    const params = [userId, userId];
     if (filters.status) { query += ' AND p.status = ?'; params.push(filters.status); }
     if (filters.is_available) { query += ' AND p.is_available = 1'; }
     if (filters.search) { query += ' AND (p.name LIKE ? OR p.description LIKE ?)'; params.push(`%${filters.search}%`,`%${filters.search}%`); }
@@ -129,12 +132,13 @@ const Project = {
     const db = getDB();
     const id = uuidv4();
     const projectMaterialId = generateMaterialId('projects');
+    const derivedVisibility = data.visibility || (data.is_public ? 'public' : 'private');
     db.prepare(`INSERT INTO projects (id, name, description, content,
       circular_principles, principles_sufficiency, principles_consistency, principles_efficiency, general_sustainability_principles,
       location_name, latitude, longitude, address,
       time_effort, tools, steps, "references",
-      status, is_public, is_available, license, owner_id, material_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      status, is_public, is_available, license, owner_id, material_id, visibility, share_actor_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, data.name, data.description||null, data.content||null,
         data.circular_principles||null, data.principles_sufficiency||null, data.principles_consistency||null, data.principles_efficiency||null, data.general_sustainability_principles||null,
         data.location_name||null, data.latitude??null, data.longitude??null, data.address||null,
@@ -142,7 +146,7 @@ const Project = {
         data.steps ? JSON.stringify(data.steps) : null,
         data.references ? JSON.stringify(data.references) : null,
         data.status||'draft', data.is_public?1:0, data.is_available?1:0, data.license||null, data.owner_id,
-        projectMaterialId);
+        projectMaterialId, derivedVisibility, data.share_actor_id||null);
     return Project.findById(id);
   },
 
@@ -158,6 +162,8 @@ const Project = {
       'cad_preview_url',
       'oekodat_materials',
       'idemat_lca_items',
+      'visibility',
+      'share_actor_id',
     ];
     const jsonFields = new Set(['steps','references','oekodat_materials','idemat_lca_items']);
     const boolFields = new Set(['is_public','is_available']);

@@ -87,4 +87,42 @@ router.get('/stats', protect, adminOnly, (req, res) => {
   }
 });
 
+// GET /api/admin/users — full user list
+router.get('/users', protect, adminOnly, (req, res) => {
+  try {
+    const db = getDB();
+    const users = db.prepare(`
+      SELECT
+        u.id, u.email, u.first_name, u.last_name, u.is_admin, u.actor_id,
+        a.name as actor_name,
+        u.created_at,
+        (SELECT COUNT(*) FROM materials WHERE created_by = u.id) as mat_count,
+        (SELECT COUNT(*) FROM projects  WHERE owner_id  = u.id) as proj_count
+      FROM users u
+      LEFT JOIN actors a ON a.id = u.actor_id
+      ORDER BY u.created_at DESC
+    `).all();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// PATCH /api/admin/users/:id — toggle admin, set actor_id
+router.patch('/users/:id', protect, adminOnly, (req, res) => {
+  try {
+    const db = getDB();
+    const { is_admin, actor_id } = req.body;
+    const fields = [], vals = [];
+    if (is_admin !== undefined) { fields.push('is_admin = ?'); vals.push(is_admin ? 1 : 0); }
+    if (actor_id !== undefined) { fields.push('actor_id = ?'); vals.push(actor_id || null); }
+    if (!fields.length) return res.status(400).json({ message: 'Nichts zu aktualisieren' });
+    vals.push(req.params.id);
+    db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`).run(...vals);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 export default router;

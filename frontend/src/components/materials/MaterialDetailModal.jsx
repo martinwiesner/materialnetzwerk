@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2, FileDown } from 'lucide-react';
+import { X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Edit2, Trash2, FileDown, Share2 } from 'lucide-react';
 import LcaSection from './LcaSection';
 import { OwnerLine } from '../shared/ContactButton';
 import SharePrintBar from '../shared/SharePrintBar';
@@ -10,6 +10,8 @@ import { exportMaterialPoster } from '../../utils/exportUtils';
 import { MEDIA_BASE } from '../../services/api';
 import { useT } from '../../i18n/useT';
 import { materialService } from '../../services/materialService';
+import VisibilityBadge from './VisibilityBadge';
+import ShareDialog from './ShareDialog';
 
 const API_BASE = MEDIA_BASE;
 
@@ -105,6 +107,8 @@ function ImageGallery({ images, name }) {
 export default function MaterialDetailModal({ material, onClose, onEdit, onDelete, canEdit = false }) {
   const t = useT();
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [visibilityLocal, setVisibilityLocal] = useState(material?.visibility || 'private');
 
   async function handleDownloadPdf() {
     setPdfLoading(true);
@@ -160,6 +164,7 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
   ];
 
   return (
+    <>
     <div className="fixed inset-0 z-[9999] bg-black/50 p-4 flex items-center justify-center">
       <div className="w-full max-w-4xl max-h-[92vh] overflow-hidden bg-gray-50 rounded-2xl shadow-2xl border border-gray-200">
         {/* Header */}
@@ -175,6 +180,7 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
                   {material.category}
                 </span>
               ) : null}
+              <VisibilityBadge visibility={visibilityLocal} />
               {material.origin_source ? (
                 <span className="px-2.5 py-1 rounded-full text-xs border border-amber-200 bg-amber-50 text-amber-900">
                   {ORIGIN_SOURCE_LABELS[material.origin_source] || material.origin_source}
@@ -201,6 +207,16 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
                 ownerEmail={material.owner_email}
                 contextLabel={material.name}
               />
+            )}
+            {canEdit && (
+              <button
+                onClick={() => setShareOpen(true)}
+                className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                type="button"
+                title="Sichtbarkeit & Freigabe"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
             )}
             {canEdit && onEdit && (
               <button
@@ -594,6 +610,17 @@ export default function MaterialDetailModal({ material, onClose, onEdit, onDelet
         />
       </div>
     </div>
+
+    {shareOpen && (
+      <ShareDialog
+        materialId={material.id}
+        currentVisibility={visibilityLocal}
+        isOwner={canEdit}
+        onClose={() => setShareOpen(false)}
+        onVisibilityChange={(v) => setVisibilityLocal(v)}
+      />
+    )}
+    </>
   );
 }
 

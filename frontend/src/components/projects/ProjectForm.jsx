@@ -15,14 +15,15 @@ import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Users,
-  ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench, Box, ExternalLink } from 'lucide-react';
+  ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench, Box, ExternalLink, Building2 } from 'lucide-react';
 import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
-import { MEDIA_BASE } from '../../services/api';
+import api, { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
 import AiAnalyzeButton from '../shared/AiAnalyzeButton';
+import InlineUserPicker from '../shared/InlineUserPicker';
 import OekobaudatPicker from './OekobaudatPicker';
 import { EpdFullAnalysis } from './EpdAnalysis';
 import ProjectIdematSection from './ProjectIdematSection';
@@ -93,6 +94,9 @@ const emptyForm = {
   address: '',
   status: 'draft',
   is_public: false,
+  visibility: 'private',
+  share_actor_id: '',
+  selectedUsers: [],
   is_available: false,
   materials: [],
   circular_principles: [],
@@ -306,6 +310,9 @@ export default function ProjectForm({ project, onClose }) {
         address: project.address || '',
         status: project.status || 'draft',
         is_public: project.is_public || false,
+        visibility: project.visibility || (project.is_public ? 'public' : 'private'),
+        share_actor_id: project.share_actor_id || '',
+        selectedUsers: [],
         is_available: project.is_available == 1 || false,
         materials: project.materials?.map(m => ({
           material_id: m.material_id,
@@ -326,6 +333,12 @@ export default function ProjectForm({ project, onClose }) {
         oekodat_materials: safeJsonParse(project.oekodat_materials, []),
         idemat_lca_items: safeJsonParse(project.idemat_lca_items, []),
       });
+      const vis = project.visibility || (project.is_public ? 'public' : 'private');
+      if (vis === 'selectedUsers') {
+        api.get(`/shares/project/${project.id}`).then(r => {
+          setFormData(f => ({ ...f, selectedUsers: (r.data || []).map(s => ({ id: s.shared_with_user_id, email: s.email, first_name: s.first_name, last_name: s.last_name })) }));
+        }).catch(() => {});
+      }
     }
   }, [project]);
 
@@ -406,18 +419,31 @@ export default function ProjectForm({ project, onClose }) {
 
     const submitData = buildSubmitData();
     const validActorIds = actorIds.filter(Boolean);
+    const selectedUsers = formData.selectedUsers || [];
+
+    const syncUserShares = (projectId) => {
+      if (formData.visibility !== 'selectedUsers' || !selectedUsers.length) return;
+      for (const u of selectedUsers) {
+        api.post(`/shares/project/${projectId}`, { email: u.email, access_level: 'view' }).catch(() => {});
+      }
+    };
 
     if (draftId) {
       projectService.setActors(draftId, validActorIds).catch(() => {});
+      syncUserShares(draftId);
       updateMutation.mutate({ id: draftId, data: submitData });
     } else if (isEditing) {
       projectService.setActors(project.id, validActorIds).catch(() => {});
+      syncUserShares(project.id);
       updateMutation.mutate({ id: project.id, data: submitData });
     } else {
       createMutation.mutate(submitData, {
         onSuccess: (created) => {
-          if (created?.id && validActorIds.length > 0) {
-            projectService.setActors(created.id, validActorIds).catch(() => {});
+          if (created?.id) {
+            if (validActorIds.length > 0) {
+              projectService.setActors(created.id, validActorIds).catch(() => {});
+            }
+            syncUserShares(created.id);
           }
         },
       });
@@ -1049,18 +1075,54 @@ export default function ProjectForm({ project, onClose }) {
                 <option value="archived">{t('projects.statusArchived')}</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelVisibility')}</label>
-              <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
-                <button type="button" onClick={() => setFormData(f => ({ ...f, is_public: true }))}
-                  className={`px-3 py-2 text-sm flex items-center gap-1.5 transition-colors ${formData.is_public ? 'bg-project-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
-                  <Globe className="w-3.5 h-3.5" /> {t('common.public')}
-                </button>
-                <button type="button" onClick={() => setFormData(f => ({ ...f, is_public: false }))}
-                  className={`px-3 py-2 text-sm flex items-center gap-1.5 border-l border-gray-200 transition-colors ${!formData.is_public ? 'bg-gray-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
-                  <Lock className="w-3.5 h-3.5" /> {t('common.private')}
-                </button>
+            <div className="col-span-2 space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Sichtbarkeit</label>
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                {[
+                  { value: 'private',       label: 'Privat',      Icon: Lock      },
+                  { value: 'actor',         label: 'Akteur',      Icon: Building2 },
+                  { value: 'selectedUsers', label: 'Ausgewählte', Icon: Users     },
+                  { value: 'public',        label: 'Öffentlich',  Icon: Globe     },
+                ].map(({ value, label, Icon }, i, arr) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormData(f => ({
+                      ...f,
+                      visibility: value,
+                      is_public: value === 'public',
+                    }))}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
+                      i < arr.length - 1 ? 'border-r border-gray-200' : ''
+                    } ${
+                      formData.visibility === value
+                        ? 'bg-stone-800 text-white'
+                        : 'bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
               </div>
+              {formData.visibility === 'actor' && (
+                <select
+                  value={formData.share_actor_id}
+                  onChange={e => setFormData(f => ({ ...f, share_actor_id: e.target.value }))}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-stone-300 bg-white"
+                >
+                  <option value="">— Akteur auswählen —</option>
+                  {allActors.map(a => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              )}
+              {formData.visibility === 'selectedUsers' && (
+                <InlineUserPicker
+                  selected={formData.selectedUsers || []}
+                  onChange={users => setFormData(f => ({ ...f, selectedUsers: users }))}
+                />
+              )}
             </div>
             <div className="flex items-end pb-2">
               <label className="flex items-center gap-2 cursor-pointer">

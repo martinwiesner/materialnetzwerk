@@ -488,7 +488,7 @@ export default function Materials() {
           </button>
         </div>
       ) : (
-        <>
+        <div className="@container">
           {/* Gesuch Cards */}
           {filteredGesuche.length > 0 && (
             <div className={materials.length > 0 ? 'mb-8' : ''}>
@@ -498,7 +498,7 @@ export default function Materials() {
                   {t('materials.wanted')} ({filteredGesuche.length})
                 </h3>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 @[34rem]:grid-cols-2 @[54rem]:grid-cols-3 gap-4">
                 {filteredGesuche.map((gesuch) => (
                   <div
                     key={gesuch.id}
@@ -559,7 +559,7 @@ export default function Materials() {
 
           {/* Material Cards */}
           {materials.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 @[34rem]:grid-cols-2 @[54rem]:grid-cols-3 gap-4">
           {materials.map((material) => (
             <div
               key={material.id}
@@ -708,7 +708,7 @@ export default function Materials() {
           ))}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Material Form Modal */}

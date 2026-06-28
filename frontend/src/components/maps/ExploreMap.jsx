@@ -289,6 +289,7 @@ export default function ExploreMap({
       center={DEFAULT_CENTER}
       zoom={DEFAULT_ZOOM}
       scrollWheelZoom
+      zoomControl={false}
       className="h-full w-full"
     >
       <TileLayer

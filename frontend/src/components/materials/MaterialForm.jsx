@@ -6,7 +6,8 @@ import { actorService } from '../../services/actorService';
 import { inventoryService } from '../../services/inventoryService';
 import { MapPin, X, Plus, Trash2, Users, Package, Upload, Search, Tag,
   ChevronDown, ChevronUp, Leaf, Wrench, Recycle, FlaskConical, Info,
-  FileText, CheckCircle2, AlertCircle, Loader2, Check } from 'lucide-react';
+  FileText, CheckCircle2, AlertCircle, Loader2, Check,
+  Globe, Lock, Building2 } from 'lucide-react';
 import GeolocateButton from '../shared/GeolocateButton';
 import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
@@ -18,6 +19,7 @@ import { idematService } from '../../services/idematService';
 import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
+import InlineUserPicker from '../shared/InlineUserPicker';
 const API_BASE = MEDIA_BASE;
 
 // ── IDEMAT process linker (used inside AccordionSection) ──────────────────────
@@ -540,6 +542,13 @@ const initialFormState = {
   penre: '',
   perm: '',
   idemat_process_id: null,
+
+  // Visibility / sharing
+  visibility: 'private',
+  share_actor_id: '',
+  shared_actor_ids: [],
+  selectedUsers: [],
+  actor_members_can_edit: false,
 };
 
 export default function MaterialForm({ material, onClose, enableOfferOnCreate = false, initialMode }) {
@@ -725,7 +734,24 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         penre: material.penre ?? '',
         perm: material.perm ?? '',
         idemat_process_id: material.idemat_process_id || null,
+
+        visibility: material.visibility || 'private',
+        share_actor_id: material.share_actor_id || '',
+        shared_actor_ids: material.shared_actor_ids || [],
+        selectedUsers: [],
+        actor_members_can_edit: Boolean(material.actor_members_can_edit),
       });
+      // load existing shares for selectedUsers display
+      if (material.visibility === 'selectedUsers') {
+        import('../../services/api').then(({ default: api }) =>
+          api.get(`/shares/material/${material.id}`).then(r =>
+            setFormData(f => ({ ...f, selectedUsers: (r.data || []).map(s => ({
+              id: s.shared_with_user_id, email: s.email,
+              first_name: s.first_name, last_name: s.last_name,
+            })) }))
+          ).catch(() => {})
+        );
+      }
     }
   }, [material]);
 
@@ -758,6 +784,20 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       if (created?.id && pendingActorIdsRef.current.length > 0) {
         materialActorService.setActors(created.id, pendingActorIdsRef.current).catch(() => {});
         pendingActorIdsRef.current = [];
+      }
+      const sharedActorIds = formData.shared_actor_ids || [];
+      if (created?.id && sharedActorIds.length > 0) {
+        import('../../services/api').then(({ default: api }) =>
+          api.put(`/shares/material/${created.id}/actors`, { actor_ids: sharedActorIds })
+        ).catch(() => {});
+      }
+      const selectedUsers = formData.selectedUsers || [];
+      if (created?.id && selectedUsers.length > 0) {
+        import('../../services/api').then(({ default: api }) => {
+          Promise.all(selectedUsers.map(u =>
+            api.post(`/shares/material/${created.id}`, { email: u.email, access_level: 'view' })
+          )).catch(() => {});
+        });
       }
 
       try {
@@ -797,9 +837,18 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => materialService.update(id, data),
-    onSuccess: () => {
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['materials'] });
       queryClient.invalidateQueries({ queryKey: ['material-categories'] });
+      // sync selectedUsers shares
+      const selUsers = formData.selectedUsers || [];
+      if (formData.visibility === 'selectedUsers' && selUsers.length > 0) {
+        import('../../services/api').then(({ default: api }) => {
+          Promise.all(selUsers.map(u =>
+            api.post(`/shares/material/${id}`, { email: u.email, access_level: 'view' })
+          )).catch(() => {});
+        });
+      }
       toast.success(t('materialForm.toastSaved'));
       onClose();
     },
@@ -2084,6 +2133,79 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             </AccordionSection>
 
           </div> {/* end accordion */}
+
+          {/* Sichtbarkeit */}
+          {mode === 'material' && (
+            <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+              <p className="text-sm font-semibold text-gray-700">Sichtbarkeit</p>
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-sm">
+                {[
+                  { value: 'private',       label: 'Privat',       Icon: Lock      },
+                  { value: 'actor',         label: 'Akteur',       Icon: Building2 },
+                  { value: 'selectedUsers', label: 'Ausgewählte',  Icon: Users     },
+                  { value: 'public',        label: 'Öffentlich',   Icon: Globe     },
+                ].map(({ value, label, Icon }, i, arr) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormData(f => ({ ...f, visibility: value }))}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-colors ${
+                      i < arr.length - 1 ? 'border-r border-gray-200' : ''
+                    } ${
+                      formData.visibility === value
+                        ? 'bg-stone-800 text-white'
+                        : 'bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {formData.visibility === 'actor' && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">Akteure mit Zugriff (mehrere möglich):</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allActors.map(a => {
+                      const selected = (formData.shared_actor_ids || []).includes(a.id);
+                      return (
+                        <button key={a.id} type="button"
+                          onClick={() => setFormData(f => {
+                            const cur = f.shared_actor_ids || [];
+                            return { ...f, shared_actor_ids: selected ? cur.filter(x => x !== a.id) : [...cur, a.id] };
+                          })}
+                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                            selected ? 'bg-stone-800 text-white border-stone-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                          }`}>
+                          {a.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+                    <input type="checkbox" checked={formData.actor_members_can_edit}
+                      onChange={e => setFormData(f => ({ ...f, actor_members_can_edit: e.target.checked }))}
+                      className="rounded border-gray-300" />
+                    Akteur-Mitglieder dürfen auch bearbeiten
+                  </label>
+                </div>
+              )}
+
+              {formData.visibility === 'private' && (
+                <p className="text-xs text-gray-400">Nur du kannst dieses Material sehen. Du kannst es später gezielt freigeben.</p>
+              )}
+              {formData.visibility === 'selectedUsers' && (
+                <InlineUserPicker
+                  selected={formData.selectedUsers || []}
+                  onChange={users => setFormData(f => ({ ...f, selectedUsers: users }))}
+                />
+              )}
+              {formData.visibility === 'public' && (
+                <p className="text-xs text-gray-400">Für alle sichtbar — auch ohne Anmeldung.</p>
+              )}
+            </div>
+          )}
 
           {/* Optional offer creation (only when creating a new material) */}
           {!material && enableOfferOnCreate && (

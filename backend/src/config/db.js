@@ -212,6 +212,64 @@ const ensureTables = () => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
+      CREATE TABLE IF NOT EXISTS user_shares (
+        id TEXT PRIMARY KEY,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        shared_with_user_id TEXT NOT NULL,
+        access_level TEXT NOT NULL DEFAULT 'view',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(entity_type, entity_id, shared_with_user_id),
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (shared_with_user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS material_circles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        owner_id TEXT NOT NULL,
+        actor_id TEXT,
+        visibility TEXT NOT NULL DEFAULT 'actor',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE SET NULL
+      );
+      CREATE TABLE IF NOT EXISTS material_circle_items (
+        circle_id TEXT NOT NULL,
+        material_id TEXT NOT NULL,
+        added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (circle_id, material_id),
+        FOREIGN KEY (circle_id) REFERENCES material_circles(id) ON DELETE CASCADE,
+        FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS actor_membership_requests (
+        id TEXT PRIMARY KEY,
+        actor_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        message TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(actor_id, user_id),
+        FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS user_actors (
+        user_id TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, actor_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE
+      );
+      CREATE TABLE IF NOT EXISTS material_shared_actors (
+        material_id TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        PRIMARY KEY (material_id, actor_id),
+        FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE,
+        FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE
+      );
     `);
     console.log('✓ All tables verified/created.');
   } catch (err) {
@@ -368,6 +426,19 @@ const ensureColumns = () => {
 
     // users
     addCol('users', 'is_admin', 'is_admin BOOLEAN DEFAULT 0');
+    addCol('users', 'actor_id', 'actor_id TEXT');
+
+    // materials – visibility
+    addCol('materials', 'visibility', "visibility TEXT NOT NULL DEFAULT 'public'");
+    addCol('materials', 'share_actor_id', 'share_actor_id TEXT');
+    addCol('materials', 'actor_members_can_edit', 'actor_members_can_edit BOOLEAN DEFAULT 0');
+
+    // projects – visibility
+    addCol('projects', 'visibility', "visibility TEXT NOT NULL DEFAULT 'public'");
+    addCol('projects', 'share_actor_id', 'share_actor_id TEXT');
+
+    // actors – membership mode
+    addCol('actors', 'membership_mode', "membership_mode TEXT NOT NULL DEFAULT 'open'");
 
     // inventory
     addCol('inventory', 'availability_mode', "availability_mode TEXT DEFAULT 'negotiable'");

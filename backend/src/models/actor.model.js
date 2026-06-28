@@ -27,8 +27,8 @@ const Actor = {
     const rows = db.prepare(query).all(...params);
     const imgQ  = db.prepare('SELECT * FROM actor_images WHERE actor_id = ? ORDER BY sort_order ASC, created_at ASC');
     const linkQ = db.prepare('SELECT * FROM actor_links WHERE actor_id = ? ORDER BY created_at ASC');
-    const matQ  = db.prepare("SELECT material_id as entity_id, 'material' as entity_type FROM material_actors WHERE actor_id = ?");
-    const projQ = db.prepare("SELECT project_id as entity_id, 'project' as entity_type FROM project_actors WHERE actor_id = ?");
+    const matQ  = db.prepare("SELECT ('mat-' || material_id) as id, material_id as entity_id, 'material' as entity_type FROM material_actors WHERE actor_id = ?");
+    const projQ = db.prepare("SELECT ('proj-' || project_id) as id, project_id as entity_id, 'project' as entity_type FROM project_actors WHERE actor_id = ?");
     return rows.map(r => ({
       ...r,
       images: imgQ.all(r.id),
@@ -45,8 +45,8 @@ const Actor = {
     if (!actor) return null;
     actor.images = db.prepare('SELECT * FROM actor_images WHERE actor_id = ? ORDER BY sort_order ASC, created_at ASC').all(id);
     const legacyLinks = db.prepare('SELECT * FROM actor_links WHERE actor_id = ? ORDER BY created_at ASC').all(id);
-    const matLinks  = db.prepare("SELECT material_id as entity_id, 'material' as entity_type FROM material_actors WHERE actor_id = ?").all(id);
-    const projLinks = db.prepare("SELECT project_id as entity_id, 'project' as entity_type FROM project_actors WHERE actor_id = ?").all(id);
+    const matLinks  = db.prepare("SELECT ('mat-' || material_id) as id, material_id as entity_id, 'material' as entity_type FROM material_actors WHERE actor_id = ?").all(id);
+    const projLinks = db.prepare("SELECT ('proj-' || project_id) as id, project_id as entity_id, 'project' as entity_type FROM project_actors WHERE actor_id = ?").all(id);
     actor.links = [...legacyLinks, ...matLinks, ...projLinks];
     return actor;
   },
@@ -69,12 +69,14 @@ const Actor = {
     const db = getDB();
     db.prepare(`UPDATE actors SET
       name = ?, type = ?, tagline = ?, description = ?, website = ?, email = ?, phone = ?,
-      location_name = ?, address = ?, latitude = ?, longitude = ?, updated_at = CURRENT_TIMESTAMP
+      location_name = ?, address = ?, latitude = ?, longitude = ?,
+      membership_mode = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`)
       .run(data.name, data.type || null, data.tagline || null, data.description || null,
         data.website || null, data.email || null, data.phone || null,
         data.location_name || null, data.address || null,
-        data.latitude ?? null, data.longitude ?? null, id);
+        data.latitude ?? null, data.longitude ?? null,
+        data.membership_mode || 'open', id);
     return Actor.findById(id);
   },
 

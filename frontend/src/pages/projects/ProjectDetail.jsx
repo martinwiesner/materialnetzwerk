@@ -227,7 +227,10 @@ function libMatToEpdEntry(m) {
 
 function OekobaudatLcaSection({ project }) {
   const oekodatMaterials  = safeJsonParse(project.oekodat_materials, []);
-  const libMatsWithGwp    = (project.materials || []).filter(m => m.has_gwp_data);
+  // Only include library materials that have a non-zero effective GWP value
+  const libMatsWithGwp    = (project.materials || []).filter(
+    m => m.has_gwp_data && Number(m.effective_gwp_value) !== 0
+  );
   const libAsEpd          = libMatsWithGwp.map(libMatToEpdEntry);
   // Library materials first so they appear on the left in the chart
   const allMaterials      = [...libAsEpd, ...oekodatMaterials];
@@ -1070,7 +1073,7 @@ export default function ProjectDetail() {
         {/* Ökobilanz / LCA Section (library materials) — only when no combined view is available */}
         {(() => {
           const oekodatMaterials = safeJsonParse(project.oekodat_materials, []);
-          const libMatsWithGwp   = (project.materials || []).filter(m => m.has_gwp_data);
+          const libMatsWithGwp   = (project.materials || []).filter(m => m.has_gwp_data && Number(m.effective_gwp_value) !== 0);
           const hasCombined      = oekodatMaterials.length > 0 || libMatsWithGwp.length > 0;
           return !hasCombined ? <OekobilanzSection project={project} /> : null;
         })()}
