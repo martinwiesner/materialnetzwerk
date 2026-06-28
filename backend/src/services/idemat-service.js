@@ -19,6 +19,9 @@ function load() {
   return _data;
 }
 
+// Normalize to lowercase, replace non-letter/digit with spaces → word-boundary matching
+const norm = (s) => s.toLowerCase().replace(/[^a-z0-9äöüßàáâãåæçèéêëìíîïñòóôõøùúûý]+/g, ' ');
+
 export function searchIdemat(query, limit = 20) {
   const data = load();
   if (!query || query.trim().length < 2) return [];
@@ -27,12 +30,19 @@ export function searchIdemat(query, limit = 20) {
 
   const scored = data
     .map((e) => {
-      const haystack = `${e.name} ${e.category}`.toLowerCase();
-      const hits = tokens.filter((t) => haystack.includes(t)).length;
-      return { entry: e, hits };
+      const nameFull = ` ${norm(e.name + ' ' + (e.name_de || ''))} `;
+      const catFull  = ` ${norm(e.category + ' ' + (e.category_de || ''))} `;
+      // name/name_de hits count double over category hits; word-boundary match via spaces
+      const score = tokens.reduce((acc, t) => {
+        const tn = ` ${norm(t)} `;
+        if (nameFull.includes(tn)) return acc + 2;
+        if (catFull.includes(tn))  return acc + 1;
+        return acc;
+      }, 0);
+      return { entry: e, score };
     })
-    .filter((s) => s.hits > 0)
-    .sort((a, b) => b.hits - a.hits || a.entry.name.length - b.entry.name.length);
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score || a.entry.name.length - b.entry.name.length);
 
   return scored.slice(0, limit).map((s) => s.entry);
 }
