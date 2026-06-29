@@ -8,6 +8,7 @@ import XLSX from 'xlsx';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { addGermanKeywords } from './translate-idemat.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const XLSX_PATH = join(__dirname, '../../data/Idemat_2026RevB1.xlsx');
@@ -82,5 +83,8 @@ for (let r = 3; r <= range.e.r; r++) {
 const outDir = dirname(OUT_PATH);
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
+addGermanKeywords(entries);
+
 writeFileSync(OUT_PATH, JSON.stringify(entries, null, 0));
-console.log(`✅ Written ${entries.length} entries → ${OUT_PATH}`);
+const withDe = entries.filter(e => e.name_de).length;
+console.log(`✅ Written ${entries.length} entries → ${OUT_PATH} (${withDe} with name_de)`);
