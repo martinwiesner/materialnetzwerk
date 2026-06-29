@@ -25,25 +25,28 @@ const CATEGORIES = [
   { key: 'water_use',           label: 'Wassernutzung',             unit: 'Pt' },
 ];
 
-// Format a Pt value for display — small numbers need exponential notation
-const GWP_FACTOR = 8700 / 0.2106;
+const GWP_FACTOR  = 8700 / 0.2106;
+const MAX_PT_DB   = 0.00541;
+const MAX_GWP_DB  = 0.000831;
+
+function ptBarPct(v)  { return v ? Math.min(100, (v / MAX_PT_DB)  * 100) : 0; }
+function gwpBarPct(v) { return v ? Math.min(100, (v / MAX_GWP_DB) * 100) : 0; }
+
+function fmtPt(v) {
+  if (v == null) return '—';
+  if (v === 0) return '0 Pt';
+  const abs = Math.abs(v);
+  if (abs >= 0.001) return `${v.toLocaleString('de-DE', { maximumFractionDigits: 5 })} Pt`;
+  return `${v.toFixed(Math.min(Math.ceil(-Math.log10(abs)) + 3, 10))} Pt`;
+}
 
 function fmtGwp(ptClimate) {
   if (ptClimate == null) return null;
   const v = ptClimate * GWP_FACTOR;
   if (v === 0) return '0 kg CO₂';
-  if (v >= 100) return `${Math.round(v)} kg CO₂`;
-  if (v >= 1)   return `${v.toFixed(2)} kg CO₂`;
-  if (v >= 0.01) return `${v.toFixed(3)} kg CO₂`;
-  return `${v.toExponential(2)} kg CO₂`;
-}
-
-function fmtPt(v) {
-  if (v == null) return '—';
   const abs = Math.abs(v);
-  if (abs === 0) return '0';
-  if (abs >= 0.001) return v.toLocaleString('de-DE', { maximumFractionDigits: 6 });
-  return v.toExponential(3);
+  if (abs >= 0.001) return `${v.toLocaleString('de-DE', { maximumFractionDigits: 3 })} kg CO₂`;
+  return `${v.toFixed(Math.min(Math.ceil(-Math.log10(abs)) + 3, 10))} kg CO₂`;
 }
 
 // ── Result card once a process is linked ─────────────────────────────────────
@@ -92,7 +95,6 @@ function ProcessCard({ process, canEdit, onUnlink }) {
             </div>
             <div className="text-lg font-mono font-bold text-emerald-900">
               {fmtPt(total)}
-              <span className="text-xs font-normal text-emerald-700 ml-1">Pt</span>
             </div>
           </div>
           {fmtGwp(process.climate_change) && (
@@ -179,12 +181,25 @@ function IdematSearch({ onSelect }) {
           {r.name_de && (
             <div className="text-[10px] text-gray-400 truncate">{r.name_de}</div>
           )}
-          <div className="flex gap-2 mt-0.5 flex-wrap">
-            <span className="text-[10px] text-gray-500">{r.category}</span>
-            <span className="text-[10px] text-gray-400">{r.unit}</span>
-            <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)} Pt</span>
-            {fmtGwp(r.climate_change) && (
-              <span className="text-[10px] font-mono text-sky-600">{fmtGwp(r.climate_change)}</span>
+          <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400">
+            <span>{r.category}</span>
+            <span>·</span>
+            <span>/{r.unit}</span>
+          </div>
+          <div className="mt-1 space-y-0.5">
+            <div className="flex items-center gap-1.5">
+              <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
+                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${ptBarPct(r.ef31_total)}%` }} />
+              </div>
+              <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)}</span>
+            </div>
+            {r.climate_change != null && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
+                  <div className="h-full bg-sky-400 rounded-full" style={{ width: `${gwpBarPct(r.climate_change)}%` }} />
+                </div>
+                <span className="text-[10px] font-mono text-sky-700">{fmtGwp(r.climate_change)}</span>
+              </div>
             )}
           </div>
         </button>
