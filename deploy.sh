@@ -133,6 +133,19 @@ rsync -avz --progress -e "ssh $SSH_OPTS" \
     exit 1
   }
 
+# ── 2b. IDEMAT-Datenbasis übertragen (liegt im Volume-Pfad, daher separat) ────
+# Das Docker-Volume mappt ./data → /usr/src/app/data im Container.
+# idemat.json wird deshalb direkt in den Volume-Pfad auf dem Server kopiert,
+# nicht über das Backend-Build-Verzeichnis.
+echo "📊 Transferring idemat.json to data volume..."
+scp $SSH_OPTS \
+  backend/data/idemat.json \
+  "$SERVER:$REMOTE_PATH/data/idemat.json" || {
+    echo "❌ idemat.json Transfer fehlgeschlagen — Deploy abgebrochen."
+    exit 1
+  }
+echo "   ✅ idemat.json übertragen"
+
 # ── 3. Build & Restart — bei Fehler: ABBRUCH ─────────────────────────────────
 echo "🔨 Building and restarting on server..."
 ssh $SSH_OPTS "$SERVER" \
