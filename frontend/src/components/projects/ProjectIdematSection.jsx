@@ -22,6 +22,20 @@ function fmtPt(v) {
   return v.toExponential(3);
 }
 
+// EF 3.1: climate_change is stored in Pt. Back-convert to kg CO₂ eq.
+// Normalization: 8700 kg CO₂/(p·y), weighting: 21.06%
+const GWP_FACTOR = 8700 / 0.2106;
+
+function fmtGwp(ptClimate) {
+  if (ptClimate == null) return null;
+  const v = ptClimate * GWP_FACTOR;
+  if (v === 0) return '0 kg CO₂';
+  if (v >= 100) return `${Math.round(v)} kg CO₂`;
+  if (v >= 1)   return `${v.toFixed(2)} kg CO₂`;
+  if (v >= 0.01) return `${v.toFixed(3)} kg CO₂`;
+  return `${v.toExponential(2)} kg CO₂`;
+}
+
 // ── Inline quantity input ────────────────────────────────────────────────────
 function QtyInput({ value, onChange }) {
   const [local, setLocal] = useState(String(value ?? 1));
@@ -136,10 +150,16 @@ function IdematSearchBox({ onAdd }) {
               <Plus className="w-3 h-3 text-emerald-500 flex-shrink-0" />
               <div className="min-w-0 pointer-events-none">
                 <div className="text-xs font-medium text-gray-900 truncate">{r.name}</div>
-                <div className="flex gap-2 mt-0.5">
+                {r.name_de && (
+                  <div className="text-[10px] text-gray-400 truncate">{r.name_de}</div>
+                )}
+                <div className="flex gap-2 mt-0.5 flex-wrap">
                   <span className="text-[10px] text-gray-500">{r.category}</span>
                   <span className="text-[10px] text-gray-400">/{r.unit}</span>
                   <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)} Pt</span>
+                  {fmtGwp(r.climate_change) && (
+                    <span className="text-[10px] font-mono text-sky-600">{fmtGwp(r.climate_change)}</span>
+                  )}
                 </div>
               </div>
             </button>
@@ -203,6 +223,7 @@ export default function ProjectIdematSection({ items = [], onChange }) {
       id: crypto.randomUUID(),
       process_id: entry.id,
       name: entry.name,
+      name_de: entry.name_de || '',
       category: entry.category,
       unit: entry.unit,
       quantity: 1,
@@ -250,11 +271,17 @@ export default function ProjectIdematSection({ items = [], onChange }) {
                 className="flex items-center gap-2 bg-white border border-gray-100 rounded-lg px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium text-gray-900 truncate">{it.name}</div>
-                  <div className="flex gap-2 mt-0.5">
+                  {it.name_de && (
+                    <div className="text-[10px] text-gray-400 truncate">{it.name_de}</div>
+                  )}
+                  <div className="flex gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] text-gray-500">{it.category}</span>
-                    <span className="text-[10px] font-mono text-emerald-700">
-                      {fmtPt(subtotal)} Pt gesamt
-                    </span>
+                    <span className="text-[10px] font-mono text-emerald-700">{fmtPt(subtotal)} Pt</span>
+                    {fmtGwp(it.ef31?.climate_change) && (
+                      <span className="text-[10px] font-mono text-sky-600">
+                        {fmtGwp((it.ef31?.climate_change ?? 0) * it.quantity)} CO₂
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">

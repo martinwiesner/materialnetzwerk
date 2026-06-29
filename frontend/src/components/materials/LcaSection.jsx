@@ -26,6 +26,18 @@ const CATEGORIES = [
 ];
 
 // Format a Pt value for display — small numbers need exponential notation
+const GWP_FACTOR = 8700 / 0.2106;
+
+function fmtGwp(ptClimate) {
+  if (ptClimate == null) return null;
+  const v = ptClimate * GWP_FACTOR;
+  if (v === 0) return '0 kg CO₂';
+  if (v >= 100) return `${Math.round(v)} kg CO₂`;
+  if (v >= 1)   return `${v.toFixed(2)} kg CO₂`;
+  if (v >= 0.01) return `${v.toFixed(3)} kg CO₂`;
+  return `${v.toExponential(2)} kg CO₂`;
+}
+
 function fmtPt(v) {
   if (v == null) return '—';
   const abs = Math.abs(v);
@@ -43,6 +55,9 @@ function ProcessCard({ process, canEdit, onUnlink }) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-gray-900">{process.name}</div>
+          {process.name_de && (
+            <div className="text-xs text-gray-400 mt-0.5">{process.name_de}</div>
+          )}
           <div className="flex flex-wrap gap-1.5 mt-1">
             <span className="px-2 py-0.5 rounded-full text-[10px] border border-gray-200 bg-gray-50 text-gray-600">
               {process.category}
@@ -67,17 +82,27 @@ function ProcessCard({ process, canEdit, onUnlink }) {
         )}
       </div>
 
-      {/* EF 3.1 Total */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
+      {/* EF 3.1 Total + GWP */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-4">
         <Leaf className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-        <div>
-          <div className="text-[10px] text-emerald-700 font-medium uppercase tracking-wide">
-            EF 3.1 Gesamtscore
+        <div className="flex gap-6 flex-wrap">
+          <div>
+            <div className="text-[10px] text-emerald-700 font-medium uppercase tracking-wide">
+              EF 3.1 Gesamt
+            </div>
+            <div className="text-lg font-mono font-bold text-emerald-900">
+              {fmtPt(total)}
+              <span className="text-xs font-normal text-emerald-700 ml-1">Pt</span>
+            </div>
           </div>
-          <div className="text-lg font-mono font-bold text-emerald-900">
-            {fmtPt(total)}
-            <span className="text-xs font-normal text-emerald-700 ml-1">Pt</span>
-          </div>
+          {fmtGwp(process.climate_change) && (
+            <div>
+              <div className="text-[10px] text-sky-700 font-medium uppercase tracking-wide">GWP</div>
+              <div className="text-lg font-mono font-bold text-sky-900">
+                {fmtGwp(process.climate_change)}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -151,10 +176,16 @@ function IdematSearch({ onSelect }) {
           onMouseDown={(e) => handleResultMouseDown(e, r)}
           className="w-full text-left px-3 py-2 hover:bg-emerald-50 transition-colors border-b border-gray-50 last:border-0">
           <div className="text-xs font-medium text-gray-900 truncate">{r.name}</div>
-          <div className="flex gap-2 mt-0.5">
+          {r.name_de && (
+            <div className="text-[10px] text-gray-400 truncate">{r.name_de}</div>
+          )}
+          <div className="flex gap-2 mt-0.5 flex-wrap">
             <span className="text-[10px] text-gray-500">{r.category}</span>
             <span className="text-[10px] text-gray-400">{r.unit}</span>
             <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)} Pt</span>
+            {fmtGwp(r.climate_change) && (
+              <span className="text-[10px] font-mono text-sky-600">{fmtGwp(r.climate_change)}</span>
+            )}
           </div>
         </button>
       ))}
