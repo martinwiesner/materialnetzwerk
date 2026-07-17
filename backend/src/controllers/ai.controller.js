@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import { readFileSync, unlinkSync } from 'fs';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import os from 'os';
+import path from 'path';
 import sharp from 'sharp';
 
 const execFileAsync = promisify(execFile);
@@ -38,20 +40,28 @@ JSON-Schema:
   "_confidence": "low|medium|high — wie sicher bist du dir über deine Angaben"
 }`;
 
-const PROJECT_PROMPT = `Du bist ein Experte für Bauprojekte, Upcycling und kreative Materialprojekte.
+const PROJECT_PROMPT = `Du bist ein Experte für Bauprojekte, Upcycling, Bau- und Kreativprojekte.
 Analysiere die hochgeladenen Bilder und extrahiere alle erkennbaren Informationen über das Projekt.
 
-Antworte NUR mit einem validen JSON-Objekt ohne Markdown-Codeblöcke. Felder die du nicht erkennen kannst lässt du leer ("") oder weg.
+Antworte NUR mit einem validen JSON-Objekt ohne Markdown-Codeblöcke. Felder die du nicht erkennen kannst lässt du weg.
 
 JSON-Schema:
 {
-  "name": "prägnanter Projektname",
-  "description": "ausführliche Projektbeschreibung",
-  "content": "Hintergründe, Motivation, Kontext",
-  "time_effort": "geschätzter Zeitaufwand (z.B. 2-4 Stunden)",
-  "tools": "benötigte Werkzeuge und Hilfsmittel (kommagetrennt)",
-  "_confidence": "low|medium|high"
-}`;
+  "name": "prägnanter Projekttitel",
+  "description": "1-3 Sätze Kurzbeschreibung des Projekts",
+  "content": "Hintergründe, Motivation, Kontext, Ziele — alles was über das Projekt bekannt ist",
+  "time_effort": "geschätzter Zeitaufwand (z.B. 2-4 Stunden, 3 Tage)",
+  "tools": "benötigte Werkzeuge, Maschinen, Hilfsmittel (kommagetrennt)",
+  "steps": [
+    { "title": "Schritt-Titel (max. 6 Wörter)", "text": "Beschreibung dieses Arbeitsschritts (2-4 Sätze)" }
+  ],
+  "_confidence": "low|medium|high — wie sicher bist du über deine Angaben"
+}
+
+Hinweise:
+- steps: Nur wenn auf den Bildern ein Arbeitsablauf oder eine Anleitung erkennbar ist. Ansonsten weglassen.
+- name und description: immer befüllen wenn möglich.
+- Leere Strings oder leere Arrays weglassen.`;
 
 const STEP_PROMPT = `Du bist ein Experte für DIY-Anleitungen, Bauprojekte und Upcycling.
 Analysiere das Bild und beschreibe präzise den dargestellten Arbeitsschritt.
@@ -67,18 +77,28 @@ JSON-Schema:
 async function toBase64Jpeg(filePath, mimeType) {
   const isHeic = mimeType === 'image/heic' || mimeType === 'image/heif'
     || filePath.toLowerCase().endsWith('.heic') || filePath.toLowerCase().endsWith('.heif');
+
   if (isHeic) {
-    const jpegPath = filePath + '.jpg';
+    // Try sharp (works when libvips is built with HEIF support)
     try {
-      await execFileAsync('heif-convert', ['-q', '85', filePath, jpegPath]);
-      const buffer = readFileSync(jpegPath);
+      const buffer = await sharp(filePath).jpeg({ quality: 85 }).toBuffer();
       return `data:image/jpeg;base64,${buffer.toString('base64')}`;
-    } catch (e) {
-      throw Object.assign(new Error('HEIC_UNSUPPORTED'), { isHeicError: true });
-    } finally {
-      try { unlinkSync(jpegPath); } catch {}
+    } catch { /* fall through to sips */ }
+
+    // Fallback: macOS sips (always available on macOS)
+    if (process.platform === 'darwin') {
+      try {
+        const outPath = path.join(os.tmpdir(), `heic_${Date.now()}.jpg`);
+        await execFileAsync('/usr/bin/sips', ['-s', 'format', 'jpeg', filePath, '--out', outPath]);
+        const buffer = readFileSync(outPath);
+        try { unlinkSync(outPath); } catch { /* ignore */ }
+        return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+      } catch { /* fall through to error */ }
     }
+
+    throw Object.assign(new Error('HEIC_UNSUPPORTED'), { isHeicError: true });
   }
+
   const buffer = readFileSync(filePath);
   return `data:${mimeType};base64,${buffer.toString('base64')}`;
 }

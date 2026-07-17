@@ -96,6 +96,25 @@ export const parseEpdPdf = async (pdfFile) => {
   return response.data;
 };
 
+export const parseDocumentForMaterial = async (file, mode = 'material') => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await api.post(`/materials/parse-doc?mode=${mode}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
+export const analyzeImages = async (files, mode = 'material') => {
+  const formData = new FormData();
+  formData.append('mode', mode);
+  for (const f of files) formData.append('images', f);
+  const response = await api.post('/ai/analyze', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
 export const materialActorService = {
   getActors: async (materialId) => {
     const response = await api.get(`/materials/${materialId}/actors`);

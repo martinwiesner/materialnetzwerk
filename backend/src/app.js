@@ -25,6 +25,7 @@ import adminRoutes from './routes/admin.routes.js';
 import idematRoutes from './routes/idemat.routes.js';
 import shareRoutes from './routes/share.routes.js';
 import materialCircleRoutes from './routes/materialCircle.routes.js';
+import featureRequestRoutes from './routes/featureRequest.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -114,6 +115,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/idemat', idematRoutes);
 app.use('/api/shares', shareRoutes);
 app.use('/api/circles', materialCircleRoutes);
+app.use('/api/feature-requests', featureRequestRoutes);
 app.use('/api/id', resolverRoutes);
 app.use('/id', resolverRoutes);
 

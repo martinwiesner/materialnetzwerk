@@ -76,6 +76,7 @@ const de = {
     whatCanBeAdded: 'Was kann eingetragen werden?',
     intro: 'Einführung',
     infoRules: 'Info & Spielregeln',
+    featureRequest: 'Idee einreichen',
     privacy: 'Datenschutz',
     agb: 'AGB',
     imprint: 'Impressum',

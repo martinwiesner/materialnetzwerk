@@ -426,6 +426,170 @@ async function runEpdPrompt(textContent, client) {
   return { fields, confidence };
 }
 
+// ── General document → project fields (PDF / DOCX) ───────────────────────────
+
+const DOC_PROJECT_PROMPT = `Du bist Experte für Bauprojekte, Anleitungen, Bau- und Upcycling-Projekte.
+Deine Aufgabe: Den GESAMTEN Textinhalt des Dokuments verlustfrei in die passenden Felder überführen.
+
+Extrahiere NUR Felder die im Dokument stehen (fehlende WEGLASSEN):
+
+{
+  "fields": {
+    "name": "Projekttitel / Dokumententitel",
+    "description": "1-3 Sätze Kurzbeschreibung des Projekts",
+    "content": "PFLICHTFELD wenn Fließtext vorhanden: Übernimm alle inhaltlichen Beschreibungsabschnitte möglichst wörtlich und vollständig — Hintergründe, Ziele, Motivation, wissenschaftlicher Kontext. Absätze mit \\n\\n trennen.",
+    "time_effort": "Geschätzter Zeitaufwand laut Dokument",
+    "tools": "Benötigte Werkzeuge, Materialien, Maschinen — kommagetrennt oder als Text",
+    "steps": [
+      { "title": "Prägnanter Schritttitel (max. 6 Wörter)", "text": "Beschreibung dieses Schritts (2-4 Sätze, konkret)" }
+    ]
+  },
+  "confidence": {
+    "overall": "high | medium | low",
+    "score": 0-100,
+    "summary": "1-2 Sätze: was war klar erkennbar, was war unsicher"
+  }
+}
+
+Wichtige Regeln:
+- steps: Nummerierte Listen, Arbeitsschritte, Herstellungsprozesse, Montageanleitungen → als steps-Array. Jede Listenzeile wird ein Schritt.
+- content: So viel Originaltext wie möglich wörtlich übernehmen. Nichts weglassen was nicht in steps oder andere Felder passt.
+- Leere Arrays und Leerstrings weglassen.
+
+Antworte NUR mit dem JSON-Objekt, keine Erklärungen außerhalb.`;
+
+// ── General document → material fields (PDF / DOCX) ──────────────────────────
+
+const DOC_EXTRACT_PROMPT = `Du bist Experte für Materialbeschreibungen, Produktdatenblätter und Forschungsberichte.
+Deine Aufgabe: Den GESAMTEN Textinhalt des Dokuments verlustfrei in die passenden Felder überführen.
+Kein Satz, kein Absatz soll verloren gehen — was nicht in ein spezialisiertes Feld passt, gehört in "description".
+
+Extrahiere NUR Felder die im Dokument explizit stehen (fehlende Felder WEGLASSEN):
+
+{
+  "fields": {
+    "name": "Materialname / Produktname (Überschrift)",
+    "short_description": "Untertitel oder Tagline des Dokuments — max. 1-2 Sätze",
+
+    "description": "PFLICHTFELD wenn Fließtext vorhanden: Übernimm alle Beschreibungsabschnitte möglichst wörtlich und vollständig. Verbinde mehrere Absätze mit Zeilenumbrüchen. Lasse NICHTS weg, was nicht in ein anderes spezialisiertes Feld passt. Typische Inhalte: Funktionsprinzip, Materialeigenschaften, wissenschaftlicher Hintergrund, Herstellungsschritte, Besonderheiten, Wirkungsweise.",
+
+    "category": "Materialkategorie, z.B. Dämmmaterial, Holz, Metall, Kunststoff, Stein, Keramik, Bepflanzung, Sonstiges",
+
+    "origin_acquisition": "Wie wird das Material gewonnen oder hergestellt? Vollständige Auflistung von Prozessschritten wenn vorhanden.",
+
+    "use_processing": "Verarbeitungs- und Einbauhinweise, Installationsschritte",
+
+    "use_where": "Einsatzbereiche und Anwendungsfelder — vollständige Liste",
+
+    "use_not_suitable": "Nicht geeignet für (falls vorhanden)",
+
+    "tech_density": 123.4,
+    "tech_thermal_insulation": 0.04,
+    "tech_compressive_strength": "Druckfestigkeit mit Einheit",
+    "tech_dimensions": "Abmessungen, Schichtdicke, Formate (z.B. 10–20 cm)",
+
+    "contact_person": "Name des Ansprechpartners — nur Name ohne Titel oder Firma",
+
+    "notes": "Projektstatus, TRL-Level, geplante Pilotinstallationen, Monitoring, offene Punkte — vollständig übernehmen",
+
+    "principles_consistency": ["Nachwachsende Rohstoffe", "Recycelte Rohstoffe", "Recyclinggerecht", "Kompostierbar"],
+    "principles_efficiency": ["Schadstofffrei", "Naturraumerhaltend", "Faire Materialgewinnung", "Regional"]
+  },
+  "confidence": {
+    "overall": "high | medium | low",
+    "score": 0-100,
+    "summary": "1-2 Sätze: was war klar erkennbar, was war unsicher"
+  }
+}
+
+Wichtige Regeln:
+- description: So viel Originaltext wie möglich wörtlich übernehmen. Abschnitte mit \\n\\n trennen. Ziel: wer die Originaldatei nicht hat, soll alle wesentlichen Infos hier finden.
+- origin_acquisition: Herstellungsschritte als nummerierte Liste wenn im Dokument vorhanden.
+- use_where: Alle Anwendungsbereiche als Aufzählung, nicht zusammenfassen.
+- tech_density und tech_thermal_insulation: nur der numerische Wert (Mittelwert bei Spannen, z.B. 0.05 für "0,04–0,06").
+- principles_*: nur Werte aus den gegebenen Listen; leere Arrays weglassen.
+- contact_person: z.B. "Ansprechpartner RZZ: Alexander Bieß" → "Alexander Bieß".
+
+Antworte NUR mit dem JSON-Objekt, keine Erklärungen außerhalb.`;
+
+export const parseDocumentForMaterial = async (req, res) => {
+  const file = req.file;
+  if (!file) return res.status(400).json({ message: 'Keine Datei hochgeladen' });
+  if (!process.env.OPENAI_API_KEY) {
+    try { unlinkSync(file.path); } catch {}
+    return res.status(503).json({ message: 'OpenAI API-Key nicht konfiguriert' });
+  }
+
+  const mode  = req.query.mode || req.body?.mode || 'material'; // 'material' | 'project'
+  const ext   = file.originalname.toLowerCase().split('.').pop();
+  const isDocx = ext === 'docx' || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+  let text = '';
+  try {
+    const buffer = readFileSync(file.path);
+
+    if (isDocx) {
+      const mammoth = (await import('mammoth')).default;
+      const result  = await mammoth.extractRawText({ buffer });
+      text = result.value || '';
+    } else {
+      // PDF
+      const { PDFParse } = await import('pdf-parse');
+      const parsed = new PDFParse({ data: buffer });
+      const result = await parsed.getText();
+      text = result.text || '';
+    }
+  } catch (err) {
+    try { unlinkSync(file.path); } catch {}
+    return res.status(500).json({ message: 'Dokument konnte nicht gelesen werden', error: err.message });
+  } finally {
+    try { unlinkSync(file.path); } catch {}
+  }
+
+  if (!text || text.trim().length < 30) {
+    return res.status(422).json({ message: 'Dokument enthält keinen lesbaren Text' });
+  }
+
+  try {
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // ── Auto-detect EPD: score text and route to EPD prompt if it looks like one ─
+    if (mode === 'material' && !isDocx) {
+      const epdScore = scorePageForEpd(text.slice(0, 8000));
+      if (epdScore >= 5) {
+        const { fields, confidence } = await runEpdPrompt(text, client);
+        return res.json({
+          data: fields,
+          confidence,
+          meta: { format: 'pdf', chars: text.length, detected: 'epd' },
+        });
+      }
+    }
+
+    // ── Choose prompt based on mode ───────────────────────────────────────────
+    const prompt     = mode === 'project' ? DOC_PROJECT_PROMPT : DOC_EXTRACT_PROMPT;
+    const maxTokens  = mode === 'project' ? 2500 : 2000;
+
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o',
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt + '\n\nDokument-Text:\n' + text.slice(0, 24000) }],
+    });
+    const raw = response.choices[0]?.message?.content ?? '';
+    let parsed;
+    try { parsed = parseAiResponse(raw); } catch {
+      return res.status(422).json({ message: 'KI-Antwort konnte nicht geparst werden', raw });
+    }
+    return res.json({
+      data: parsed.fields || parsed,
+      confidence: parsed.confidence || null,
+      meta: { format: isDocx ? 'docx' : 'pdf', chars: text.length, mode },
+    });
+  } catch (err) {
+    return res.status(500).json({ message: 'KI-Analyse fehlgeschlagen', error: err.message });
+  }
+};
+
 export const parseEpdFromPdf = async (req, res) => {
   const file = req.file;
   if (!file) return res.status(400).json({ message: 'Keine Datei hochgeladen' });

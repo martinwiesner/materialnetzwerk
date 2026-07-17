@@ -21,6 +21,7 @@ import {
   getMaterialActors,
   setMaterialActors,
   parseEpdFromPdf,
+  parseDocumentForMaterial,
   downloadMaterialPdf,
 } from '../controllers/material.controller.js';
 import protect, { optionalAuth } from '../middleware/auth.middleware.js';
@@ -225,6 +226,18 @@ router.put('/:id', protect,
 );
 
 router.post('/parse-epd', protect, uploadPdf.single('pdf'), (req, res) => parseEpdFromPdf(req, res));
+
+const uploadDoc = multer({
+  dest: '/tmp/doc-uploads/',
+  limits: { fileSize: 30 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    const name = file.originalname.toLowerCase();
+    const ok = file.mimetype === 'application/pdf' || name.endsWith('.pdf') ||
+               file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || name.endsWith('.docx');
+    ok ? cb(null, true) : cb(new Error('Nur PDF oder DOCX erlaubt'), false);
+  },
+});
+router.post('/parse-doc', protect, uploadDoc.single('file'), (req, res) => parseDocumentForMaterial(req, res));
 
 router.delete('/:id', protect,
   /*

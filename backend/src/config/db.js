@@ -270,6 +270,19 @@ const ensureTables = () => {
         FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE,
         FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE
       );
+      CREATE TABLE IF NOT EXISTS feature_requests (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        name TEXT,
+        email TEXT,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        openproject_wp_id TEXT,
+        error_message TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      );
     `);
     console.log('✓ All tables verified/created.');
   } catch (err) {

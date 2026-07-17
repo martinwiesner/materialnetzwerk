@@ -385,6 +385,9 @@ tryAlter('ALTER TABLE projects ADD COLUMN oekodat_materials TEXT');
 // ── materials: IDEMAT process link ────────────────────────────────────────────
 tryAlter('ALTER TABLE materials ADD COLUMN idemat_process_id TEXT');
 
+// ── materials: contact person ─────────────────────────────────────────────────
+tryAlter('ALTER TABLE materials ADD COLUMN contact_person TEXT');
+
 // ── materials: extended Ökobaudat indicators ──────────────────────────────────
 tryAlter('ALTER TABLE materials ADD COLUMN odp REAL');
 tryAlter('ALTER TABLE materials ADD COLUMN ap REAL');

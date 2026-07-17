@@ -76,6 +76,7 @@ const en = {
     whatCanBeAdded: 'What can be added?',
     intro: 'Introduction',
     infoRules: 'Info & Guidelines',
+    featureRequest: 'Suggest a feature',
     privacy: 'Privacy',
     agb: 'Terms',
     imprint: 'Imprint',

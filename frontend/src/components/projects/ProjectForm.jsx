@@ -15,15 +15,16 @@ import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Users,
-  ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench, Box, ExternalLink, Building2 } from 'lucide-react';
+  ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench, Box, ExternalLink, Building2,
+  Image as ImageIcon, Check, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
 import api, { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
-import AiAnalyzeButton from '../shared/AiAnalyzeButton';
 import InlineUserPicker from '../shared/InlineUserPicker';
+import { parseDocumentForMaterial, analyzeImages } from '../../services/materialService';
 import OekobaudatPicker from './OekobaudatPicker';
 import { EpdFullAnalysis } from './EpdAnalysis';
 import ProjectIdematSection from './ProjectIdematSection';
@@ -83,6 +84,270 @@ const GENERAL_SUSTAINABILITY = [
   'Klimaschutz', 'Ressourcenschonung', 'Biodiversitätsschutz',
   'Gesundheitsschonend', 'Soziale Fairness', 'Regionale Wertschöpfung',
 ];
+
+const CONF_STYLE_P = {
+  high:   { text: 'text-green-700',  label: 'hoch' },
+  medium: { text: 'text-amber-700',  label: 'mittel' },
+  low:    { text: 'text-red-600',    label: 'niedrig' },
+};
+
+const KI_PROJECT_FIELD_LABELS = {
+  name:        'Projekttitel',
+  description: 'Kurzbeschreibung',
+  content:     'Inhalt / Beschreibung',
+  time_effort: 'Zeitaufwand',
+  tools:       'Werkzeuge / Hilfsmittel',
+  steps:       'Schritte / Herstellungsschritte',
+};
+
+function KiDropZone({ onApply, onImages }) {
+  const [dragOver, setDragOver] = useState(null); // null | 'img' | 'doc'
+  const [status, setStatus]     = useState('idle');
+  const [extracted, setExtracted]   = useState(null);
+  const [confidence, setConfidence] = useState(null);
+  const [selected, setSelected]     = useState({});
+  const [loadingMsg, setLoadingMsg] = useState('');
+  const [error, setError]           = useState('');
+  const imgInputRef = useRef(null);
+  const docInputRef = useRef(null);
+
+  const isImage = (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name);
+  const isDoc   = (f) => /\.(pdf|docx)$/i.test(f.name) || f.type === 'application/pdf' || f.type.includes('wordprocessingml');
+
+  const processFiles = async (files) => {
+    const docFiles   = files.filter(isDoc);
+    const imageFiles = files.filter(isImage);
+    if (imageFiles.length > 0 && onImages) onImages(imageFiles);
+    if (docFiles.length > 0 && imageFiles.length > 0) {
+      setStatus('loading');
+      setLoadingMsg('Dokument & Bilder werden analysiert…');
+      setError('');
+      try {
+        const [docRes, imgRes] = await Promise.all([
+          parseDocumentForMaterial(docFiles[0], 'project'),
+          analyzeImages(imageFiles, 'project'),
+        ]);
+        const merged = { ...(imgRes.data || {}), ...(docRes.data || {}) };
+        showPreview(merged, docRes.confidence);
+      } catch (e) {
+        setError(e?.response?.data?.message || 'Analyse fehlgeschlagen');
+        setStatus('error');
+      }
+    } else if (docFiles.length > 0) {
+      await runDocAnalysis(docFiles[0]);
+    } else if (imageFiles.length > 0) {
+      await runImageAnalysis(imageFiles);
+    } else {
+      setError('Bitte Bilder oder Dokumente (PDF, DOCX) ablegen.');
+      setStatus('error');
+    }
+  };
+
+  const runDocAnalysis = async (file) => {
+    setStatus('loading');
+    setLoadingMsg('Dokument wird gelesen und analysiert…');
+    setError('');
+    try {
+      const result = await parseDocumentForMaterial(file, 'project');
+      showPreview(result.data || {}, result.confidence);
+    } catch (e) {
+      setError(e?.response?.data?.message || 'Dokument-Analyse fehlgeschlagen');
+      setStatus('error');
+    }
+  };
+
+  const runImageAnalysis = async (files) => {
+    setStatus('loading');
+    setLoadingMsg(`${files.length > 1 ? files.length + ' Bilder werden' : 'Bild wird'} analysiert…`);
+    setError('');
+    try {
+      const result = await analyzeImages(files, 'project');
+      showPreview(result.data || {}, null);
+    } catch (e) {
+      setError(e?.response?.data?.message || 'Bildanalyse fehlgeschlagen');
+      setStatus('error');
+    }
+  };
+
+  const showPreview = (data, conf) => {
+    setExtracted(data);
+    setConfidence(conf || null);
+    const init = {};
+    Object.keys(data).forEach(k => {
+      if (!KI_PROJECT_FIELD_LABELS[k]) return;
+      if (Array.isArray(data[k]) && data[k].length === 0) return;
+      init[k] = true;
+    });
+    setSelected(init);
+    setStatus('preview');
+  };
+
+  const handleApply = () => {
+    const toApply = {};
+    Object.entries(selected).forEach(([k, on]) => {
+      if (on && extracted[k] !== undefined) toApply[k] = extracted[k];
+    });
+    onApply(toApply);
+    reset();
+  };
+
+  const reset = () => { setStatus('idle'); setExtracted(null); setConfidence(null); setSelected({}); setError(''); };
+  const toggleAll = (val) => setSelected(prev => Object.fromEntries(Object.keys(prev).map(k => [k, val])));
+
+  if (status === 'preview' && extracted) {
+    const fields       = Object.keys(KI_PROJECT_FIELD_LABELS).filter(k => extracted[k] !== undefined);
+    const checkedCount = Object.values(selected).filter(Boolean).length;
+    const totalCount   = fields.length;
+    const confStyle    = CONF_STYLE_P[confidence?.overall] || CONF_STYLE_P.medium;
+
+    return (
+      <div className="border border-violet-200 rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-3 py-2 bg-violet-100/60 border-b border-violet-200">
+          <div className="flex items-center gap-2 flex-wrap">
+            <CheckCircle2 className="w-4 h-4 text-violet-600 flex-shrink-0" />
+            <span className="text-xs font-semibold text-violet-800">{totalCount} Felder erkannt</span>
+            {confidence && (
+              <span className={`text-[10px] font-medium ${confStyle.text}`}>
+                · Konfidenz {confStyle.label}{confidence.score != null ? ` ${confidence.score}/100` : ''}
+              </span>
+            )}
+          </div>
+          <button type="button" onClick={reset} className="text-gray-400 hover:text-gray-600 text-xs ml-2">✕</button>
+        </div>
+
+        {confidence?.summary && (
+          <p className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 text-[10px] text-gray-500 italic leading-snug">
+            {confidence.summary}
+          </p>
+        )}
+
+        <div className="px-3 py-2">
+          <div className="flex items-center gap-3 mb-1.5">
+            <span className="text-[11px] text-gray-500">{checkedCount}/{totalCount} ausgewählt</span>
+            <button type="button" onClick={() => toggleAll(true)}  className="text-[11px] text-violet-600 hover:underline">Alle</button>
+            <button type="button" onClick={() => toggleAll(false)} className="text-[11px] text-gray-400 hover:underline">Keine</button>
+          </div>
+          <div className="space-y-0.5 max-h-52 overflow-y-auto pr-1">
+            {fields.map(k => {
+              const val     = extracted[k];
+              const display = Array.isArray(val)
+                ? (k === 'steps' ? val.map((s, i) => `${i + 1}. ${typeof s === 'string' ? s : (s.title || s.text || '')}`.trim()).join(' · ') : val.join(', '))
+                : String(val);
+              return (
+                <label key={k} className="flex items-start gap-1.5 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={!!selected[k]}
+                    onChange={() => setSelected(p => ({ ...p, [k]: !p[k] }))}
+                    className="mt-0.5 w-3.5 h-3.5 text-violet-600 border-gray-300 rounded flex-shrink-0" />
+                  <span className="text-[11px] text-gray-500 leading-tight flex-shrink-0 min-w-[130px]">
+                    {KI_PROJECT_FIELD_LABELS[k]}
+                  </span>
+                  <span className="text-[11px] font-medium text-gray-800 leading-tight truncate" title={display}>
+                    {display}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button type="button" onClick={handleApply} disabled={checkedCount === 0}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-lg text-xs font-medium hover:bg-violet-700 disabled:opacity-40 transition-colors">
+              <Check className="w-3.5 h-3.5" />
+              {checkedCount} Felder übernehmen
+            </button>
+            <button type="button" onClick={reset}
+              className="px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50 transition-colors">
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Image zone — replaced by spinner while loading */}
+      {status === 'loading' ? (
+        <div className="flex items-center gap-2.5 px-3 py-3 border border-violet-200 rounded-xl bg-violet-50/50 text-xs text-violet-700">
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+          <span className="font-medium">{loadingMsg}</span>
+        </div>
+      ) : (
+        <>
+          {status === 'error' && (
+            <div className="flex items-start gap-2 px-3 py-2.5 border border-red-200 rounded-xl bg-red-50 text-xs text-red-700">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+              <button type="button" onClick={reset} className="ml-auto text-red-400 hover:text-red-600 flex-shrink-0">✕</button>
+            </div>
+          )}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver('img'); }}
+            onDragLeave={() => setDragOver(null)}
+            onDrop={e => { e.preventDefault(); setDragOver(null); processFiles(Array.from(e.dataTransfer.files)); }}
+            onClick={() => imgInputRef.current?.click()}
+            className={`flex flex-col items-center justify-center gap-2 px-4 py-6 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center select-none
+              ${dragOver === 'img'
+                ? 'border-violet-400 bg-violet-50 scale-[1.01]'
+                : 'border-violet-200 bg-violet-50/20 hover:border-violet-300 hover:bg-violet-50/40'}`}
+          >
+            <ImageIcon className={`w-7 h-7 ${dragOver === 'img' ? 'text-violet-400' : 'text-violet-300'}`} />
+            <div>
+              <p className={`text-sm font-semibold ${dragOver === 'img' ? 'text-violet-700' : 'text-violet-600'}`}>
+                {dragOver === 'img' ? 'Loslassen zum Analysieren' : 'Mit KI ausfüllen'}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Bild(er) hochladen → Felder werden vorausgefüllt
+              </p>
+            </div>
+            <input
+              ref={imgInputRef}
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*"
+              className="hidden"
+              onChange={e => {
+                const files = Array.from(e.target.files || []);
+                if (files.length) processFiles(files);
+                e.target.value = '';
+              }}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Document zone — always visible and usable */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver('doc'); }}
+        onDragLeave={() => setDragOver(null)}
+        onDrop={e => { e.preventDefault(); setDragOver(null); processFiles(Array.from(e.dataTransfer.files)); }}
+        onClick={() => docInputRef.current?.click()}
+        className={`flex items-center gap-3 px-4 py-3 border border-dashed rounded-xl cursor-pointer transition-all select-none
+          ${dragOver === 'doc'
+            ? 'border-gray-400 bg-gray-50 scale-[1.005]'
+            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'}`}
+      >
+        <FileText className={`w-5 h-5 flex-shrink-0 ${dragOver === 'doc' ? 'text-gray-500' : 'text-gray-300'}`} />
+        <p className="text-[11px] text-gray-400 leading-snug">
+          {dragOver === 'doc'
+            ? 'Loslassen zum Analysieren'
+            : 'Hast du neben Bildern auch Dokumente mit Daten? Auch die kannst du hier reindroppen'}
+        </p>
+        <input
+          ref={docInputRef}
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          className="hidden"
+          onChange={e => {
+            const files = Array.from(e.target.files || []);
+            if (files.length) processFiles(files);
+            e.target.value = '';
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
 const emptyForm = {
   name: '',
@@ -612,19 +877,41 @@ export default function ProjectForm({ project, onClose }) {
             </div>
           )}
 
-          {/* ── KI-Analyse ───────────────────────────────────────────────── */}
-          <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
-            <p className="text-xs font-semibold text-violet-700 mb-2">✨ KI-Assistent</p>
-            <AiAnalyzeButton mode="project" onResult={(data) => {
-              setFormData(prev => ({
-                ...prev,
-                ...(data.name && { name: data.name }),
-                ...(data.description && { description: data.description }),
-                ...(data.content && { content: data.content }),
-                ...(data.time_effort && { time_effort: data.time_effort }),
-                ...(data.tools && { tools: data.tools }),
-              }));
-            }} onImages={(files) => handleImageUpload(files)} />
+          {/* ── KI-Assistent (unified drop zone) ─────────────────────────── */}
+          <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 space-y-2">
+            <p className="text-xs font-semibold text-violet-700">✨ KI-Assistent</p>
+            <KiDropZone
+              onImages={(files) => handleImageUpload(files)}
+              onApply={(data) => {
+                // Convert extracted steps or origin_acquisition text to project step objects
+                let mappedSteps = null;
+                if (Array.isArray(data.steps) && data.steps.length > 0) {
+                  mappedSteps = data.steps.map(s => {
+                    if (typeof s === 'string') return { title: s, text: '' };
+                    return { title: s.title || s.name || '', text: s.text || s.description || '' };
+                  });
+                } else if (data.origin_acquisition && typeof data.origin_acquisition === 'string') {
+                  // Parse numbered list lines into steps
+                  const lines = data.origin_acquisition.split('\n')
+                    .map(l => l.replace(/^\d+[\.\)]\s*/, '').trim())
+                    .filter(Boolean);
+                  if (lines.length > 1) {
+                    mappedSteps = lines.map(l => ({ title: l, text: '' }));
+                  }
+                }
+                setFormData(prev => ({
+                  ...prev,
+                  ...(data.name        && { name: data.name }),
+                  ...(data.description && { description: data.description }),
+                  ...(data.content     && { content: data.content }),
+                  ...(data.time_effort && { time_effort: data.time_effort }),
+                  ...(data.tools       && { tools: data.tools }),
+                  ...(mappedSteps && mappedSteps.length > 0 && {
+                    steps: [...prev.steps, ...mappedSteps],
+                  }),
+                }));
+              }}
+            />
           </div>
 
           {/* Title */}

@@ -29,6 +29,8 @@ const NEW_FIELDS = [
   'odp','ap','ep_terrestrial','ep_freshwater','ep_marine','pocp','hwd','nhwd','rwd','pere','penre','perm',
   // IDEMAT 2026 linked process
   'idemat_process_id',
+  // Contact / Ansprechpartner
+  'contact_person',
   // Visibility / sharing
   'visibility', 'share_actor_id', 'actor_members_can_edit',
 ];

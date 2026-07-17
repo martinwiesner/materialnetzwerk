@@ -26,12 +26,14 @@ import {
   BookOpen,
   Bookmark,
   Settings,
+  Lightbulb,
 } from 'lucide-react';
 
 import { useAuthStore } from '../store/authStore';
 import { useAuthOverlayStore } from '../store/authOverlayStore';
 import { useGuidelinesStore } from '../store/guidelinesStore';
 import { useAgbStore } from '../store/agbStore';
+import { useFeatureRequestStore } from '../store/featureRequestStore';
 import { useToast } from '../store/toastStore';
 import { useT } from '../i18n/useT';
 import LanguageSwitch from './shared/LanguageSwitch';
@@ -41,10 +43,12 @@ import ToastContainer from './shared/ToastContainer';
 import CoachMarks from './onboarding/CoachMarks';
 import GuidelinesOverlay from './shared/GuidelinesOverlay';
 import AGBOverlay from './shared/AGBOverlay';
+import FeatureRequestOverlay from './shared/FeatureRequestOverlay';
 import IncomingRequestsPanel from './requests/IncomingRequestsPanel';
 import MyRequestsPanel from './requests/MyRequestsPanel';
 import CompareBar from './compare/CompareBar';
 import { messageService } from '../services/messageService';
+import { useSettings } from '../hooks/useSettings';
 import { materialRequestService } from '../services/materialRequestService';
 import { authService } from '../services/authService';
 
@@ -569,6 +573,8 @@ export default function Layout() {
   const openAuth = useAuthOverlayStore((s) => s.open);
   const { isOpen: guidelinesOpen, open: openGuidelines, close: closeGuidelines } = useGuidelinesStore();
   const openAgb = useAgbStore((s) => s.open);
+  const openFeatureRequest = useFeatureRequestStore((s) => s.open);
+  const { data: settings } = useSettings();
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [accountDrawerOpen, setAccountDrawerOpen] = useState(false);
@@ -622,6 +628,7 @@ export default function Layout() {
       <CoachMarks />
       {guidelinesOpen && <GuidelinesOverlay onClose={closeGuidelines} />}
       <AGBOverlay />
+      {settings?.openproject_api_key && <FeatureRequestOverlay />}
 
       {/* Beta banner — shown once until dismissed */}
       {!betaBannerDismissed && (
@@ -808,6 +815,15 @@ export default function Layout() {
               <BookOpen className="w-3 h-3" />
               {t('layout.infoRules')}
             </button>
+            {settings?.openproject_api_key && (
+              <button
+                onClick={openFeatureRequest}
+                className="inline-flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Lightbulb className="w-3 h-3" />
+                {t('layout.featureRequest')}
+              </button>
+            )}
             <a
               href="https://www.hs-anhalt.de/datenschutz.html"
               target="_blank"

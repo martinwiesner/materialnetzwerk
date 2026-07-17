@@ -1,19 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { materialService, materialActorService, parseEpdPdf } from '../../services/materialService';
+import { materialService, materialActorService, parseEpdPdf, parseDocumentForMaterial, analyzeImages } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { inventoryService } from '../../services/inventoryService';
 import { MapPin, X, Plus, Trash2, Users, Package, Upload, Search, Tag,
   ChevronDown, ChevronUp, Leaf, Wrench, Recycle, FlaskConical, Info,
-  FileText, CheckCircle2, AlertCircle, Loader2, Check,
+  FileText, CheckCircle2, AlertCircle, Loader2, Check, Image as ImageIcon,
   Globe, Lock, Building2 } from 'lucide-react';
 import GeolocateButton from '../shared/GeolocateButton';
 import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
 import InfoTooltip from '../shared/InfoTooltip';
-import AiAnalyzeButton from '../shared/AiAnalyzeButton';
 import { idematService } from '../../services/idematService';
 
 import { MEDIA_BASE } from '../../services/api';
@@ -435,6 +434,304 @@ function EpdPdfDropZone({ onApply }) {
   );
 }
 
+// ── KI field labels (used for both document and image analysis previews) ──────
+const KI_FIELD_LABELS = {
+  name:                        'Materialname',
+  short_description:           'Kurzbeschreibung',
+  description:                 'Beschreibung',
+  category:                    'Kategorie',
+  origin_acquisition:          'Herstellung / Gewinnung',
+  use_processing:              'Verarbeitung / Einbau',
+  use_where:                   'Einsatzbereiche',
+  use_not_suitable:            'Nicht geeignet für',
+  previous_use:                'Vorherige Nutzung',
+  tech_dimensions:             'Abmessungen / Format',
+  tech_density:                'Rohdichte (kg/m³)',
+  tech_thermal_insulation:     'Wärmeleitfähigkeit λ (W/m·K)',
+  tech_compressive_strength:   'Druckfestigkeit',
+  tech_flammability:           'Brandschutz',
+  contact_person:              'Ansprechpartner',
+  notes:                       'Hinweise / TRL-Status',
+  principles_consistency:      'Prinzipien (Konsistenz)',
+  principles_efficiency:       'Prinzipien (Effizienz)',
+  // EPD fields (auto-detected)
+  gwp_fossil:                  'GWP fossil (kg CO₂e)',
+  gwp_biogenic:                'GWP biogen (kg CO₂e)',
+  gwp_value:                   'GWP gesamt (kg CO₂e)',
+  cert_epd:                    'EPD vorhanden',
+  manufacturer:                'Hersteller',
+  declared_unit:               'Deklarierte Einheit',
+  sust_climate_description:    'Klimawirkung (Beschreibung)',
+  circularity:                 'Kreislauffähigkeit',
+  human_health:                'Gesundheit / VOC',
+  processing_sustainability:   'Verarbeitung / Entsorgung',
+};
+
+// Unified KI drop zone — accepts PDF, DOCX and images in one area
+function KiDropZone({ onApply, onImages }) {
+  const [dragOver, setDragOver] = useState(null); // null | 'img' | 'doc'
+  const [status, setStatus]     = useState('idle'); // idle | loading | preview | error
+  const [extracted, setExtracted]   = useState(null);
+  const [confidence, setConfidence] = useState(null);
+  const [selected, setSelected]     = useState({});
+  const [loadingMsg, setLoadingMsg] = useState('');
+  const [error, setError]           = useState('');
+  const imgInputRef = useRef(null);
+  const docInputRef = useRef(null);
+
+  const isImage = (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name);
+  const isDoc   = (f) => /\.(pdf|docx)$/i.test(f.name) || f.type === 'application/pdf' || f.type.includes('wordprocessingml');
+
+  const processFiles = async (files) => {
+    const docFiles   = files.filter(isDoc);
+    const imageFiles = files.filter(isImage);
+
+    // Always add images to the gallery immediately
+    if (imageFiles.length > 0 && onImages) onImages(imageFiles);
+
+    if (docFiles.length > 0 && imageFiles.length > 0) {
+      // PDF + images: run both in parallel, merge — PDF facts win, images add what's missing
+      setStatus('loading');
+      setLoadingMsg('Dokument & Bilder werden analysiert…');
+      setError('');
+      try {
+        const [docRes, imgRes] = await Promise.all([
+          parseDocumentForMaterial(docFiles[0]),
+          analyzeImages(imageFiles, 'material'),
+        ]);
+        const merged = { ...(imgRes.data || {}), ...(docRes.data || {}) };
+        showPreview(merged, docRes.confidence);
+      } catch (e) {
+        setError(e?.response?.data?.message || 'Analyse fehlgeschlagen');
+        setStatus('error');
+      }
+    } else if (docFiles.length > 0) {
+      await runDocAnalysis(docFiles[0]);
+    } else if (imageFiles.length > 0) {
+      await runImageAnalysis(imageFiles);
+    } else {
+      setError('Bitte PDF, DOCX oder Bilder (JPG, PNG, WEBP) ablegen.');
+      setStatus('error');
+    }
+  };
+
+  const runDocAnalysis = async (file) => {
+    setStatus('loading');
+    setLoadingMsg('Dokument wird gelesen und analysiert…');
+    setError('');
+    try {
+      const result = await parseDocumentForMaterial(file);
+      showPreview(result.data || {}, result.confidence);
+    } catch (e) {
+      setError(e?.response?.data?.message || 'Dokument-Analyse fehlgeschlagen');
+      setStatus('error');
+    }
+  };
+
+  const runImageAnalysis = async (files) => {
+    setStatus('loading');
+    setLoadingMsg(`${files.length > 1 ? files.length + ' Bilder werden' : 'Bild wird'} analysiert…`);
+    setError('');
+    try {
+      const result = await analyzeImages(files, 'material');
+      showPreview(result.data || {}, null);
+    } catch (e) {
+      setError(e?.response?.data?.message || 'Bildanalyse fehlgeschlagen');
+      setStatus('error');
+    }
+  };
+
+  const showPreview = (data, conf) => {
+    setExtracted(data);
+    setConfidence(conf || null);
+    const init = {};
+    Object.keys(data).forEach(k => {
+      if (!KI_FIELD_LABELS[k]) return;
+      if (Array.isArray(data[k]) && data[k].length === 0) return;
+      init[k] = true;
+    });
+    setSelected(init);
+    setStatus('preview');
+  };
+
+  const handleApply = () => {
+    const toApply = {};
+    Object.entries(selected).forEach(([k, on]) => {
+      if (on && extracted[k] !== undefined) toApply[k] = extracted[k];
+    });
+    onApply(toApply);
+    reset();
+  };
+
+  const reset = () => {
+    setStatus('idle');
+    setExtracted(null);
+    setConfidence(null);
+    setSelected({});
+    setError('');
+  };
+
+  const toggleAll = (val) => setSelected(prev => Object.fromEntries(Object.keys(prev).map(k => [k, val])));
+
+  // ── Preview state ──────────────────────────────────────────────────────────
+  if (status === 'preview' && extracted) {
+    const fields       = Object.keys(KI_FIELD_LABELS).filter(k => extracted[k] !== undefined);
+    const checkedCount = Object.values(selected).filter(Boolean).length;
+    const totalCount   = fields.length;
+    const confStyle    = CONF_STYLE[confidence?.overall] || CONF_STYLE.medium;
+
+    return (
+      <div className="border border-violet-200 rounded-xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-3 py-2 bg-violet-100/60 border-b border-violet-200">
+          <div className="flex items-center gap-2 flex-wrap">
+            <CheckCircle2 className="w-4 h-4 text-violet-600 flex-shrink-0" />
+            <span className="text-xs font-semibold text-violet-800">{totalCount} Felder erkannt</span>
+            {confidence && (
+              <span className={`text-[10px] font-medium ${confStyle.text}`}>
+                · Konfidenz {confStyle.label}{confidence.score != null ? ` ${confidence.score}/100` : ''}
+              </span>
+            )}
+          </div>
+          <button type="button" onClick={reset} className="text-gray-400 hover:text-gray-600 text-xs ml-2">✕</button>
+        </div>
+
+        {confidence?.summary && (
+          <p className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 text-[10px] text-gray-500 italic leading-snug">
+            {confidence.summary}
+          </p>
+        )}
+
+        {/* Fields */}
+        <div className="px-3 py-2">
+          <div className="flex items-center gap-3 mb-1.5">
+            <span className="text-[11px] text-gray-500">{checkedCount}/{totalCount} ausgewählt</span>
+            <button type="button" onClick={() => toggleAll(true)}  className="text-[11px] text-violet-600 hover:underline">Alle</button>
+            <button type="button" onClick={() => toggleAll(false)} className="text-[11px] text-gray-400 hover:underline">Keine</button>
+          </div>
+
+          <div className="space-y-0.5 max-h-52 overflow-y-auto pr-1">
+            {fields.map(k => {
+              const val     = extracted[k];
+              const display = Array.isArray(val) ? val.join(', ') : String(val);
+              return (
+                <label key={k} className="flex items-start gap-1.5 cursor-pointer py-0.5">
+                  <input type="checkbox" checked={!!selected[k]}
+                    onChange={() => setSelected(p => ({ ...p, [k]: !p[k] }))}
+                    className="mt-0.5 w-3.5 h-3.5 text-violet-600 border-gray-300 rounded flex-shrink-0" />
+                  <span className="text-[11px] text-gray-500 leading-tight flex-shrink-0 min-w-[140px]">
+                    {KI_FIELD_LABELS[k]}
+                  </span>
+                  <span className="text-[11px] font-medium text-gray-800 leading-tight truncate" title={display}>
+                    {display}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex gap-2 mt-3">
+            <button type="button" onClick={handleApply} disabled={checkedCount === 0}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-lg text-xs font-medium hover:bg-violet-700 disabled:opacity-40 transition-colors">
+              <Check className="w-3.5 h-3.5" />
+              {checkedCount} Felder übernehmen
+            </button>
+            <button type="button" onClick={reset}
+              className="px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50 transition-colors">
+              Abbrechen
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Idle / loading / error state ───────────────────────────────────────────
+  return (
+    <div className="space-y-2">
+      {/* Image zone — replaced by spinner while loading */}
+      {status === 'loading' ? (
+        <div className="flex items-center gap-2.5 px-3 py-3 border border-violet-200 rounded-xl bg-violet-50/50 text-xs text-violet-700">
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+          <span className="font-medium">{loadingMsg}</span>
+        </div>
+      ) : (
+        <>
+          {status === 'error' && (
+            <div className="flex items-start gap-2 px-3 py-2.5 border border-red-200 rounded-xl bg-red-50 text-xs text-red-700">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+              <button type="button" onClick={reset} className="ml-auto text-red-400 hover:text-red-600 flex-shrink-0">✕</button>
+            </div>
+          )}
+          <div
+            onDragOver={e => { e.preventDefault(); setDragOver('img'); }}
+            onDragLeave={() => setDragOver(null)}
+            onDrop={e => { e.preventDefault(); setDragOver(null); processFiles(Array.from(e.dataTransfer.files)); }}
+            onClick={() => imgInputRef.current?.click()}
+            className={`flex flex-col items-center justify-center gap-2 px-4 py-6 border-2 border-dashed rounded-xl cursor-pointer transition-all text-center select-none
+              ${dragOver === 'img'
+                ? 'border-violet-400 bg-violet-50 scale-[1.01]'
+                : 'border-violet-200 bg-violet-50/20 hover:border-violet-300 hover:bg-violet-50/40'}`}
+          >
+            <ImageIcon className={`w-7 h-7 ${dragOver === 'img' ? 'text-violet-400' : 'text-violet-300'}`} />
+            <div>
+              <p className={`text-sm font-semibold ${dragOver === 'img' ? 'text-violet-700' : 'text-violet-600'}`}>
+                {dragOver === 'img' ? 'Loslassen zum Analysieren' : 'Mit KI ausfüllen'}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Bild(er) hochladen → Felder werden vorausgefüllt
+              </p>
+            </div>
+            <input
+              ref={imgInputRef}
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*"
+              className="hidden"
+              onChange={e => {
+                const files = Array.from(e.target.files || []);
+                if (files.length) processFiles(files);
+                e.target.value = '';
+              }}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Document zone — always visible and usable */}
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver('doc'); }}
+        onDragLeave={() => setDragOver(null)}
+        onDrop={e => { e.preventDefault(); setDragOver(null); processFiles(Array.from(e.dataTransfer.files)); }}
+        onClick={() => docInputRef.current?.click()}
+        className={`flex items-center gap-3 px-4 py-3 border border-dashed rounded-xl cursor-pointer transition-all select-none
+          ${dragOver === 'doc'
+            ? 'border-gray-400 bg-gray-50 scale-[1.005]'
+            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'}`}
+      >
+        <FileText className={`w-5 h-5 flex-shrink-0 ${dragOver === 'doc' ? 'text-gray-500' : 'text-gray-300'}`} />
+        <p className="text-[11px] text-gray-400 leading-snug">
+          {dragOver === 'doc'
+            ? 'Loslassen zum Analysieren'
+            : 'Hast du neben Bildern auch Dokumente mit Daten? Auch die kannst du hier reindroppen'}
+        </p>
+        <input
+          ref={docInputRef}
+          type="file"
+          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          className="hidden"
+          onChange={e => {
+            const files = Array.from(e.target.files || []);
+            if (files.length) processFiles(files);
+            e.target.value = '';
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 const PRINCIPLES = {
   consistency: ['Nachwachsende Rohstoffe', 'Recycelte Rohstoffe', 'Recyclinggerecht', 'Kompostierbar'],
   efficiency: ['Schadstofffrei', 'Naturraumerhaltend', 'Faire Materialgewinnung', 'Regional'],
@@ -513,6 +810,7 @@ const initialFormState = {
   certifications: '',
   source_url: '',
   notes: '',
+  contact_person: '',
 
   // Location
   latitude: '51.0532575',
@@ -707,6 +1005,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
         certifications: material.certifications || '',
         source_url: material.source_url || '',
         notes: material.notes || '',
+        contact_person: material.contact_person || '',
 
         latitude: material.latitude ?? '',
         longitude: material.longitude ?? '',
@@ -1493,40 +1792,58 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             </div>
           </div>
 
-          {/* ── KI-Analyse ───────────────────────────────────────────────── */}
-          <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
-            <p className="text-xs font-semibold text-violet-700 mb-2">✨ KI-Assistent</p>
-            <AiAnalyzeButton
-              mode="material"
+          {/* ── KI-Assistent (unified drop zone) ─────────────────────────── */}
+          <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 space-y-2">
+            <p className="text-xs font-semibold text-violet-700">✨ KI-Assistent</p>
+            <KiDropZone
               onImages={(files) => {
                 const updated = [...pendingImagesRef.current, ...files];
                 pendingImagesRef.current = updated;
                 setPendingImages(updated);
               }}
-              onResult={(data) => {
+              onApply={(data) => {
                 const VALID_SOURCES = ['primary','secondary_rückbau','secondary_restposten','secondary_überschuss','secondary_upcycling','secondary_eigenproduktion'];
                 const SOURCE_MAP = { neu: 'primary', neuware: 'primary', rückbau: 'secondary_rückbau', abbruch: 'secondary_rückbau', demontage: 'secondary_rückbau', restposten: 'secondary_restposten', produktion: 'secondary_restposten', überschuss: 'secondary_überschuss', lager: 'secondary_überschuss', upcycling: 'secondary_upcycling', recycelt: 'secondary_upcycling', eigenproduktion: 'secondary_eigenproduktion', selbst: 'secondary_eigenproduktion' };
                 const rawSrc = (data.origin_source || '').toLowerCase().trim();
                 const origin_source = VALID_SOURCES.includes(rawSrc) ? rawSrc : (SOURCE_MAP[rawSrc] ?? '');
                 setFormData(prev => ({
                   ...prev,
-                  ...(data.name && { name: data.name }),
-                  ...(data.category && { category: data.category }),
-                  ...(data.description && { description: data.description }),
-                  ...(data.short_description && { short_description: data.short_description }),
+                  ...(data.name               && { name: data.name }),
+                  ...(data.category           && { category: data.category }),
+                  ...(data.description        && { description: data.description }),
+                  ...(data.short_description  && { short_description: data.short_description }),
                   ...(data.origin_acquisition && { origin_acquisition: data.origin_acquisition }),
-                  ...(data.use_processing && { use_processing: data.use_processing }),
-                  ...(data.use_where && { use_where: data.use_where }),
-                  ...(data.use_not_suitable && { use_not_suitable: data.use_not_suitable }),
+                  ...(data.use_processing     && { use_processing: data.use_processing }),
+                  ...(data.use_where          && { use_where: data.use_where }),
+                  ...(data.use_not_suitable   && { use_not_suitable: data.use_not_suitable }),
+                  ...(data.previous_use       && { previous_use: data.previous_use }),
                   ...(data.use_indoor !== undefined && { use_indoor: data.use_indoor }),
                   ...(data.use_outdoor !== undefined && { use_outdoor: data.use_outdoor }),
-                  ...(origin_source && { origin_source }),
-                  ...(data.previous_use && { previous_use: data.previous_use }),
-                  ...(data.tech_dimensions && { tech_dimensions: data.tech_dimensions }),
-                  ...(data.tech_density && { tech_density: data.tech_density }),
-                  ...(data.tech_flammability && { tech_flammability: data.tech_flammability }),
-                  ...(data.tech_thermal_insulation && { tech_thermal_insulation: data.tech_thermal_insulation }),
-                  ...(data.tech_compressive_strength && { tech_compressive_strength: data.tech_compressive_strength }),
+                  ...(origin_source           && { origin_source }),
+                  ...(data.tech_dimensions    && { tech_dimensions: data.tech_dimensions }),
+                  ...(data.tech_density       && { tech_density: String(data.tech_density) }),
+                  ...(data.tech_flammability  && { tech_flammability: data.tech_flammability }),
+                  ...(data.tech_thermal_insulation    && { tech_thermal_insulation: String(data.tech_thermal_insulation) }),
+                  ...(data.tech_compressive_strength  && { tech_compressive_strength: data.tech_compressive_strength }),
+                  ...(data.contact_person     && { contact_person: data.contact_person }),
+                  ...(data.notes              && { notes: data.notes }),
+                  ...(Array.isArray(data.principles_consistency) && data.principles_consistency.length > 0
+                    && { principles_consistency: data.principles_consistency }),
+                  ...(Array.isArray(data.principles_efficiency) && data.principles_efficiency.length > 0
+                    && { principles_efficiency: data.principles_efficiency }),
+                  // EPD-specific fields (auto-detected EPDs)
+                  ...(data.gwp_fossil != null  && { gwp_fossil: data.gwp_fossil }),
+                  ...(data.gwp_biogenic != null && { gwp_biogenic: data.gwp_biogenic }),
+                  ...(data.gwp_luluc != null   && { gwp_luluc: data.gwp_luluc }),
+                  ...(data.gwp_value != null   && { gwp_value: String(data.gwp_value) }),
+                  ...(data.cert_epd            && { cert_epd: true }),
+                  ...(data.sust_climate_description && { sust_climate_description: data.sust_climate_description }),
+                  ...(data.circularity         && { circularity: data.circularity }),
+                  ...(data.human_health        && { human_health: data.human_health }),
+                  ...(data.processing_sustainability && { processing_sustainability: data.processing_sustainability }),
+                  ...(data.manufacturer        && { manufacturer: data.manufacturer }),
+                  ...(data.declared_unit       && { declared_unit: data.declared_unit }),
+                  ...(data.material_type       && { origin_source: data.material_type }),
                 }));
               }}
             />
@@ -1672,6 +1989,12 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                 <label className="block text-sm font-medium text-gray-700 mb-1">{t('materialForm.sourceUrl')}</label>
                 <input type="url" name="source_url" value={formData.source_url} onChange={handleChange}
                   placeholder="https://"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ansprechpartner</label>
+                <input type="text" name="contact_person" value={formData.contact_person} onChange={handleChange}
+                  placeholder="Name der Kontaktperson"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none" />
               </div>
 

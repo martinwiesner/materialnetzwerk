@@ -69,7 +69,10 @@ function MapController({ selected, invalidateKey, entities, search }) {
     const lat = Number(selected.location.lat);
     const lon = Number(selected.location.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-    map.flyTo([lat, lon], Math.max(map.getZoom(), 13), { animate: true, duration: 0.6 });
+    try {
+      const zoom = map.getZoom();
+      map.flyTo([lat, lon], Number.isFinite(zoom) ? Math.max(zoom, 13) : 13, { animate: true, duration: 0.6 });
+    } catch (_) {}
   }, [selected?.id, map]);
 
   // Re-validate after overlay interactions (overlays can shift the map container)

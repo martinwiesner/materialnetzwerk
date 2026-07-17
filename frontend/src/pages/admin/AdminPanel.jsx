@@ -51,6 +51,49 @@ function FieldCard({ title, description, children }) {
 
 // ── Field: plain textarea ──────────────────────────────────────────────────────
 
+function InputField({ label, settingKey, currentValue, hint, type = 'text', placeholder = '' }) {
+  const [val, setVal] = useState(currentValue ?? '');
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const update = useUpdateSetting();
+
+  async function handleSave() {
+    setSaved(false); setSaveError('');
+    try {
+      await update.mutateAsync({ key: settingKey, value: val });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setSaveError('Fehler beim Speichern');
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      {label && <label className="block text-xs font-medium text-gray-700">{label}</label>}
+      {hint && <p className="text-[11px] text-gray-400 leading-snug">{hint}</p>}
+      <input
+        type={type}
+        value={val}
+        placeholder={placeholder}
+        onChange={(e) => { setVal(e.target.value); setSaved(false); }}
+        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 font-mono focus:outline-none focus:ring-2 focus:ring-primary-300"
+      />
+      <div className="flex items-center justify-between">
+        <SaveButton saving={update.isPending} saved={saved} error={saveError} />
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={update.isPending}
+          className="px-3 py-1.5 bg-gray-900 text-white text-xs font-semibold rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors"
+        >
+          Speichern
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TextField({ label, settingKey, currentValue, hint }) {
   const [val, setVal] = useState(currentValue ?? '');
   const [saved, setSaved] = useState(false);
@@ -402,6 +445,47 @@ export default function AdminPanel() {
             currentValue={settings?.agb_html ?? ''}
             hint="Wird als HTML gerendert. Leer lassen = eingebauter Standardtext wird gezeigt. Unterstützte Tags: <p>, <strong>, <em>, <ul>, <li>, <a href='…'>."
             rows={12}
+          />
+        </FieldCard>
+      </section>
+
+      {/* ── Integrationen ──────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 border-b border-gray-100 pb-2">
+          Integrationen — OpenProject
+        </h2>
+        <p className="text-xs text-gray-500 leading-relaxed">
+          Wenn ein API-Key eingetragen ist, können Nutzer Verbesserungsvorschläge direkt als Work Packages in OpenProject anlegen.
+          Leer lassen um die Funktion zu deaktivieren.
+        </p>
+        <FieldCard title="API-Key" description="Persönlicher API-Key aus OpenProject (Mein Konto → API-Zugriffsschlüssel)">
+          <InputField
+            settingKey="openproject_api_key"
+            currentValue={settings?.openproject_api_key}
+            type="password"
+            placeholder="Leer lassen = Funktion deaktiviert"
+            hint="Wird sicher in der Datenbank gespeichert. Nicht im Code oder in .env-Dateien nötig."
+          />
+        </FieldCard>
+        <FieldCard title="OpenProject URL" description="Basis-URL deiner OpenProject-Instanz">
+          <InputField
+            settingKey="openproject_url"
+            currentValue={settings?.openproject_url}
+            placeholder="https://openproject.example.com"
+          />
+        </FieldCard>
+        <FieldCard title="Projekt-ID" description="Numerische ID des Zielprojekts in OpenProject">
+          <InputField
+            settingKey="openproject_project_id"
+            currentValue={settings?.openproject_project_id}
+            placeholder="z.B. 3"
+          />
+        </FieldCard>
+        <FieldCard title="Work-Package-Typ ID" description="ID des Work-Package-Typs (z.B. Feature, Bug)">
+          <InputField
+            settingKey="openproject_type_id"
+            currentValue={settings?.openproject_type_id}
+            placeholder="z.B. 1"
           />
         </FieldCard>
       </section>
