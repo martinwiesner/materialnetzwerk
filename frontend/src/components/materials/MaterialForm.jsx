@@ -470,88 +470,108 @@ const KI_FIELD_LABELS = {
 // Unified KI drop zone — accepts PDF, DOCX and images in one area
 function KiDropZone({ onApply, onImages }) {
   const [dragOver, setDragOver] = useState(null); // null | 'img' | 'doc'
-  const [status, setStatus]     = useState('idle'); // idle | loading | preview | error
-  const [extracted, setExtracted]   = useState(null);
-  const [confidence, setConfidence] = useState(null);
-  const [selected, setSelected]     = useState({});
-  const [loadingMsg, setLoadingMsg] = useState('');
-  const [error, setError]           = useState('');
+
+  // Independent loading states — both can be true simultaneously
+  const [imgLoading, _setImgLoading] = useState(false);
+  const [imgError,   setImgError]    = useState('');
+  const [imgMsg,     setImgMsg]      = useState('');
+  const [docLoading, _setDocLoading] = useState(false);
+  const [docError,   setDocError]    = useState('');
+
+  // Refs for current-value access inside async callbacks (avoids stale closure)
+  const imgLoadingRef = useRef(false);
+  const docLoadingRef = useRef(false);
+  const imgResultRef  = useRef(null); // latest image analysis data
+  const docResultRef  = useRef(null); // latest doc analysis { data, confidence }
+
+  const setImgLoading = (v) => { imgLoadingRef.current = v; _setImgLoading(v); };
+  const setDocLoading = (v) => { docLoadingRef.current = v; _setDocLoading(v); };
+
+  // Preview state
+  const [status,        setStatus]       = useState('idle'); // 'idle' | 'preview'
+  const [extracted,     setExtracted]    = useState(null);
+  const [confidence,    setConfidence]   = useState(null);
+  const [selected,      setSelected]     = useState({});
+  const [previewSource, setPreviewSource] = useState(null); // 'image' | 'doc' | 'merged'
+
   const imgInputRef = useRef(null);
   const docInputRef = useRef(null);
 
   const isImage = (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif|gif)$/i.test(f.name);
   const isDoc   = (f) => /\.(pdf|docx)$/i.test(f.name) || f.type === 'application/pdf' || f.type.includes('wordprocessingml');
 
-  const processFiles = async (files) => {
-    const docFiles   = files.filter(isDoc);
-    const imageFiles = files.filter(isImage);
+  // Merge accumulated results and display — called after each analysis finishes
+  const tryShowPreview = () => {
+    if (imgLoadingRef.current || docLoadingRef.current) return; // still waiting for the other
+    const imgData   = imgResultRef.current;
+    const docResult = docResultRef.current;
+    if (!imgData && !docResult) return;
 
-    // Always add images to the gallery immediately
-    if (imageFiles.length > 0 && onImages) onImages(imageFiles);
-
-    if (docFiles.length > 0 && imageFiles.length > 0) {
-      // PDF + images: run both in parallel, merge — PDF facts win, images add what's missing
-      setStatus('loading');
-      setLoadingMsg('Dokument & Bilder werden analysiert…');
-      setError('');
-      try {
-        const [docRes, imgRes] = await Promise.all([
-          parseDocumentForMaterial(docFiles[0]),
-          analyzeImages(imageFiles, 'material'),
-        ]);
-        const merged = { ...(imgRes.data || {}), ...(docRes.data || {}) };
-        showPreview(merged, docRes.confidence);
-      } catch (e) {
-        setError(e?.response?.data?.message || 'Analyse fehlgeschlagen');
-        setStatus('error');
-      }
-    } else if (docFiles.length > 0) {
-      await runDocAnalysis(docFiles[0]);
-    } else if (imageFiles.length > 0) {
-      await runImageAnalysis(imageFiles);
+    let data, source, conf;
+    if (imgData && docResult) {
+      data   = { ...imgData, ...docResult.data }; // doc wins on conflict
+      source = 'merged';
+      conf   = docResult.confidence;
+    } else if (docResult) {
+      data = docResult.data; source = 'doc'; conf = docResult.confidence;
     } else {
-      setError('Bitte PDF, DOCX oder Bilder (JPG, PNG, WEBP) ablegen.');
-      setStatus('error');
+      data = imgData; source = 'image'; conf = null;
     }
-  };
 
-  const runDocAnalysis = async (file) => {
-    setStatus('loading');
-    setLoadingMsg('Dokument wird gelesen und analysiert…');
-    setError('');
-    try {
-      const result = await parseDocumentForMaterial(file);
-      showPreview(result.data || {}, result.confidence);
-    } catch (e) {
-      setError(e?.response?.data?.message || 'Dokument-Analyse fehlgeschlagen');
-      setStatus('error');
-    }
-  };
-
-  const runImageAnalysis = async (files) => {
-    setStatus('loading');
-    setLoadingMsg(`${files.length > 1 ? files.length + ' Bilder werden' : 'Bild wird'} analysiert…`);
-    setError('');
-    try {
-      const result = await analyzeImages(files, 'material');
-      showPreview(result.data || {}, null);
-    } catch (e) {
-      setError(e?.response?.data?.message || 'Bildanalyse fehlgeschlagen');
-      setStatus('error');
-    }
-  };
-
-  const showPreview = (data, conf) => {
-    setExtracted(data);
-    setConfidence(conf || null);
     const init = {};
     Object.keys(data).forEach(k => {
       if (!KI_FIELD_LABELS[k]) return;
       if (Array.isArray(data[k]) && data[k].length === 0) return;
       init[k] = true;
     });
+    setExtracted(data);
+    setConfidence(conf || null);
     setSelected(init);
+    setPreviewSource(source);
     setStatus('preview');
+  };
+
+  const runImageAnalysis = async (files) => {
+    if (files.length > 0 && onImages) onImages(files);
+    setImgError('');
+    setImgMsg(`${files.length > 1 ? files.length + ' Bilder werden' : 'Bild wird'} analysiert…`);
+    setImgLoading(true);
+    imgResultRef.current = null;
+    try {
+      const result = await analyzeImages(files, 'material');
+      imgResultRef.current = result.data || {};
+    } catch (e) {
+      setImgError(e?.response?.data?.message || 'Bildanalyse fehlgeschlagen');
+    } finally {
+      setImgLoading(false);
+      tryShowPreview();
+    }
+  };
+
+  const runDocAnalysis = async (file) => {
+    setDocError('');
+    setDocLoading(true);
+    docResultRef.current = null;
+    // Close image-only preview so we can re-show merged result when doc finishes
+    setStatus(s => s === 'preview' ? 'idle' : s);
+    try {
+      const result = await parseDocumentForMaterial(file);
+      docResultRef.current = { data: result.data || {}, confidence: result.confidence };
+    } catch (e) {
+      setDocError(e?.response?.data?.message || 'Dokument-Analyse fehlgeschlagen');
+    } finally {
+      setDocLoading(false);
+      tryShowPreview();
+    }
+  };
+
+  const processFiles = (files) => {
+    const imgFiles = files.filter(isImage);
+    const docFiles = files.filter(isDoc);
+    if (imgFiles.length > 0) runImageAnalysis(imgFiles);
+    if (docFiles.length > 0) runDocAnalysis(docFiles[0]);
+    if (imgFiles.length === 0 && docFiles.length === 0)
+      setDocError('Bitte Bilder oder Dokumente (PDF, DOCX) ablegen.');
   };
 
   const handleApply = () => {
@@ -568,10 +588,58 @@ function KiDropZone({ onApply, onImages }) {
     setExtracted(null);
     setConfidence(null);
     setSelected({});
-    setError('');
+    setPreviewSource(null);
+    setImgError('');
+    setDocError('');
+    imgResultRef.current = null;
+    docResultRef.current = null;
   };
 
   const toggleAll = (val) => setSelected(prev => Object.fromEntries(Object.keys(prev).map(k => [k, val])));
+
+  // ── Doc zone (reused in both preview and idle states) ──────────────────────
+  const DocZone = (
+    <div
+      onDragOver={e => { e.preventDefault(); setDragOver('doc'); }}
+      onDragLeave={() => setDragOver(null)}
+      onDrop={e => { e.preventDefault(); setDragOver(null); if (!docLoading) processFiles(Array.from(e.dataTransfer.files)); }}
+      onClick={() => !docLoading && docInputRef.current?.click()}
+      className={`flex items-center gap-3 px-4 py-3 border border-dashed rounded-xl transition-all select-none
+        ${docLoading
+          ? 'border-gray-200 cursor-default'
+          : dragOver === 'doc'
+            ? 'border-gray-400 bg-gray-50 scale-[1.005] cursor-pointer'
+            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 cursor-pointer'}`}
+    >
+      {docLoading ? (
+        <>
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0 text-gray-400" />
+          <span className="text-[11px] text-gray-500">Dokument wird analysiert…</span>
+        </>
+      ) : (
+        <>
+          <FileText className={`w-5 h-5 flex-shrink-0 ${dragOver === 'doc' ? 'text-gray-500' : 'text-gray-300'}`} />
+          {docError ? (
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-[11px] text-red-500 flex-1 truncate">{docError}</span>
+              <button type="button" onClick={e => { e.stopPropagation(); setDocError(''); }}
+                className="text-red-400 hover:text-red-600 flex-shrink-0 text-xs">✕</button>
+            </div>
+          ) : (
+            <p className="text-[11px] text-gray-400 leading-snug">
+              {dragOver === 'doc'
+                ? 'Loslassen zum Analysieren'
+                : 'Hast du neben Bildern auch Dokumente mit Daten? Auch die kannst du hier reindroppen'}
+            </p>
+          )}
+        </>
+      )}
+      <input ref={docInputRef} type="file" disabled={docLoading}
+        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        className="hidden"
+        onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) processFiles(fs); e.target.value = ''; }} />
+    </div>
+  );
 
   // ── Preview state ──────────────────────────────────────────────────────────
   if (status === 'preview' && extracted) {
@@ -579,89 +647,99 @@ function KiDropZone({ onApply, onImages }) {
     const checkedCount = Object.values(selected).filter(Boolean).length;
     const totalCount   = fields.length;
     const confStyle    = CONF_STYLE[confidence?.overall] || CONF_STYLE.medium;
+    const sourceLabel  = previewSource === 'merged' ? 'Bild + Dok. gemergt'
+      : previewSource === 'doc' ? 'aus Dokument' : 'aus Bildanalyse';
 
     return (
-      <div className="border border-violet-200 rounded-xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 bg-violet-100/60 border-b border-violet-200">
-          <div className="flex items-center gap-2 flex-wrap">
-            <CheckCircle2 className="w-4 h-4 text-violet-600 flex-shrink-0" />
-            <span className="text-xs font-semibold text-violet-800">{totalCount} Felder erkannt</span>
-            {confidence && (
-              <span className={`text-[10px] font-medium ${confStyle.text}`}>
-                · Konfidenz {confStyle.label}{confidence.score != null ? ` ${confidence.score}/100` : ''}
+      <div className="space-y-2">
+        <div className="border border-violet-200 rounded-xl overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-3 py-2 bg-violet-100/60 border-b border-violet-200">
+            <div className="flex items-center gap-2 flex-wrap">
+              <CheckCircle2 className="w-4 h-4 text-violet-600 flex-shrink-0" />
+              <span className="text-xs font-semibold text-violet-800">{totalCount} Felder erkannt</span>
+              <span className="text-[10px] font-medium text-violet-500 bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-full">
+                {sourceLabel}
               </span>
-            )}
+              {confidence && (
+                <span className={`text-[10px] font-medium ${confStyle.text}`}>
+                  · Konfidenz {confStyle.label}{confidence.score != null ? ` ${confidence.score}/100` : ''}
+                </span>
+              )}
+            </div>
+            <button type="button" onClick={reset} className="text-gray-400 hover:text-gray-600 text-xs ml-2">✕</button>
           </div>
-          <button type="button" onClick={reset} className="text-gray-400 hover:text-gray-600 text-xs ml-2">✕</button>
+
+          {confidence?.summary && (
+            <p className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 text-[10px] text-gray-500 italic leading-snug">
+              {confidence.summary}
+            </p>
+          )}
+
+          {/* Fields */}
+          <div className="px-3 py-2">
+            <div className="flex items-center gap-3 mb-1.5">
+              <span className="text-[11px] text-gray-500">{checkedCount}/{totalCount} ausgewählt</span>
+              <button type="button" onClick={() => toggleAll(true)}  className="text-[11px] text-violet-600 hover:underline">Alle</button>
+              <button type="button" onClick={() => toggleAll(false)} className="text-[11px] text-gray-400 hover:underline">Keine</button>
+            </div>
+
+            <div className="space-y-0.5 max-h-52 overflow-y-auto pr-1">
+              {fields.map(k => {
+                const val     = extracted[k];
+                const display = Array.isArray(val) ? val.join(', ') : String(val);
+                return (
+                  <label key={k} className="flex items-start gap-1.5 cursor-pointer py-0.5">
+                    <input type="checkbox" checked={!!selected[k]}
+                      onChange={() => setSelected(p => ({ ...p, [k]: !p[k] }))}
+                      className="mt-0.5 w-3.5 h-3.5 text-violet-600 border-gray-300 rounded flex-shrink-0" />
+                    <span className="text-[11px] text-gray-500 leading-tight flex-shrink-0 min-w-[140px]">
+                      {KI_FIELD_LABELS[k]}
+                    </span>
+                    <span className="text-[11px] font-medium text-gray-800 leading-tight truncate" title={display}>
+                      {display}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-2 mt-3">
+              <button type="button" onClick={handleApply} disabled={checkedCount === 0}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-lg text-xs font-medium hover:bg-violet-700 disabled:opacity-40 transition-colors">
+                <Check className="w-3.5 h-3.5" />
+                {checkedCount} Felder übernehmen
+              </button>
+              <button type="button" onClick={reset}
+                className="px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50 transition-colors">
+                Abbrechen
+              </button>
+            </div>
+          </div>
         </div>
 
-        {confidence?.summary && (
-          <p className="px-3 py-1.5 bg-gray-50 border-b border-gray-100 text-[10px] text-gray-500 italic leading-snug">
-            {confidence.summary}
-          </p>
-        )}
-
-        {/* Fields */}
-        <div className="px-3 py-2">
-          <div className="flex items-center gap-3 mb-1.5">
-            <span className="text-[11px] text-gray-500">{checkedCount}/{totalCount} ausgewählt</span>
-            <button type="button" onClick={() => toggleAll(true)}  className="text-[11px] text-violet-600 hover:underline">Alle</button>
-            <button type="button" onClick={() => toggleAll(false)} className="text-[11px] text-gray-400 hover:underline">Keine</button>
-          </div>
-
-          <div className="space-y-0.5 max-h-52 overflow-y-auto pr-1">
-            {fields.map(k => {
-              const val     = extracted[k];
-              const display = Array.isArray(val) ? val.join(', ') : String(val);
-              return (
-                <label key={k} className="flex items-start gap-1.5 cursor-pointer py-0.5">
-                  <input type="checkbox" checked={!!selected[k]}
-                    onChange={() => setSelected(p => ({ ...p, [k]: !p[k] }))}
-                    className="mt-0.5 w-3.5 h-3.5 text-violet-600 border-gray-300 rounded flex-shrink-0" />
-                  <span className="text-[11px] text-gray-500 leading-tight flex-shrink-0 min-w-[140px]">
-                    {KI_FIELD_LABELS[k]}
-                  </span>
-                  <span className="text-[11px] font-medium text-gray-800 leading-tight truncate" title={display}>
-                    {display}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-
-          <div className="flex gap-2 mt-3">
-            <button type="button" onClick={handleApply} disabled={checkedCount === 0}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-violet-600 text-white rounded-lg text-xs font-medium hover:bg-violet-700 disabled:opacity-40 transition-colors">
-              <Check className="w-3.5 h-3.5" />
-              {checkedCount} Felder übernehmen
-            </button>
-            <button type="button" onClick={reset}
-              className="px-3 py-2 border border-gray-200 text-gray-500 rounded-lg text-xs hover:bg-gray-50 transition-colors">
-              Abbrechen
-            </button>
-          </div>
-        </div>
+        {/* Doc zone stays available below preview when only images were analyzed */}
+        {previewSource === 'image' && DocZone}
       </div>
     );
   }
 
-  // ── Idle / loading / error state ───────────────────────────────────────────
+  // ── Idle / loading state ───────────────────────────────────────────────────
   return (
     <div className="space-y-2">
-      {/* Image zone — replaced by spinner while loading */}
-      {status === 'loading' ? (
+      {/* Image zone — spinner while loading, drop zone otherwise */}
+      {imgLoading ? (
         <div className="flex items-center gap-2.5 px-3 py-3 border border-violet-200 rounded-xl bg-violet-50/50 text-xs text-violet-700">
           <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
-          <span className="font-medium">{loadingMsg}</span>
+          <span className="font-medium">{imgMsg}</span>
         </div>
       ) : (
         <>
-          {status === 'error' && (
+          {imgError && (
             <div className="flex items-start gap-2 px-3 py-2.5 border border-red-200 rounded-xl bg-red-50 text-xs text-red-700">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>{error}</span>
-              <button type="button" onClick={reset} className="ml-auto text-red-400 hover:text-red-600 flex-shrink-0">✕</button>
+              <span>{imgError}</span>
+              <button type="button" onClick={() => setImgError('')} className="ml-auto text-red-400 hover:text-red-600 flex-shrink-0">✕</button>
             </div>
           )}
           <div
@@ -679,55 +757,16 @@ function KiDropZone({ onApply, onImages }) {
               <p className={`text-sm font-semibold ${dragOver === 'img' ? 'text-violet-700' : 'text-violet-600'}`}>
                 {dragOver === 'img' ? 'Loslassen zum Analysieren' : 'Mit KI ausfüllen'}
               </p>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                Bild(er) hochladen → Felder werden vorausgefüllt
-              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Bild(er) hochladen → Felder werden vorausgefüllt</p>
             </div>
-            <input
-              ref={imgInputRef}
-              type="file"
-              multiple
-              accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*"
-              className="hidden"
-              onChange={e => {
-                const files = Array.from(e.target.files || []);
-                if (files.length) processFiles(files);
-                e.target.value = '';
-              }}
-            />
+            <input ref={imgInputRef} type="file" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*" className="hidden"
+              onChange={e => { const fs = Array.from(e.target.files || []); if (fs.length) processFiles(fs); e.target.value = ''; }} />
           </div>
         </>
       )}
 
-      {/* Document zone — always visible and usable */}
-      <div
-        onDragOver={e => { e.preventDefault(); setDragOver('doc'); }}
-        onDragLeave={() => setDragOver(null)}
-        onDrop={e => { e.preventDefault(); setDragOver(null); processFiles(Array.from(e.dataTransfer.files)); }}
-        onClick={() => docInputRef.current?.click()}
-        className={`flex items-center gap-3 px-4 py-3 border border-dashed rounded-xl cursor-pointer transition-all select-none
-          ${dragOver === 'doc'
-            ? 'border-gray-400 bg-gray-50 scale-[1.005]'
-            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'}`}
-      >
-        <FileText className={`w-5 h-5 flex-shrink-0 ${dragOver === 'doc' ? 'text-gray-500' : 'text-gray-300'}`} />
-        <p className="text-[11px] text-gray-400 leading-snug">
-          {dragOver === 'doc'
-            ? 'Loslassen zum Analysieren'
-            : 'Hast du neben Bildern auch Dokumente mit Daten? Auch die kannst du hier reindroppen'}
-        </p>
-        <input
-          ref={docInputRef}
-          type="file"
-          accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          className="hidden"
-          onChange={e => {
-            const files = Array.from(e.target.files || []);
-            if (files.length) processFiles(files);
-            e.target.value = '';
-          }}
-        />
-      </div>
+      {/* Doc zone — always visible, shows inline spinner when processing */}
+      {DocZone}
     </div>
   );
 }
