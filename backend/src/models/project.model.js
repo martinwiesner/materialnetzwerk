@@ -30,7 +30,7 @@ const Project = {
     project.files  = db.prepare('SELECT * FROM project_files  WHERE project_id = ? ORDER BY created_at ASC').all(id);
     project.materials = db.prepare(`
       SELECT pm.*, m.name as material_name, m.category,
-        m.gwp_value, m.gwp_unit, m.unit,
+        m.gwp_value, m.gwp_unit, m.unit as lib_unit,
         m.gwp_fossil, m.gwp_biogenic, m.gwp_luluc,
         m.adp_fossil, m.adp_elements, m.water_consumption,
         m.declared_unit, m.lifecycle_scope,

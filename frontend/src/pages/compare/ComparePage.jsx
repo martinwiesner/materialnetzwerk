@@ -114,7 +114,9 @@ function libMatToEpdEntry(m) {
   addInd('PERE',           'pere',              'MJ');
   addInd('PENRE',          'penre',             'MJ');
   const gwpDenominator = m.gwp_unit?.split('/')?.[1]?.trim() || null;
-  const declaredUnit   = m.declared_unit || gwpDenominator || 'kg';
+  // gwpDenominator (Einheit aus dem Bruch, z.B. 'unit', 'kg', 't') hat Vorrang vor
+  // declared_unit, damit epdUnitConv für 'unit'-Mengen korrekt 1:1 multipliziert.
+  const declaredUnit   = gwpDenominator || m.declared_unit || 'kg';
   return {
     uuid: `lib-${m.material_id || m.id}`,
     name: m.material_name || m.name || 'Material',
