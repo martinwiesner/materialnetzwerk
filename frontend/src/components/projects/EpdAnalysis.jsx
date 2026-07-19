@@ -510,7 +510,7 @@ export function EpdFullAnalysis({ selected }) {
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
               <span>
                 <strong>{epd.name}</strong>: Einheit <strong>{epd.unit}</strong> weicht von EPD-Bezugsgröße <strong>{epd.declaredUnit}</strong> ab —
-                die Menge {Number(epd.quantity) || 1} wird direkt mit dem EPD-Wert multipliziert. Bitte Menge in <strong>{epd.declaredUnit}</strong> angeben (Projekt bearbeiten → Ökobaudat-Abschnitt).
+                die Menge wird automatisch umgerechnet. Für eine klare Eingabe bitte Menge direkt in <strong>{epd.declaredUnit}</strong> angeben (Projekt bearbeiten → Materialien &amp; Mengen → Einheit ändern).
               </span>
             </div>
           ))}

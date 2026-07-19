@@ -294,7 +294,7 @@ function OekobaudatLcaSection({ project }) {
       {/* Material list — library materials + EPD materials */}
       <div className="space-y-2 mb-5">
         {allMaterials.map(epd => {
-          const qty     = Number(epd.quantity) || 1;
+          const qty     = epdGetQty(epd);
           const gwpA1A3 = epd.gwpA1A3 != null ? epd.gwpA1A3 * qty : null;
           const isLib   = !!epd.isLibraryMaterial;
           return (
@@ -563,8 +563,11 @@ function IdematLcaSection({ project }) {
 function computeContributions(materials, valueField, effectiveField) {
   return (materials || [])
     .map(m => {
+      const gwpDenominator = m.gwp_unit?.split('/')?.[1]?.trim() || null;
+      const declaredUnit   = m.declared_unit || gwpDenominator || 'kg';
+      const conv = epdUnitConv(m.unit || declaredUnit, declaredUnit);
       const val = effectiveField ? m[effectiveField] : m[valueField];
-      const contrib = val != null ? Number(m.quantity || 0) * Number(val) : null;
+      const contrib = val != null ? Number(m.quantity || 0) * conv * Number(val) : null;
       return { ...m, _contrib: contrib };
     })
     .filter(m => m._contrib != null && m._contrib !== 0)
@@ -1028,8 +1031,11 @@ export default function ProjectDetail() {
               <div className="space-y-2">
                 {project.materials.map((material) => {
                   const effGwp = material.effective_gwp_value ?? material.gwp_value;
+                  const gwpDen = material.gwp_unit?.split('/')?.[1]?.trim() || null;
+                  const decU   = material.declared_unit || gwpDen || 'kg';
+                  const conv   = epdUnitConv(material.unit || decU, decU);
                   const contrib = effGwp != null && material.quantity != null
-                    ? Number(material.quantity) * Number(effGwp)
+                    ? Number(material.quantity) * conv * Number(effGwp)
                     : null;
                   return (
                     <div
