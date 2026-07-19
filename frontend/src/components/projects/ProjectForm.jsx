@@ -634,6 +634,10 @@ export default function ProjectForm({ project, onClose }) {
     principles_consistency: JSON.stringify(formData.principles_consistency || []),
     principles_efficiency: JSON.stringify(formData.principles_efficiency || []),
     general_sustainability_principles: JSON.stringify(formData.general_sustainability_principles || []),
+    materials: (formData.materials || []).map(m => ({
+      ...m,
+      quantity: (() => { const p = parseFloat(String(m.quantity ?? '').replace(',', '.')); return isNaN(p) ? 1 : p; })(),
+    })),
     steps: formData.steps?.length ? formData.steps : null,
     references: formData.references?.length ? formData.references : null,
     oekodat_materials: formData.oekodat_materials?.length ? formData.oekodat_materials : null,
@@ -1093,8 +1097,12 @@ export default function ProjectForm({ project, onClose }) {
                                 <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
                               ))}
                             </select>
-                            <input type="number" step="any" min="0" value={mat.quantity}
-                              onChange={(e) => updateMaterial(i, 'quantity', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                            <input type="text" inputMode="decimal" value={mat.quantity ?? ''}
+                              onChange={(e) => updateMaterial(i, 'quantity', e.target.value)}
+                              onBlur={(e) => {
+                                const parsed = parseFloat(String(e.target.value).replace(',', '.'));
+                                updateMaterial(i, 'quantity', isNaN(parsed) ? '' : parsed);
+                              }}
                               placeholder={t('common.quantity')}
                               className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ${unitMismatch ? 'border-amber-400 bg-amber-50' : 'border-gray-300'}`} />
                             <input type="text" value={mat.unit} onChange={(e) => updateMaterial(i, 'unit', e.target.value)}

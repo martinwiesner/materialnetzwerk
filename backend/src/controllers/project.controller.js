@@ -89,7 +89,8 @@ export const createProject = (req, res) => {
     if (materials && Array.isArray(materials)) {
       for (const mat of materials) {
         if (mat.material_id) {
-          Project.addMaterial(project.id, mat.material_id, mat.quantity || 1, mat.unit || null);
+          const qty = parseFloat(String(mat.quantity ?? '').replace(',', '.'));
+          Project.addMaterial(project.id, mat.material_id, isNaN(qty) ? 1 : qty, mat.unit || null);
         }
       }
     }
@@ -127,7 +128,8 @@ export const updateProject = (req, res) => {
       }
       for (const mat of materials) {
         if (mat.material_id) {
-          Project.addMaterial(req.params.id, mat.material_id, mat.quantity || 1, mat.unit || null);
+          const qty = parseFloat(String(mat.quantity ?? '').replace(',', '.'));
+          Project.addMaterial(req.params.id, mat.material_id, isNaN(qty) ? 1 : qty, mat.unit || null);
         }
       }
     }
