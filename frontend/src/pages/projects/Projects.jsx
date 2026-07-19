@@ -92,9 +92,14 @@ export default function Projects() {
     }
   };
 
-  const handleEdit = (project) => {
+  const handleEdit = async (project) => {
     if (!requireAuth()) return;
-    setEditingProject(project);
+    try {
+      const full = await projectService.getById(project.id);
+      setEditingProject(full);
+    } catch {
+      setEditingProject(project);
+    }
     setShowForm(true);
   };
 

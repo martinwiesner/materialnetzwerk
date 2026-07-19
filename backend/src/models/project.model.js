@@ -68,7 +68,7 @@ const Project = {
     if (filters.search) { query += ' AND (name LIKE ? OR description LIKE ?)'; params.push(`%${filters.search}%`,`%${filters.search}%`); }
     query += ' ORDER BY p.created_at DESC';
     const rows = db.prepare(query).all(...params);
-    const matQ = db.prepare('SELECT material_id FROM project_materials WHERE project_id = ?');
+    const matQ = db.prepare('SELECT material_id, quantity, unit FROM project_materials WHERE project_id = ?');
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 
@@ -86,7 +86,7 @@ const Project = {
     query += ' ORDER BY p.created_at DESC';
     if (filters.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
     const rows = db.prepare(query).all(...params);
-    const matQ = db.prepare('SELECT material_id FROM project_materials WHERE project_id = ?');
+    const matQ = db.prepare('SELECT material_id, quantity, unit FROM project_materials WHERE project_id = ?');
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 
@@ -107,7 +107,7 @@ const Project = {
     query += ' ORDER BY p.created_at DESC';
     if (filters.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
     const rows = db.prepare(query).all(...params);
-    const matQ = db.prepare('SELECT material_id FROM project_materials WHERE project_id = ?');
+    const matQ = db.prepare('SELECT material_id, quantity, unit FROM project_materials WHERE project_id = ?');
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 
@@ -124,7 +124,7 @@ const Project = {
     query += ' ORDER BY p.created_at DESC';
     if (filters.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
     const rows = db.prepare(query).all(...params);
-    const matQ = db.prepare('SELECT material_id FROM project_materials WHERE project_id = ?');
+    const matQ = db.prepare('SELECT material_id, quantity, unit FROM project_materials WHERE project_id = ?');
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 
