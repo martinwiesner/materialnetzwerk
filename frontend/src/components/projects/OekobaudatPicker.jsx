@@ -453,11 +453,14 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
           <div className="flex items-center gap-2 pt-1 flex-wrap">
             <span className="text-xs text-gray-500 whitespace-nowrap">Menge:</span>
             <input
-              type="number"
-              step="any"
-              min="0"
+              type="text"
+              inputMode="decimal"
               value={qty}
-              onChange={e => onChange({ ...epd, quantity: e.target.value === '' ? '' : parseFloat(e.target.value) })}
+              onChange={e => onChange({ ...epd, quantity: e.target.value })}
+              onBlur={e => {
+                const parsed = parseFloat(String(e.target.value).replace(',', '.'));
+                onChange({ ...epd, quantity: isNaN(parsed) ? (epd.quantity ?? 1) : parsed });
+              }}
               className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
             />
             <input
@@ -480,11 +483,14 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-gray-500 whitespace-nowrap">Unsicherheit ×</span>
             <input
-              type="number"
-              step="any"
-              min="0"
+              type="text"
+              inputMode="decimal"
               value={uf}
-              onChange={e => onChange({ ...epd, uncertainty_factor: e.target.value === '' ? 1 : parseFloat(e.target.value) })}
+              onChange={e => onChange({ ...epd, uncertainty_factor: e.target.value })}
+              onBlur={e => {
+                const parsed = parseFloat(String(e.target.value).replace(',', '.'));
+                onChange({ ...epd, uncertainty_factor: isNaN(parsed) ? 1 : parsed });
+              }}
               className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-400 outline-none bg-white"
             />
             <span className="text-[10px] text-gray-400">(1.0 = kein Aufschlag)</span>

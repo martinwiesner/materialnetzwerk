@@ -640,7 +640,13 @@ export default function ProjectForm({ project, onClose }) {
     })),
     steps: formData.steps?.length ? formData.steps : null,
     references: formData.references?.length ? formData.references : null,
-    oekodat_materials: formData.oekodat_materials?.length ? formData.oekodat_materials : null,
+    oekodat_materials: formData.oekodat_materials?.length
+      ? formData.oekodat_materials.map(e => ({
+          ...e,
+          quantity: (() => { const p = parseFloat(String(e.quantity ?? '').replace(',', '.')); return isNaN(p) ? (e.quantity ?? 1) : p; })(),
+          uncertainty_factor: (() => { const p = parseFloat(String(e.uncertainty_factor ?? '').replace(',', '.')); return isNaN(p) ? 1 : p; })(),
+        }))
+      : null,
     idemat_lca_items: formData.idemat_lca_items?.length ? formData.idemat_lca_items : null,
   });
 
