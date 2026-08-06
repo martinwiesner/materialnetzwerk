@@ -18,6 +18,8 @@ import { idematService } from '../../services/idematService';
 import { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
+import { useAuthStore } from '../../store/authStore';
+import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import InlineUserPicker from '../shared/InlineUserPicker';
 const API_BASE = MEDIA_BASE;
 
@@ -888,6 +890,507 @@ const initialFormState = {
   actor_members_can_edit: false,
 };
 
+// ── Offer accordion helpers ───────────────────────────────────────────────────
+const OFFER_TRANSACTION_OPTIONS = ['Verkauf', 'Vermietung', 'Leasing', 'Tausch', 'Kooperation'];
+const OFFER_LOGISTICS_OPTIONS = ['Selbstabholung', 'Lieferung möglich'];
+const OFFER_VALUE_TYPES = [
+  { value: '', label: 'Bitte wählen' },
+  { value: 'swap', label: 'Tausch' },
+  { value: 'free', label: 'Kostenlos' },
+  { value: 'loan', label: 'Leihe' },
+  { value: 'negotiable', label: 'Verhandelbar' },
+  { value: 'fixed', label: 'Festpreis' },
+];
+const OFFER_CONDITIONS = [
+  { value: '', label: 'Zustand wählen' },
+  { value: 'new', label: 'Neu' },
+  { value: 'used', label: 'Gebraucht' },
+  { value: 'damaged', label: 'Beschädigt' },
+  { value: 'tested', label: 'Geprüft' },
+];
+
+function OfferCheckboxGroup({ options, value = [], onChange }) {
+  const toggle = (opt) => {
+    const s = new Set(value);
+    s.has(opt) ? s.delete(opt) : s.add(opt);
+    onChange(Array.from(s));
+  };
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map(opt => (
+        <label key={opt} className={`flex items-center gap-1 px-2.5 py-1 rounded-full border cursor-pointer text-xs transition-colors
+          ${value.includes(opt) ? 'bg-primary-50 border-primary-400 text-primary-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+          <input type="checkbox" checked={value.includes(opt)} onChange={() => toggle(opt)} className="sr-only" />
+          {opt}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function OfferSectionTitle({ children }) {
+  return <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2 pb-1">{children}</p>;
+}
+
+const OFFER_BLANK = {
+  quantity: '', unit: 'kg', condition: '',
+  is_available: true, is_immediately_available: true, available_from_date: '',
+  min_order_quantity: '', is_regularly_available: false,
+  regular_availability_period: '', regular_availability_type: '',
+  season_from: '', season_to: '',
+  value_type: '', price: '', price_unit: '€', is_negotiable: false,
+  transaction_options: [], logistics_options: [], transport_costs: '', is_mobile: false,
+  availability_mode: 'negotiable', external_url: '', swap_possible: false, swap_against: '',
+  notes: '',
+  useMatLocation: true, location_name: '', address: '', latitude: '', longitude: '',
+};
+
+function offerFromRaw(o) {
+  let txOpts = o.transaction_options;
+  let logOpts = o.logistics_options;
+  try { txOpts = txOpts ? JSON.parse(txOpts) : []; } catch { txOpts = []; }
+  try { logOpts = logOpts ? JSON.parse(logOpts) : []; } catch { logOpts = []; }
+  const hasOwnGeo = o.latitude && o.longitude;
+  return {
+    quantity: o.quantity || '', unit: o.unit || 'kg', condition: o.condition || '',
+    is_available: o.is_available ?? true,
+    is_immediately_available: o.is_immediately_available ?? true,
+    available_from_date: o.available_from_date || '',
+    min_order_quantity: o.min_order_quantity || '',
+    is_regularly_available: Boolean(o.is_regularly_available),
+    regular_availability_period: o.regular_availability_period || '',
+    regular_availability_type: o.regular_availability_type || '',
+    season_from: o.season_from || '', season_to: o.season_to || '',
+    value_type: o.value_type || '', price: o.price || '', price_unit: o.price_unit || '€',
+    is_negotiable: Boolean(o.is_negotiable),
+    transaction_options: txOpts, logistics_options: logOpts,
+    transport_costs: o.transport_costs || '', is_mobile: Boolean(o.is_mobile),
+    availability_mode: o.availability_mode || 'negotiable',
+    external_url: o.external_url || '',
+    swap_possible: Boolean(o.swap_possible), swap_against: o.swap_against || '',
+    notes: o.notes || '',
+    useMatLocation: !hasOwnGeo,
+    location_name: o.location_name || '', address: o.address || '',
+    latitude: o.latitude || '', longitude: o.longitude || '',
+  };
+}
+
+function OfferFormFields({ d, upd, materialId, isNew = false }) {
+  return (
+    <div className="space-y-3">
+      {/* Menge + Einheit */}
+      <div className="flex gap-2">
+        <div className="flex-1">
+          <label className="block text-xs font-medium text-gray-700 mb-1">Menge *</label>
+          <input type="number" step="0.01" min="0" value={d.quantity}
+            onChange={e => upd({ quantity: e.target.value })}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+            placeholder="z.B. 50" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Einheit</label>
+          <select value={d.unit} onChange={e => upd({ unit: e.target.value })}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
+            {['kg','g','t','m','m²','m³','Stück','Liter'].map(u => <option key={u}>{u}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Zustand */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Zustand</label>
+        <select value={d.condition} onChange={e => upd({ condition: e.target.value })}
+          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
+          {OFFER_CONDITIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </div>
+
+      {/* Standort */}
+      <div>
+        <OfferSectionTitle>📍 Standort</OfferSectionTitle>
+        <label className="flex items-center gap-2 cursor-pointer mb-2">
+          <input type="checkbox" checked={d.useMatLocation}
+            onChange={e => upd({ useMatLocation: e.target.checked })}
+            className="w-4 h-4 rounded text-primary-500" />
+          <span className="text-sm text-gray-700">Gleicher Standort wie das Material</span>
+        </label>
+        {!d.useMatLocation && (
+          <LocationPicker
+            value={{ location_name: d.location_name, address: d.address, latitude: d.latitude, longitude: d.longitude }}
+            onChange={v => upd({ location_name: v.location_name ?? d.location_name, address: v.address ?? d.address, latitude: v.latitude, longitude: v.longitude })}
+          />
+        )}
+      </div>
+
+      {/* Verfügbarkeit */}
+      <div>
+        <OfferSectionTitle>📅 Verfügbarkeit</OfferSectionTitle>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={d.is_available}
+              onChange={e => upd({ is_available: e.target.checked })}
+              className="w-4 h-4 rounded text-primary-500" />
+            <span className="text-sm text-gray-700">Global verfügbar</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={d.is_immediately_available}
+              onChange={e => upd({ is_immediately_available: e.target.checked })}
+              className="w-4 h-4 rounded text-primary-500" />
+            <span className="text-sm text-gray-700">Sofort verfügbar</span>
+          </label>
+          {!d.is_immediately_available && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Verfügbar ab</label>
+              <input type="date" value={d.available_from_date}
+                onChange={e => upd({ available_from_date: e.target.value })}
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+            </div>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Mindestabnahmemenge</label>
+            <input type="number" step="0.01" value={d.min_order_quantity}
+              onChange={e => upd({ min_order_quantity: e.target.value })}
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+              placeholder="Optional" />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={d.is_regularly_available}
+              onChange={e => upd({ is_regularly_available: e.target.checked })}
+              className="w-4 h-4 rounded text-primary-500" />
+            <span className="text-sm text-gray-700">Regelmäßig verfügbar</span>
+          </label>
+          {d.is_regularly_available && (
+            <div className="pl-6 grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Zeitraum</label>
+                <input type="text" value={d.regular_availability_period}
+                  onChange={e => upd({ regular_availability_period: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  placeholder="z.B. Quartal 1" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Intervall</label>
+                <select value={d.regular_availability_type}
+                  onChange={e => upd({ regular_availability_type: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
+                  <option value="">Wählen</option>
+                  <option value="monthly">Monatlich</option>
+                  <option value="yearly">Jährlich</option>
+                </select>
+              </div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Saison von</label>
+              <input type="text" value={d.season_from}
+                onChange={e => upd({ season_from: e.target.value })}
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                placeholder="MM-TT" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Saison bis</label>
+              <input type="text" value={d.season_to}
+                onChange={e => upd({ season_to: e.target.value })}
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                placeholder="MM-TT" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Preisgestaltung */}
+      <div>
+        <OfferSectionTitle>💰 Preisgestaltung</OfferSectionTitle>
+        <div className="space-y-2">
+          <select value={d.value_type} onChange={e => upd({ value_type: e.target.value })}
+            className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none">
+            {OFFER_VALUE_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {d.value_type === 'fixed' && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Preis</label>
+                <input type="number" step="0.01" value={d.price}
+                  onChange={e => upd({ price: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Einheit</label>
+                <input type="text" value={d.price_unit}
+                  onChange={e => upd({ price_unit: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  placeholder="€" />
+              </div>
+            </div>
+          )}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={d.is_negotiable}
+              onChange={e => upd({ is_negotiable: e.target.checked })}
+              className="w-4 h-4 rounded text-primary-500" />
+            <span className="text-sm text-gray-700">Preis verhandelbar</span>
+          </label>
+        </div>
+      </div>
+
+      {/* Abwicklung */}
+      <div>
+        <OfferSectionTitle>🔄 Abwicklung</OfferSectionTitle>
+        <OfferCheckboxGroup options={OFFER_TRANSACTION_OPTIONS}
+          value={d.transaction_options}
+          onChange={v => upd({ transaction_options: v })} />
+      </div>
+
+      {/* Logistik */}
+      <div>
+        <OfferSectionTitle>🚚 Logistik</OfferSectionTitle>
+        <OfferCheckboxGroup options={OFFER_LOGISTICS_OPTIONS}
+          value={d.logistics_options}
+          onChange={v => upd({ logistics_options: v })} />
+        {d.logistics_options.includes('Lieferung möglich') && (
+          <div className="mt-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">Transportkosten</label>
+            <input type="text" value={d.transport_costs}
+              onChange={e => upd({ transport_costs: e.target.value })}
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+              placeholder="z.B. nach Vereinbarung" />
+          </div>
+        )}
+        <label className="flex items-center gap-2 cursor-pointer mt-2">
+          <input type="checkbox" checked={d.is_mobile}
+            onChange={e => upd({ is_mobile: e.target.checked })}
+            className="w-4 h-4 rounded text-primary-500" />
+          <span className="text-sm text-gray-700">Material ist mobil/transportierbar</span>
+        </label>
+      </div>
+
+      {/* Angebotsmodus */}
+      <div>
+        <OfferSectionTitle>📋 Angebotsmodus</OfferSectionTitle>
+        <div className="space-y-2">
+          {[{ value: 'negotiable', label: 'Auf Anfrage' }, { value: 'external', label: 'Externer Link' }].map(opt => (
+            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name={`avail_mode_${isNew ? 'new' : 'edit'}`}
+                value={opt.value} checked={d.availability_mode === opt.value}
+                onChange={() => upd({ availability_mode: opt.value })}
+                className="w-4 h-4 text-primary-500" />
+              <span className="text-sm text-gray-700">{opt.label}</span>
+            </label>
+          ))}
+          {d.availability_mode === 'external' && (
+            <input type="url" value={d.external_url}
+              onChange={e => upd({ external_url: e.target.value })}
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ml-6"
+              placeholder="https://…" />
+          )}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={d.swap_possible}
+              onChange={e => upd({ swap_possible: e.target.checked })}
+              className="w-4 h-4 rounded text-primary-500" />
+            <span className="text-sm text-gray-700">Tausch möglich</span>
+          </label>
+          {d.swap_possible && (
+            <input type="text" value={d.swap_against}
+              onChange={e => upd({ swap_against: e.target.value })}
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none ml-6"
+              placeholder="Tausch gegen…" />
+          )}
+        </div>
+      </div>
+
+      {/* Notizen */}
+      <div>
+        <label className="block text-xs font-medium text-gray-700 mb-1">Notizen</label>
+        <textarea rows={2} value={d.notes}
+          onChange={e => upd({ notes: e.target.value })}
+          className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
+          placeholder="Optionale Hinweise…" />
+      </div>
+    </div>
+  );
+}
+
+const NEW_OFFER_BLANK = { ...OFFER_BLANK };
+
+function OfferAvailabilitySection({ materialId }) {
+  const { isAuthenticated } = useAuthStore();
+  const openAuth = useAuthOverlayStore((s) => s.open);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['inventory', { material_id: materialId }],
+    queryFn: () => inventoryService.getAll({ material_id: materialId }),
+    enabled: !!materialId,
+  });
+  const offers = Array.isArray(data) ? data : (data?.data || []);
+
+  const [openId, setOpenId] = useState(null);
+  const [offerData, setOfferData] = useState({});
+  const [newOffer, setNewOffer] = useState({ ...NEW_OFFER_BLANK });
+
+  useEffect(() => {
+    offers.forEach(o => {
+      setOfferData(prev => {
+        if (prev[o.id]) return prev;
+        return { ...prev, [o.id]: offerFromRaw(o) };
+      });
+    });
+  }, [offers]);
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, is_available }) => inventoryService.update(id, { is_available }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }),
+  });
+
+  const saveDetailsMutation = useMutation({
+    mutationFn: ({ id, payload }) => inventoryService.update(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      setOpenId(null);
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (payload) => inventoryService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      setNewOffer({ ...NEW_OFFER_BLANK });
+      setOpenId(null);
+    },
+  });
+
+  const handleAddClick = () => {
+    if (!isAuthenticated) {
+      openAuth({ tab: 'login', reason: 'Bitte melde dich an, um ein Angebot für dieses Material zu erstellen.' });
+      return;
+    }
+    setOpenId(openId === 'new' ? null : 'new');
+  };
+
+  const buildPayload = (d) => ({
+    quantity: parseFloat(d.quantity),
+    unit: d.unit,
+    condition: d.condition,
+    is_available: d.is_available,
+    is_immediately_available: d.is_immediately_available,
+    available_from_date: d.available_from_date || null,
+    min_order_quantity: d.min_order_quantity ? parseFloat(d.min_order_quantity) : null,
+    is_regularly_available: d.is_regularly_available,
+    regular_availability_period: d.regular_availability_period,
+    regular_availability_type: d.regular_availability_type,
+    season_from: d.season_from, season_to: d.season_to,
+    value_type: d.value_type, price: d.price ? parseFloat(d.price) : null,
+    price_unit: d.price_unit, is_negotiable: d.is_negotiable,
+    transaction_options: JSON.stringify(d.transaction_options),
+    logistics_options: JSON.stringify(d.logistics_options),
+    transport_costs: d.transport_costs, is_mobile: d.is_mobile,
+    availability_mode: d.availability_mode, external_url: d.external_url,
+    swap_possible: d.swap_possible, swap_against: d.swap_against,
+    notes: d.notes,
+    latitude: d.useMatLocation ? null : (d.latitude ? parseFloat(d.latitude) : null),
+    longitude: d.useMatLocation ? null : (d.longitude ? parseFloat(d.longitude) : null),
+    location_name: d.useMatLocation ? '' : d.location_name,
+    address: d.useMatLocation ? '' : d.address,
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg overflow-hidden">
+      {/* Header row */}
+      <div className="px-3 py-2.5 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-amber-800 uppercase tracking-wide shrink-0">Angebote</span>
+
+        {offers.map(offer => {
+          const isOpen = openId === offer.id;
+          return (
+            <div key={offer.id} className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={toggleMutation.isPending}
+                onClick={() => toggleMutation.mutate({ id: offer.id, is_available: !(offer.is_available == 1) })}
+                title={offer.is_available == 1 ? 'Als abgeholt markieren' : 'Als verfügbar markieren'}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                  offer.is_available == 1
+                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200'
+                    : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                <span>{offer.is_available == 1 ? '✓' : '✗'}</span>
+                <span>{offer.quantity} {offer.unit}</span>
+                <span>{offer.is_available == 1 ? '· Verfügbar' : '· Abgeholt'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpenId(isOpen ? null : offer.id)}
+                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border transition-all ${
+                  isOpen ? 'bg-amber-200 border-amber-300 text-amber-900' : 'bg-white border-amber-200 text-amber-700 hover:bg-amber-100'
+                }`}
+              >
+                Detailangaben
+                <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
+          );
+        })}
+
+        <button
+          type="button"
+          onClick={handleAddClick}
+          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border transition-all ${
+            openId === 'new' ? 'bg-amber-200 border-amber-300 text-amber-900' : 'bg-white border-amber-200 text-amber-700 hover:bg-amber-100'
+          }`}
+        >
+          <Plus className="w-3 h-3" />
+          Angebot
+        </button>
+      </div>
+
+      {/* Existing offer accordions */}
+      {offers.map(offer => {
+        if (openId !== offer.id) return null;
+        const d = offerData[offer.id] || offerFromRaw(offer);
+        const upd = (patch) => setOfferData(prev => ({ ...prev, [offer.id]: { ...prev[offer.id], ...patch } }));
+        return (
+          <div key={`det-${offer.id}`} className="border-t border-amber-200 px-3 py-3 bg-white/70">
+            <OfferFormFields d={d} upd={upd} materialId={materialId} />
+            <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-amber-100">
+              <button type="button" onClick={() => setOpenId(null)}
+                className="px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                Abbrechen
+              </button>
+              <button type="button" disabled={saveDetailsMutation.isPending}
+                onClick={() => saveDetailsMutation.mutate({ id: offer.id, payload: buildPayload(d) })}
+                className="px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50">
+                {saveDetailsMutation.isPending ? 'Speichert…' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* New offer accordion */}
+      {openId === 'new' && (
+        <div className="border-t border-amber-200 px-3 py-3 bg-white/70">
+          <p className="text-xs font-semibold text-amber-800 mb-3">Neues Angebot</p>
+          <OfferFormFields d={newOffer} upd={(p) => setNewOffer(n => ({ ...n, ...p }))} materialId={materialId} isNew />
+          <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-amber-100">
+            <button type="button" onClick={() => { setOpenId(null); setNewOffer({ ...NEW_OFFER_BLANK }); }}
+              className="px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+              Abbrechen
+            </button>
+            <button type="button" disabled={createMutation.isPending || !newOffer.quantity}
+              onClick={() => createMutation.mutate({ material_id: materialId, ...buildPayload(newOffer) })}
+              className="px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50">
+              {createMutation.isPending ? 'Erstelle…' : 'Angebot erstellen'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MaterialForm({ material, onClose, enableOfferOnCreate = false, initialMode }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -1415,6 +1918,9 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
             </div>
           )}
 
+          {/* Offer availability quick-toggle — only when editing an existing material */}
+          {material?.id && <OfferAvailabilitySection materialId={material.id} />}
+
           {/* Mode toggle — only when creating (not editing) */}
           {!material && (
             <div className="flex p-1 bg-gray-100 rounded-xl gap-1">
@@ -1693,6 +2199,19 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               <div>
                 <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{t('materialForm.offerConditions')}</label>
                 <div className="flex flex-wrap gap-2">
+                  {/* Primary availability toggle — most important, shown first */}
+                  <button
+                    type="button"
+                    title={offerData.is_available ? 'Material ist verfügbar — klicken um als abgeholt zu markieren' : 'Material wurde abgeholt — klicken um wieder als verfügbar zu markieren'}
+                    onClick={() => setOfferData(d => ({ ...d, is_available: !d.is_available }))}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                      offerData.is_available
+                        ? 'bg-emerald-500 text-white border-emerald-500'
+                        : 'bg-gray-200 text-gray-500 border-gray-300 line-through'
+                    }`}
+                  >
+                    {offerData.is_available ? '✓ Verfügbar' : 'Abgeholt'}
+                  </button>
                   {[
                     { key: 'available_for_gift', label: '🎁 Zu Verschenken',    desc: 'Kostenlos abzugeben' },
                     { key: 'swap_possible',       label: '🔄 Tausch möglich',    desc: 'Gegen etwas tauschen' },
@@ -2658,6 +3177,18 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   <div>
                     <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{t('materialForm.offerConditions')}</label>
                     <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        title={offerData.is_available ? 'Material ist verfügbar — klicken um als abgeholt zu markieren' : 'Material wurde abgeholt — klicken um wieder als verfügbar zu markieren'}
+                        onClick={() => setOfferData(d => ({ ...d, is_available: !d.is_available }))}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                          offerData.is_available
+                            ? 'bg-emerald-500 text-white border-emerald-500'
+                            : 'bg-gray-200 text-gray-500 border-gray-300 line-through'
+                        }`}
+                      >
+                        {offerData.is_available ? '✓ Verfügbar' : 'Abgeholt'}
+                      </button>
                       {[
                         { key: 'available_for_gift', label: '🎁 Zu Verschenken',    desc: 'Kostenlos abzugeben' },
                         { key: 'swap_possible',       label: '🔄 Tausch möglich',    desc: 'Gegen etwas tauschen' },

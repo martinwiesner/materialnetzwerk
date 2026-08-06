@@ -583,8 +583,10 @@ export default function Explore() {
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [showMaterialForm, setShowMaterialForm] = useState(false);
   const [materialFormInitialMode, setMaterialFormInitialMode] = useState(undefined);
+  const [editingMaterial, setEditingMaterial] = useState(null);
   const [showOfferForm, setShowOfferForm] = useState(false);
   const [showProjectForm, setShowProjectForm] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
   const [showActorForm, setShowActorForm] = useState(false);
 
   const materialsQuery = useQuery({
@@ -1057,6 +1059,8 @@ export default function Explore() {
           },
         };
 
+        const isOwnEntity = (e) => isAuthenticated && user && (e.raw?.owner_id === user.id || e.raw?.created_by === user.id);
+
         const renderCards = (cards) => cards.map((e) => (
           <EntityCard
             key={e.id}
@@ -1070,6 +1074,14 @@ export default function Explore() {
               if (e.type === 'actor') setActorDetail(e.raw);
               if (e.type === 'gesuch') navigate(`/gesuch/${e.raw?.id}`);
             }}
+            onEdit={
+              isOwnEntity(e)
+                ? () => {
+                    if (e.type === 'material') { setEditingMaterial(e.raw); setMaterialFormInitialMode(undefined); setShowMaterialForm(true); }
+                    if (e.type === 'project') { setEditingProject(e.raw); setShowProjectForm(true); }
+                  }
+                : undefined
+            }
             onPrint={e.type === 'gesuch' ? () => exportGesuchPoster(e.raw) : undefined}
             onPrintOffer={e.type === 'material' && e.offerRaw ? () => exportAngebotPoster(e.offerRaw) : undefined}
             onRequest={
@@ -1189,13 +1201,19 @@ export default function Explore() {
 
       {showMaterialForm && (
         <MaterialForm
-          onClose={() => { setShowMaterialForm(false); setMaterialFormInitialMode(undefined); }}
-          enableOfferOnCreate
+          material={editingMaterial || undefined}
+          onClose={() => { setShowMaterialForm(false); setMaterialFormInitialMode(undefined); setEditingMaterial(null); }}
+          enableOfferOnCreate={!editingMaterial}
           initialMode={materialFormInitialMode}
         />
       )}
       {showOfferForm && <InventoryForm onClose={() => setShowOfferForm(false)} />}
-      {showProjectForm && <ProjectForm onClose={() => setShowProjectForm(false)} />}
+      {showProjectForm && (
+        <ProjectForm
+          project={editingProject || undefined}
+          onClose={() => { setShowProjectForm(false); setEditingProject(null); }}
+        />
+      )}
       {showActorForm && <ActorForm onClose={() => setShowActorForm(false)} />}
       {offerDetailId && (
         <InventoryDetailModal

@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { X, MapPin, Package, User, Calendar, Truck, Tag, MessageSquare, Download, ExternalLink, Send, Inbox, Printer } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { X, MapPin, Package, User, Calendar, Truck, Tag, MessageSquare, Download, ExternalLink, Send, Inbox, Printer, Edit2, CheckCircle2, XCircle } from 'lucide-react';
 import { inventoryService } from '../../services/inventoryService';
 import { MEDIA_BASE } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import MaterialRequestModal from '../requests/MaterialRequestModal';
 import IncomingRequestsPanel from '../requests/IncomingRequestsPanel';
+import InventoryForm from './InventoryForm';
 import { exportAngebotPoster } from '../../utils/exportUtils';
 import { useT } from '../../i18n/useT';
 
@@ -48,8 +49,18 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
   const t = useT();
   const { user, isAuthenticated } = useAuthStore();
   const openAuth = useAuthOverlayStore((s) => s.open);
+  const queryClient = useQueryClient();
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showIncomingPanel, setShowIncomingPanel] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, is_available }) => inventoryService.update(id, { is_available }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory-detail', inventoryId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
+  });
 
   const VALUE_TYPE_LABELS = {
     swap: t('inventoryDetail.valueTypes.swap'),
@@ -293,13 +304,37 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
                     </button>
                   )}
                   {isOwner ? (
-                    <button
-                      onClick={() => setShowIncomingPanel(true)}
-                      className="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
-                    >
-                      <Inbox className="w-4 h-4" />
-                      {t('inventoryDetail.buttons.incomingRequests')}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => toggleMutation.mutate({ id: item.id, is_available: !(item.is_available == 1) })}
+                        disabled={toggleMutation.isPending}
+                        className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                          item.is_available == 1
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                        }`}
+                        title={item.is_available == 1 ? 'Als abgeholt markieren' : 'Als verfügbar markieren'}
+                      >
+                        {item.is_available == 1
+                          ? <><CheckCircle2 className="w-4 h-4" /> Verfügbar</>
+                          : <><XCircle className="w-4 h-4" /> Abgeholt</>
+                        }
+                      </button>
+                      <button
+                        onClick={() => setShowEditForm(true)}
+                        className="inline-flex items-center gap-2 border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Bearbeiten
+                      </button>
+                      <button
+                        onClick={() => setShowIncomingPanel(true)}
+                        className="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
+                      >
+                        <Inbox className="w-4 h-4" />
+                        {t('inventoryDetail.buttons.incomingRequests')}
+                      </button>
+                    </>
                   ) : (
                     <button
                       onClick={handleRequestClick}
@@ -325,6 +360,17 @@ export default function InventoryDetailModal({ inventoryId, onClose, onContact }
 
       {showIncomingPanel && (
         <IncomingRequestsPanel onClose={() => setShowIncomingPanel(false)} />
+      )}
+
+      {showEditForm && item && (
+        <InventoryForm
+          editingItem={item}
+          onClose={() => {
+            setShowEditForm(false);
+            queryClient.invalidateQueries({ queryKey: ['inventory-detail', inventoryId] });
+            queryClient.invalidateQueries({ queryKey: ['inventory'] });
+          }}
+        />
       )}
     </div>
   );

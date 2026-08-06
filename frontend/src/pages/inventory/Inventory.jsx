@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '../../services/inventoryService';
 import { materialService } from '../../services/materialService';
-import { Plus, Search, Edit2, Trash2, Warehouse, ArrowRightLeft, Gift } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Warehouse, ArrowRightLeft, Gift, CheckCircle2, XCircle } from 'lucide-react';
 import InventoryForm from '../../components/inventory/InventoryForm';
 import TransferModal from '../../components/inventory/TransferModal';
 
@@ -28,6 +28,11 @@ export default function Inventory() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
     },
+  });
+
+  const toggleAvailableMutation = useMutation({
+    mutationFn: ({ id, is_available }) => inventoryService.update(id, { is_available }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['inventory'] }),
   });
 
   const acceptTransferMutation = useMutation({
@@ -176,17 +181,40 @@ export default function Inventory() {
                     {item.location || '-'}
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
-                      item.status === 'available' ? 'bg-green-100 text-green-700' :
-                      item.status === 'reserved' ? 'bg-yellow-100 text-yellow-700' :
-                      item.status === 'used' ? 'bg-gray-100 text-gray-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {item.status || 'available'}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full w-fit ${
+                        item.is_available == 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {item.is_available == 1 ? 'Verfügbar' : 'Abgeholt'}
+                      </span>
+                      {item.status && item.status !== 'available' && (
+                        <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full w-fit ${
+                          item.status === 'reserved' ? 'bg-yellow-100 text-yellow-700' :
+                          item.status === 'used' ? 'bg-gray-100 text-gray-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {item.status}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
+                      <button
+                        onClick={() => toggleAvailableMutation.mutate({ id: item.id, is_available: !(item.is_available == 1) })}
+                        disabled={toggleAvailableMutation.isPending}
+                        className={`p-2 rounded-lg transition-colors ${
+                          item.is_available == 1
+                            ? 'text-emerald-600 hover:text-gray-500 hover:bg-gray-50'
+                            : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
+                        }`}
+                        title={item.is_available == 1 ? 'Als abgeholt markieren' : 'Als verfügbar markieren'}
+                      >
+                        {item.is_available == 1
+                          ? <CheckCircle2 className="w-4 h-4" />
+                          : <XCircle className="w-4 h-4" />
+                        }
+                      </button>
                       <button
                         onClick={() => handleTransfer(item)}
                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"

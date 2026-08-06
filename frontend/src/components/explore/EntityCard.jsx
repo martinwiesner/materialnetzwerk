@@ -1,4 +1,4 @@
-import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users, Send, BookMarked, Printer } from 'lucide-react';
+import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users, Send, BookMarked, Printer, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 
 function badgeForType(type) {
@@ -9,7 +9,7 @@ function badgeForType(type) {
   return { label: 'Projekt', className: 'bg-project-50 text-project-700 border-project-200', icon: FolderOpen };
 }
 
-export default function EntityCard({ entity, active = false, onSelect, onOpenDetails, onRequest, onPrint, onPrintOffer }) {
+export default function EntityCard({ entity, active = false, onSelect, onOpenDetails, onRequest, onPrint, onPrintOffer, onEdit }) {
   const badge = badgeForType(entity.type);
   const Icon = badge.icon;
 
@@ -115,6 +115,16 @@ export default function EntityCard({ entity, active = false, onSelect, onOpenDet
               >
                 <Printer className="w-3 h-3" />
                 Aushang
+              </button>
+            )}
+            {onEdit && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"
+                title="Bearbeiten"
+              >
+                <Pencil className="w-3.5 h-3.5" />
               </button>
             )}
             <button
