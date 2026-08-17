@@ -71,11 +71,17 @@ function indsToCatPt(indicators, ef31key, modKeys, sumAll = false) {
   return (v / entry.norm) * entry.wf;
 }
 
-// GWP from EPD indicators (kg CO₂ eq.) for given module keys
-function indsToGWP(indicators, modKeys, sumAll = false) {
-  const mods = indicators?.['GWP-total']?.mods;
+// Generic: read a physical indicator value (own unit, e.g. kg CO₂ eq., m³, mol H⁺ eq.)
+// directly from EPD indicators, for given module keys
+function indsToIndicatorVal(indicators, indKey, modKeys, sumAll = false) {
+  const mods = indicators?.[indKey]?.mods;
   if (!mods) return null;
   return sumMods(mods, modKeys, sumAll);
+}
+
+// GWP from EPD indicators (kg CO₂ eq.) for given module keys
+function indsToGWP(indicators, modKeys, sumAll = false) {
+  return indsToIndicatorVal(indicators, 'GWP-total', modKeys, sumAll);
 }
 
 // Back-calculate GWP from IDEMAT climate_change Pt
@@ -86,6 +92,26 @@ const GWP_WF   = 0.2106;
 function ccPtToGWP(climatePt) {
   if (climatePt == null) return null;
   return climatePt * GWP_NORM / GWP_WF;
+}
+
+// Generic inverse of Pt = (value / norm) * wf → value = Pt × norm / wf
+// Lets us back-calculate a physical value (e.g. m³ water, mol H⁺ eq.) from an
+// IDEMAT process's EF 3.1 Pt sub-score for any convertible indicator.
+function ptToPhysical(indKey, pt) {
+  if (pt == null) return null;
+  const conv = EF31_CONV[indKey];
+  if (!conv) return null;
+  return pt * conv.norm / conv.wf;
+}
+
+function fmtIndVal(v) {
+  if (v == null || isNaN(v)) return '—';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 100)      return v.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+  if (a >= 1)        return v.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+  if (a >= 0.0001)   return v.toLocaleString('de-DE', { maximumFractionDigits: 6 });
+  return v.toExponential(2).replace('.', ',');
 }
 
 function fmtPt(v) {
@@ -163,6 +189,19 @@ function buildEntries(epdMats, idematItems, selectedCat) {
     const gwpBioMods = scaledInds?.['GWP-biogenic']?.mods;
     const gwpBiogenic = gwpBioMods ? sumMods(gwpBioMods, A1A3_KEYS) : null;
 
+    // Every convertible EF 3.1 indicator, in its own physical unit (not Pt) —
+    // e.g. Wasserverbrauch in m³, Versauerung in mol H⁺ eq. — direct from EPD data.
+    const indicatorVals = {};
+    for (const indKey of Object.keys(EF31_CONV)) {
+      const a1a3 = indsToIndicatorVal(scaledInds, indKey, A1A3_KEYS);
+      const b6   = indsToIndicatorVal(scaledInds, indKey, ['B6']);
+      const eol  = indsToIndicatorVal(scaledInds, indKey, EOL_KEYS, true);
+      const d    = indsToIndicatorVal(scaledInds, indKey, ['D']);
+      const life = [a1a3, b6, eol].reduce((s, v) => v != null ? s + v : s, 0) || null;
+      indicatorVals[indKey] = (a1a3 != null || b6 != null || eol != null || d != null)
+        ? { a1a3, b6, eol, d, life } : null;
+    }
+
     entries.push({
       id: mat.uuid || mat.id,
       type: 'material',
@@ -176,6 +215,7 @@ function buildEntries(epdMats, idematItems, selectedCat) {
       dPt:    dPt.pt,
       lifePt: lifePt.pt,
       gwpA1A3, gwpB6, gwpEoL, gwpD, gwpLife, gwpBiogenic,
+      indicatorVals,
       covered: a1a3Pt.covered || [],
       isLibMat: !!mat.isLibraryMaterial,
     });
@@ -190,6 +230,15 @@ function buildEntries(epdMats, idematItems, selectedCat) {
     // Back-calculate GWP from EF 3.1 climate_change Pt (per process unit × quantity)
     const ccPt = it.ef31?.climate_change != null ? it.ef31.climate_change * it.quantity : null;
     const gwpEquiv = ccPtToGWP(ccPt);
+
+    // Back-calculate every convertible indicator's physical value from the process's
+    // own EF 3.1 sub-score (Pt) — same inversion used for GWP, generalized.
+    const indicatorVals = {};
+    for (const [indKey, conv] of Object.entries(EF31_CONV)) {
+      const subPt = it.ef31?.[conv.ef31];
+      const val = subPt != null ? ptToPhysical(indKey, subPt * it.quantity) : null;
+      indicatorVals[indKey] = val != null ? { a1a3: val, b6: null, eol: null, d: null, life: val } : null;
+    }
 
     entries.push({
       id: it.id,
@@ -208,6 +257,7 @@ function buildEntries(epdMats, idematItems, selectedCat) {
       gwpEoL:  null,
       gwpD:    null,
       gwpLife: gwpEquiv,
+      indicatorVals,
       covered: ['IDEMAT'],
     });
   }
@@ -416,6 +466,18 @@ export function CombinedProductLca({ epdMats = [], idematItems = [] }) {
   const gwpTotal    = [gwpMatLife, gwpProcLife].reduce((s, v) => v != null ? s + v : s, 0) || null;
   const gwpGrandD   = gwpMatD;
   const hasProcGwp  = procEntries.some(e => e.gwpA1A3 != null);
+
+  // Per-indicator rows for the "weitere Umweltindikatoren" table — every EF 3.1
+  // indicator except GWP-total (which already has its own dedicated table above).
+  const indicatorRows = Object.entries(EF31_CONV)
+    .filter(([key]) => key !== 'GWP-total')
+    .map(([key, conv]) => {
+      const perEntry = entries.map(e => e.indicatorVals?.[key]?.life ?? null);
+      const total = perEntry.reduce((s, v) => v != null ? s + v : s, 0);
+      const hasAny = perEntry.some(v => v != null);
+      return { key, label: conv.label, unit: conv.unit, perEntry, total, hasAny };
+    })
+    .filter(r => r.hasAny);
 
   const hasEpdMats  = matEntries.length > 0;
   const hasProcs    = procEntries.length > 0;
@@ -700,6 +762,54 @@ export function CombinedProductLca({ epdMats = [], idematItems = [] }) {
               Dieser Wert entspricht dem ursprünglichen IDEMAT-GWP-Midpoint und ist direkt mit EPD-GWP-Werten vergleichbar.
             </p>
           )}
+        </div>
+      )}
+
+      {/* Weitere Umweltindikatoren — je Material & Prozess, physische Einheiten */}
+      {indicatorRows.length > 0 && (
+        <div className="mb-6 border border-cyan-200 rounded-xl overflow-hidden">
+          <div className="bg-cyan-700 px-4 py-2.5">
+            <p className="text-xs font-bold text-white">Weitere Umweltindikatoren – je Material &amp; Prozess</p>
+            <p className="text-[10px] text-cyan-100 mt-0.5">
+              Materialien: direkt aus EPD-Indikatoren · Prozesse: aus EF 3.1 Sub-Score (Pt) rückgerechnet, analog zu GWP oben ·
+              Werte = deklariertes Gesamt (A1–A3 + B6 + EoL), bereits × Menge skaliert
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-cyan-50">
+                  <th className="text-left px-3 py-2 font-semibold text-gray-700 border-b border-cyan-100 whitespace-nowrap sticky left-0 bg-cyan-50">Indikator</th>
+                  <th className="text-left px-2 py-2 font-semibold text-gray-500 border-b border-cyan-100 whitespace-nowrap">Einheit</th>
+                  {entries.map(e => (
+                    <th key={e.id} className="text-right px-2 py-2 font-semibold text-gray-600 border-b border-cyan-100 whitespace-nowrap max-w-[120px]">
+                      <span className={`inline-block mr-1 text-[8px] px-1 py-0.5 rounded font-bold uppercase ${
+                        e.type === 'material' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}>{e.type === 'material' ? 'Mat' : 'Proz'}</span>
+                      <span className="truncate">{e.name}</span>
+                    </th>
+                  ))}
+                  <th className="text-right px-3 py-2 font-semibold text-cyan-900 border-b border-cyan-100 whitespace-nowrap bg-cyan-100">Gesamt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {indicatorRows.map((row, i) => (
+                  <tr key={row.key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-3 py-1.5 font-semibold text-gray-800 whitespace-nowrap sticky left-0 bg-inherit">{row.label}</td>
+                    <td className="px-2 py-1.5 text-gray-400 whitespace-nowrap">{row.unit}</td>
+                    {row.perEntry.map((v, j) => (
+                      <td key={entries[j].id} className="px-2 py-1.5 text-right tabular-nums text-gray-700">{fmtIndVal(v)}</td>
+                    ))}
+                    <td className="px-3 py-1.5 text-right tabular-nums font-bold text-cyan-800 bg-cyan-50">{fmtIndVal(row.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="px-4 py-2 text-[10px] text-gray-500 bg-cyan-50 border-t border-cyan-100">
+            ⁺ Prozess-Werte aus EF 3.1 Sub-Score rückgerechnet: physischer Wert = Pt × Normierungsfaktor / Gewichtungsfaktor (EC JRC 2021),
+            analog zur GWP-Rückrechnung oben. „—" bedeutet: kein Wert für diesen Indikator deklariert bzw. verfügbar.
+          </p>
         </div>
       )}
 
