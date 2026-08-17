@@ -111,7 +111,18 @@ function fmtIndVal(v) {
   if (a >= 100)      return v.toLocaleString('de-DE', { maximumFractionDigits: 1 });
   if (a >= 1)        return v.toLocaleString('de-DE', { maximumFractionDigits: 3 });
   if (a >= 0.0001)   return v.toLocaleString('de-DE', { maximumFractionDigits: 6 });
+  // Fixed-point down to 1e-8 (readable, no scientific notation) — only fall back
+  // to exponential notation below that, where fixed-point would be unreadable.
+  if (a >= 1e-8)     return v.toFixed(Math.min(Math.ceil(-Math.log10(a)) + 3, 12)).replace('.', ',');
   return v.toExponential(2).replace('.', ',');
+}
+
+// Heat-scale background for a table cell, relative to the row's largest value —
+// makes the dominant contributor(s) per indicator visually obvious at a glance.
+function heatBg(intensity) {
+  if (!intensity) return undefined;
+  const alpha = 0.1 + Math.min(intensity, 1) * 0.5;
+  return `rgba(220, 38, 38, ${alpha.toFixed(2)})`;
 }
 
 function fmtPt(v) {
@@ -475,7 +486,8 @@ export function CombinedProductLca({ epdMats = [], idematItems = [] }) {
       const perEntry = entries.map(e => e.indicatorVals?.[key]?.life ?? null);
       const total = perEntry.reduce((s, v) => v != null ? s + v : s, 0);
       const hasAny = perEntry.some(v => v != null);
-      return { key, label: conv.label, unit: conv.unit, perEntry, total, hasAny };
+      const rowMax = Math.max(0, ...perEntry.filter(v => v != null).map(v => Math.abs(v)));
+      return { key, label: conv.label, unit: conv.unit, perEntry, total, hasAny, rowMax };
     })
     .filter(r => r.hasAny);
 
@@ -776,36 +788,54 @@ export function CombinedProductLca({ epdMats = [], idematItems = [] }) {
             </p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
+            <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: `${190 + entries.length * 100}px`, minWidth: '100%' }}>
+              <colgroup>
+                <col style={{ width: '150px' }} />
+                <col style={{ width: '90px' }} />
+                {entries.map(e => <col key={e.id} style={{ width: '100px' }} />)}
+                <col style={{ width: '100px' }} />
+              </colgroup>
               <thead>
                 <tr className="bg-cyan-50">
-                  <th className="text-left px-3 py-2 font-semibold text-gray-700 border-b border-cyan-100 whitespace-nowrap sticky left-0 bg-cyan-50">Indikator</th>
-                  <th className="text-left px-2 py-2 font-semibold text-gray-500 border-b border-cyan-100 whitespace-nowrap">Einheit</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-700 border-b border-cyan-100">Indikator</th>
+                  <th className="text-left px-2 py-2 font-semibold text-gray-500 border-b border-cyan-100">Einheit</th>
                   {entries.map(e => (
-                    <th key={e.id} className="text-right px-2 py-2 font-semibold text-gray-600 border-b border-cyan-100 whitespace-nowrap max-w-[120px]">
-                      <span className={`inline-block mr-1 text-[8px] px-1 py-0.5 rounded font-bold uppercase ${
-                        e.type === 'material' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
-                      }`}>{e.type === 'material' ? 'Mat' : 'Proz'}</span>
-                      <span className="truncate">{e.name}</span>
+                    <th key={e.id} className="px-2 py-2 font-semibold text-gray-600 border-b border-cyan-100 align-bottom">
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className={`inline-block text-[8px] px-1 py-0.5 rounded font-bold uppercase ${
+                          e.type === 'material' ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}>{e.type === 'material' ? 'Mat' : 'Proz'}</span>
+                        <span className="block w-full text-right truncate" title={e.name}>{e.name}</span>
+                      </div>
                     </th>
                   ))}
-                  <th className="text-right px-3 py-2 font-semibold text-cyan-900 border-b border-cyan-100 whitespace-nowrap bg-cyan-100">Gesamt</th>
+                  <th className="text-right px-3 py-2 font-semibold text-cyan-900 border-b border-cyan-100 bg-cyan-100">Gesamt</th>
                 </tr>
               </thead>
               <tbody>
                 {indicatorRows.map((row, i) => (
                   <tr key={row.key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-1.5 font-semibold text-gray-800 whitespace-nowrap sticky left-0 bg-inherit">{row.label}</td>
-                    <td className="px-2 py-1.5 text-gray-400 whitespace-nowrap">{row.unit}</td>
-                    {row.perEntry.map((v, j) => (
-                      <td key={entries[j].id} className="px-2 py-1.5 text-right tabular-nums text-gray-700">{fmtIndVal(v)}</td>
-                    ))}
+                    <td className="px-3 py-1.5 font-semibold text-gray-800 truncate" title={row.label}>{row.label}</td>
+                    <td className="px-2 py-1.5 text-gray-400 truncate" title={row.unit}>{row.unit}</td>
+                    {row.perEntry.map((v, j) => {
+                      const intensity = row.rowMax > 0 && v != null ? Math.abs(v) / row.rowMax : 0;
+                      return (
+                        <td key={entries[j].id}
+                          className={`px-2 py-1.5 text-right tabular-nums ${intensity > 0.6 ? 'font-bold text-red-900' : 'text-gray-700'}`}
+                          style={{ backgroundColor: heatBg(intensity) }}>
+                          {fmtIndVal(v)}
+                        </td>
+                      );
+                    })}
                     <td className="px-3 py-1.5 text-right tabular-nums font-bold text-cyan-800 bg-cyan-50">{fmtIndVal(row.total)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <p className="px-4 pt-2 text-[10px] text-gray-400">
+            Farbintensität = relativer Anteil am höchsten Wert je Zeile (Indikator) — zeigt, welches Material/welcher Prozess dort dominiert.
+          </p>
           <p className="px-4 py-2 text-[10px] text-gray-500 bg-cyan-50 border-t border-cyan-100">
             ⁺ Prozess-Werte aus EF 3.1 Sub-Score rückgerechnet: physischer Wert = Pt × Normierungsfaktor / Gewichtungsfaktor (EC JRC 2021),
             analog zur GWP-Rückrechnung oben. „—" bedeutet: kein Wert für diesen Indikator deklariert bzw. verfügbar.
