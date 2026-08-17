@@ -155,6 +155,8 @@ const Material = {
       data.penre??null,
       data.perm??null,
       data.idemat_process_id||null,
+      // Contact / Ansprechpartner
+      data.contact_person||null,
       // visibility
       data.visibility || 'private',
       data.share_actor_id || null,
