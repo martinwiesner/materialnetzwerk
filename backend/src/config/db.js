@@ -640,8 +640,6 @@ const ensureFixedAdmins = async () => {
       first_name: process.env.FIXED_ADMIN_FIRST_NAME || 'Admin',
       last_name: process.env.FIXED_ADMIN_LAST_NAME || 'RZZ',
     },
-    {
-    },
   ];
 
   try {
