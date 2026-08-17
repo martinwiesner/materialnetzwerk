@@ -671,6 +671,7 @@ const de = {
     errorGesuch: 'Gesuch konnte nicht eingetragen werden.',
     errorChooseMaterial: 'Bitte ein Material auswählen.',
     errorEnterName: 'Bitte einen Materialnamen eingeben.',
+    errorEnterLocation: 'Bitte einen Standort angeben.',
   },
 
   onboarding: {

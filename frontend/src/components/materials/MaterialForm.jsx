@@ -1397,6 +1397,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
   const t = useT();
   const [formData, setFormData] = useState(initialFormState);
   const [error, setError] = useState('');
+  const scrollContainerRef = useRef(null);
   const [savedId, setSavedId] = useState(null);
   const [localImages, setLocalImages] = useState([]);
   const [localFiles, setLocalFiles] = useState([]);
@@ -1800,6 +1801,17 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       return;
     }
 
+    if (!formData.name?.trim()) {
+      setError(t('materialForm.errorEnterName'));
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!formData.location_name?.trim() && !formData.address?.trim()) {
+      setError(t('materialForm.errorEnterLocation'));
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     const similarIds = (formData.similar_material_ids_input || '')
       .split(/[\n,]/g)
       .map((s) => s.trim())
@@ -1898,7 +1910,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div ref={scrollContainerRef} className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
             {material ? t('materialForm.titleEdit') : mode === 'offer-only' ? t('materialForm.titleOffer') : mode === 'gesuch' ? t('materialForm.titleGesuch') : t('materialForm.titleNew')}
@@ -2923,14 +2935,6 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
                   latitude: loc.latitude ?? '',
                   longitude: loc.longitude ?? '',
                 }))}
-              />
-              {/* Hidden input forces browser required-validation */}
-              <input
-                tabIndex={-1}
-                style={{ opacity: 0, height: 0, position: 'absolute', pointerEvents: 'none' }}
-                required
-                value={formData.location_name || formData.address || ''}
-                onChange={() => {}}
               />
             </AccordionSection>
 

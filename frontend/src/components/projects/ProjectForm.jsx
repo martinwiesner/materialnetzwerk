@@ -1096,7 +1096,19 @@ export default function ProjectForm({ project, onClose }) {
                       return (
                         <div key={i} className="space-y-1">
                           <div className="flex gap-2 items-center">
-                            <select value={mat.material_id} onChange={(e) => updateMaterial(i, 'material_id', e.target.value)}
+                            <select value={mat.material_id} onChange={(e) => {
+                              const newId = e.target.value;
+                              const chosen = availableMaterials.find(m => m.id === newId);
+                              const gwpDenom = chosen?.gwp_unit?.split('/')?.[1]?.trim();
+                              setFormData(f => ({
+                                ...f,
+                                materials: f.materials.map((m, j) => j === i ? {
+                                  ...m,
+                                  material_id: newId,
+                                  unit: m.unit || chosen?.unit || gwpDenom || m.unit,
+                                } : m),
+                              }));
+                            }}
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
                               <option value="">{t('projectForm.chooseMaterial')}</option>
                               {availableMaterials.map((m) => (
