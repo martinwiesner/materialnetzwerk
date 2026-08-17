@@ -1095,7 +1095,7 @@ export default function ProjectForm({ project, onClose }) {
                       const unitMismatch = denominator && mat.unit && normalizeUnit(mat.unit) !== normalizeUnit(denominator);
                       return (
                         <div key={i} className="space-y-1">
-                          <div className="flex gap-2 items-center">
+                          <div className="flex flex-wrap gap-2 items-center">
                             <select value={mat.material_id} onChange={(e) => {
                               const newId = e.target.value;
                               const chosen = availableMaterials.find(m => m.id === newId);
@@ -1109,7 +1109,7 @@ export default function ProjectForm({ project, onClose }) {
                                 } : m),
                               }));
                             }}
-                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
+                              className="flex-1 min-w-[160px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" required>
                               <option value="">{t('projectForm.chooseMaterial')}</option>
                               {availableMaterials.map((m) => (
                                 <option key={m.id} value={m.id}>{m.name} ({m.category})</option>
