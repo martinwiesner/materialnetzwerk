@@ -388,6 +388,12 @@ tryAlter('ALTER TABLE materials ADD COLUMN idemat_process_id TEXT');
 // ── materials: contact person ─────────────────────────────────────────────────
 tryAlter('ALTER TABLE materials ADD COLUMN contact_person TEXT');
 
+// ── projects: contributors + per-component licenses ──────────────────────────
+tryAlter('ALTER TABLE projects ADD COLUMN contributors TEXT');
+tryAlter('ALTER TABLE projects ADD COLUMN hardware_license TEXT');
+tryAlter('ALTER TABLE projects ADD COLUMN software_license TEXT');
+tryAlter('ALTER TABLE projects ADD COLUMN documentation_license TEXT');
+
 // ── materials: extended Ökobaudat indicators ──────────────────────────────────
 tryAlter('ALTER TABLE materials ADD COLUMN odp REAL');
 tryAlter('ALTER TABLE materials ADD COLUMN ap REAL');

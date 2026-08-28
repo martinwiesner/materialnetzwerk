@@ -95,6 +95,7 @@ const ctx = {
   rzzId:        null,
   inventoryId:  null,
   projectId:    null,
+  legacyProjectId: null,
   favoriteId:   null,
 };
 
@@ -335,6 +336,116 @@ async function main() {
     assert(r.body?.id === ctx.projectId, 'id mismatch');
   });
 
+  // ── 7b. Project Contributors ──────────────────────────────────────────────
+  console.log(`\n${c.cyan}${c.bold}7b. Projektbeteiligte${c.reset}`);
+
+  await test('Project without contributors has none set', async () => {
+    const r = await get(`/api/projects/${ctx.projectId}`);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+    assert(!r.body?.contributors, `Expected no contributors, got ${r.body?.contributors}`);
+  });
+
+  const oneContributor = [{ first_name: 'Ada', last_name: 'Lovelace', organization: 'Test Org', role: 'Developer' }];
+  await test('PUT /api/projects/:id adds one contributor', async () => {
+    const r = await put(`/api/projects/${ctx.projectId}`, { contributors: oneContributor }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+    const stored = typeof r.body?.contributors === 'string' ? JSON.parse(r.body.contributors) : r.body?.contributors;
+    assert(stored?.length === 1, `Expected 1 contributor, got ${JSON.stringify(stored)}`);
+    assert(stored[0].first_name === 'Ada', 'first_name mismatch');
+  });
+
+  const twoContributors = [
+    ...oneContributor,
+    { first_name: 'Grace', last_name: 'Hopper', organization: '', role: 'Researcher' },
+  ];
+  await test('PUT /api/projects/:id adds a second contributor', async () => {
+    const r = await put(`/api/projects/${ctx.projectId}`, { contributors: twoContributors }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+    const stored = typeof r.body?.contributors === 'string' ? JSON.parse(r.body.contributors) : r.body?.contributors;
+    assert(stored?.length === 2, `Expected 2 contributors, got ${JSON.stringify(stored)}`);
+  });
+
+  await test('PUT /api/projects/:id edits a contributor', async () => {
+    const edited = twoContributors.map(x => x.first_name === 'Grace' ? { ...x, role: 'Documentation' } : x);
+    const r = await put(`/api/projects/${ctx.projectId}`, { contributors: edited }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+    const stored = typeof r.body?.contributors === 'string' ? JSON.parse(r.body.contributors) : r.body?.contributors;
+    const grace = stored?.find(x => x.first_name === 'Grace');
+    assert(grace?.role === 'Documentation', `Expected role 'Documentation', got ${grace?.role}`);
+  });
+
+  await test('PUT /api/projects/:id removes a contributor', async () => {
+    const r = await put(`/api/projects/${ctx.projectId}`, { contributors: oneContributor }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+    const stored = typeof r.body?.contributors === 'string' ? JSON.parse(r.body.contributors) : r.body?.contributors;
+    assert(stored?.length === 1, `Expected 1 contributor after removal, got ${JSON.stringify(stored)}`);
+  });
+
+  // ── 7c. Per-component licensing ───────────────────────────────────────────
+  console.log(`\n${c.cyan}${c.bold}7c. Lizenzierung (Hardware/Software/Documentation)${c.reset}`);
+
+  await test('New project has no license set in any category', async () => {
+    const r = await get(`/api/projects/${ctx.projectId}`);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+    assert(!r.body?.hardware_license && !r.body?.software_license && !r.body?.documentation_license,
+      `Expected all license fields empty, got ${JSON.stringify({ hw: r.body?.hardware_license, sw: r.body?.software_license, doc: r.body?.documentation_license })}`);
+  });
+
+  await test('PUT sets only hardware_license', async () => {
+    const r = await put(`/api/projects/${ctx.projectId}`, { hardware_license: 'CERN-OHL-S-2.0' }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+    assert(r.body?.hardware_license === 'CERN-OHL-S-2.0', `Got ${r.body?.hardware_license}`);
+    assert(!r.body?.software_license && !r.body?.documentation_license, 'Other license fields should stay empty');
+  });
+
+  await test('PUT sets only software_license (independent of hardware_license)', async () => {
+    const r = await put(`/api/projects/${ctx.projectId}`, { hardware_license: '', software_license: 'Apache-2.0' }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+    assert(r.body?.software_license === 'Apache-2.0', `Got ${r.body?.software_license}`);
+  });
+
+  await test('PUT sets only documentation_license', async () => {
+    const r = await put(`/api/projects/${ctx.projectId}`, { software_license: '', documentation_license: 'CC-BY-4.0' }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+    assert(r.body?.documentation_license === 'CC-BY-4.0', `Got ${r.body?.documentation_license}`);
+  });
+
+  await test('PUT sets different hardware_license and software_license simultaneously', async () => {
+    const r = await put(`/api/projects/${ctx.projectId}`, {
+      hardware_license: 'CERN-OHL-W-2.0', software_license: 'GPL-3.0-only',
+    }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+    assert(r.body?.hardware_license === 'CERN-OHL-W-2.0', `Got ${r.body?.hardware_license}`);
+    assert(r.body?.software_license === 'GPL-3.0-only', `Got ${r.body?.software_license}`);
+  });
+
+  await test('PUT sets all three license categories at once', async () => {
+    const r = await put(`/api/projects/${ctx.projectId}`, {
+      hardware_license: 'CERN-OHL-P-2.0',
+      software_license: 'MIT',
+      documentation_license: 'CC-BY-SA-4.0',
+    }, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+    assert(r.body?.hardware_license === 'CERN-OHL-P-2.0', `Got ${r.body?.hardware_license}`);
+    assert(r.body?.software_license === 'MIT', `Got ${r.body?.software_license}`);
+    assert(r.body?.documentation_license === 'CC-BY-SA-4.0', `Got ${r.body?.documentation_license}`);
+  });
+
+  await test('POST /api/projects still accepts the legacy license field (backward compat)', async () => {
+    const r = await post('/api/projects', {
+      name: `Legacytest ${SUFFIX}`,
+      license: 'MIT',
+    }, ctx.token);
+    assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
+    assert(r.body?.license === 'MIT', `Expected legacy license 'MIT', got ${r.body?.license}`);
+    ctx.legacyProjectId = r.body.id;
+    // Note: the DB-level backfill migration that splits legacy `license` values into
+    // hardware_license/software_license/documentation_license runs once at server
+    // startup (backfillProjectLicenses in db.js), not per-request — it was verified
+    // separately against a real SQLite DB, not re-tested here since this script only
+    // exercises the HTTP API.
+  });
+
   // ── 8. Favorites ──────────────────────────────────────────────────────────
   console.log(`\n${c.cyan}${c.bold}8. Merkliste${c.reset}`);
 
@@ -401,6 +512,13 @@ async function main() {
   if (ctx.projectId) {
     await test('DELETE /api/projects/:id removes project', async () => {
       const r = await del(`/api/projects/${ctx.projectId}`, ctx.token);
+      assert([200, 204].includes(r.status), `Expected 200/204, got ${r.status}`);
+    });
+  }
+
+  if (ctx.legacyProjectId) {
+    await test('DELETE /api/projects/:id removes legacy-license test project', async () => {
+      const r = await del(`/api/projects/${ctx.legacyProjectId}`, ctx.token);
       assert([200, 204].includes(r.status), `Expected 200/204, got ${r.status}`);
     });
   }

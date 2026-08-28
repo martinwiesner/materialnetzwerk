@@ -137,8 +137,9 @@ const Project = {
       circular_principles, principles_sufficiency, principles_consistency, principles_efficiency, general_sustainability_principles,
       location_name, latitude, longitude, address,
       time_effort, tools, steps, "references",
-      status, is_public, is_available, license, owner_id, material_id, visibility, share_actor_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      status, is_public, is_available, license, owner_id, material_id, visibility, share_actor_id,
+      contributors, hardware_license, software_license, documentation_license)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, data.name, data.description||null, data.content||null,
         data.circular_principles||null, data.principles_sufficiency||null, data.principles_consistency||null, data.principles_efficiency||null, data.general_sustainability_principles||null,
         data.location_name||null, data.latitude??null, data.longitude??null, data.address||null,
@@ -146,7 +147,9 @@ const Project = {
         data.steps ? JSON.stringify(data.steps) : null,
         data.references ? JSON.stringify(data.references) : null,
         data.status||'draft', data.is_public?1:0, data.is_available?1:0, data.license||null, data.owner_id,
-        projectMaterialId, derivedVisibility, data.share_actor_id||null);
+        projectMaterialId, derivedVisibility, data.share_actor_id||null,
+        data.contributors ? JSON.stringify(data.contributors) : null,
+        data.hardware_license||null, data.software_license||null, data.documentation_license||null);
     return Project.findById(id);
   },
 
@@ -164,8 +167,12 @@ const Project = {
       'idemat_lca_items',
       'visibility',
       'share_actor_id',
+      'contributors',
+      'hardware_license',
+      'software_license',
+      'documentation_license',
     ];
-    const jsonFields = new Set(['steps','references','oekodat_materials','idemat_lca_items']);
+    const jsonFields = new Set(['steps','references','oekodat_materials','idemat_lca_items','contributors']);
     const boolFields = new Set(['is_public','is_available']);
     const fields = [], values = [];
     for (const f of allowed) {

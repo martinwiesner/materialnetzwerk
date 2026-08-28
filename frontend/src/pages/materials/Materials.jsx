@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 // (Auth navigation is handled via overlay; no route redirect needed)
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { materialService } from '../../services/materialService';
 import { inventoryService } from '../../services/inventoryService';
-import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked, Store, Download, FileText, Scale } from 'lucide-react';
+import { projectService } from '../../services/projectService';
+import { toProjectEntity } from '../../utils/entityMapping';
+import { Plus, Search, Edit2, Trash2, Leaf, MapPinned, List, MapPin, Package2, FlaskConical, Recycle, Database, Tag, Info, X, CheckCircle2, XCircle, AlertTriangle, BookMarked, Store, Download, FileText, Scale, FolderOpen } from 'lucide-react';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportMaterialsToCSV, exportMaterialsToPDF } from '../../utils/exportUtils';
 import { useToast } from '../../store/toastStore';
@@ -89,6 +91,14 @@ export default function Materials() {
     queryFn: () => materialService.getAll({ search, category }),
   });
 
+  // Secondary results: only fetched while actively searching, so a search term
+  // that matches a project (but no material) doesn't dead-end the user.
+  const { data: matchingProjectsData } = useQuery({
+    queryKey: ['projects', 'secondary-for-materials-search', search],
+    queryFn: () => projectService.getAll({ search }),
+    enabled: !!search,
+  });
+
   const { data: categoriesData } = useQuery({
     queryKey: ['material-categories'],
     queryFn: materialService.getCategories,
@@ -139,6 +149,12 @@ export default function Materials() {
   const allMaterials = materialsData?.data || [];
   const categories = categoriesData?.data || [];
   const inventory = inventoryData?.data || inventoryData || [];
+
+  // Secondary results shown when a search matches a project instead of (or in
+  // addition to) a material — /api/projects returns a bare array, unlike /api/materials.
+  const matchingProjects = (Array.isArray(matchingProjectsData) ? matchingProjectsData : matchingProjectsData?.data || [])
+    .map((p) => toProjectEntity(p));
+  const showMatchingProjects = !!search && matchingProjects.length > 0;
 
   // Aggregate inventory so each material card can show an approximate available amount
   const inventoryByMaterial = (inventory || []).reduce((acc, item) => {
@@ -471,7 +487,7 @@ export default function Materials() {
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
         </div>
-      ) : (filteredGesuche.length === 0 && materials.length === 0) ? (
+      ) : (filteredGesuche.length === 0 && materials.length === 0 && !showMatchingProjects) ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <Leaf className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Einträge gefunden</h3>
@@ -489,6 +505,11 @@ export default function Materials() {
         </div>
       ) : (
         <div className="@container">
+          {/* Search matched a project, not a material — point the user there instead of a dead end */}
+          {materials.length === 0 && filteredGesuche.length === 0 && showMatchingProjects && (
+            <p className="text-gray-600 mb-4">Keine passenden Materialien gefunden.</p>
+          )}
+
           {/* Gesuch Cards */}
           {filteredGesuche.length > 0 && (
             <div className={materials.length > 0 ? 'mb-8' : ''}>
@@ -563,14 +584,10 @@ export default function Materials() {
           {materials.map((material) => (
             <div
               key={material.id}
-              className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => navigate(`/materials/${material.id}`)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') navigate(`/materials/${material.id}`);
-              }}
+              className="relative bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
             >
+              <Link to={`/materials/${material.id}`} className="absolute inset-0" aria-label={`${material.name} ansehen`} />
+
               {/* Image */}
               <div className="relative">
                 {getMaterialImage(material) ? (
@@ -632,7 +649,7 @@ export default function Materials() {
                     </span>
                   </div>
 
-                  <div className="flex gap-1">
+                  <div className="relative flex gap-1">
                     <button
                       type="button"
                       title={compare.isSelected(material.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
@@ -706,6 +723,45 @@ export default function Materials() {
               </div>
             </div>
           ))}
+            </div>
+          )}
+
+          {/* Secondary results: projects matching the current search term */}
+          {showMatchingProjects && (
+            <div className={materials.length > 0 ? 'mt-8' : ''}>
+              <h3 className="text-base font-semibold text-project-800 mb-3 flex items-center gap-2">
+                <FolderOpen className="w-4 h-4" />
+                {materials.length > 0 ? 'Auch passende Projekte' : 'Passende Projekte'} ({matchingProjects.length})
+              </h3>
+              <div className="grid grid-cols-1 @[34rem]:grid-cols-2 @[54rem]:grid-cols-3 gap-4">
+                {matchingProjects.map((p) => (
+                  <Link
+                    key={p.id}
+                    to={p.href}
+                    className="block bg-white rounded-2xl shadow-sm border border-project-200 overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    <div className="relative">
+                      {p.imageUrl ? (
+                        <img src={p.imageUrl} alt={p.title} className="w-full h-32 object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-32 bg-project-50 flex items-center justify-center">
+                          <FolderOpen className="w-8 h-8 text-project-300" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 left-2">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/90 border border-project-200 text-project-700 text-xs font-medium shadow-sm">
+                          <FolderOpen className="w-3 h-3" />
+                          Projekt
+                        </span>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <h4 className="text-sm font-semibold text-gray-900 truncate">{p.title}</h4>
+                      {p.subtitle && <p className="text-xs text-gray-500 truncate mt-0.5">{p.subtitle}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </div>

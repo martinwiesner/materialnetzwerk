@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
-import { Plus, Search, Edit2, Trash2, FolderOpen, Globe, Lock, MapPinned, MapPin, List, Leaf, Tag, Download, FileText, Scale } from 'lucide-react';
+import { materialService } from '../../services/materialService';
+import { toMaterialEntity } from '../../utils/entityMapping';
+import { Plus, Search, Edit2, Trash2, FolderOpen, Globe, Lock, MapPinned, MapPin, List, Leaf, Tag, Download, FileText, Scale, Package2 } from 'lucide-react';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectsToCSV, exportProjectsToPDF } from '../../utils/exportUtils';
 import clsx from 'clsx';
@@ -73,6 +75,14 @@ export default function Projects() {
     enabled: isAuthenticated && !!token,
   });
 
+  // Secondary results: only fetched while actively searching, so a search term
+  // that matches a material (but no project) doesn't dead-end the user.
+  const { data: matchingMaterialsData } = useQuery({
+    queryKey: ['materials', 'secondary-for-projects-search', search],
+    queryFn: () => materialService.getAll({ search }),
+    enabled: !!search,
+  });
+
   const toast = useToast();
   const compare = useCompareStore();
 
@@ -117,6 +127,11 @@ export default function Projects() {
   const projectsBase = activeTab === 'my-projects' ? myProjects : publicProjects;
   const projectsFiltered = filterAvailable ? projectsBase.filter(p => p.is_available == 1) : projectsBase;
   const projects = [...projectsFiltered].sort((a, b) => projectScore(a) - projectScore(b));
+
+  // materialService.getAll returns { data: [...] }, unlike /api/projects' bare array.
+  const matchingMaterials = (matchingMaterialsData?.data || [])
+    .map((m) => toMaterialEntity(m));
+  const showMatchingMaterials = !!search && matchingMaterials.length > 0;
 
   const mapPoints = (projects || [])
     .filter((p) => p?.latitude && p?.longitude)
@@ -340,7 +355,7 @@ export default function Projects() {
         <div className="text-center py-12">
           <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
         </div>
-      ) : projects.length === 0 ? (
+      ) : (projects.length === 0 && !showMatchingMaterials) ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -366,6 +381,12 @@ export default function Projects() {
         </div>
       ) : (
         <div className="@container">
+        {/* Search matched a material, not a project — point the user there instead of a dead end */}
+        {projects.length === 0 && showMatchingMaterials && (
+          <p className="text-gray-600 mb-4">Keine passenden Projekte gefunden.</p>
+        )}
+
+        {projects.length > 0 && (
         <div className="grid grid-cols-1 @[34rem]:grid-cols-2 @[54rem]:grid-cols-3 gap-4">
           {projects.map((project) => {
             const imgUrl = getProjectImageUrl(project, import.meta.env.VITE_API_URL || '');
@@ -373,12 +394,10 @@ export default function Projects() {
             return (
               <div
                 key={project.id}
-                className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => navigate(`/projects/${project.id}`)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/projects/${project.id}`); }}
+                className="relative bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
+                <Link to={`/projects/${project.id}`} className="absolute inset-0" aria-label={`${project.name} ansehen`} />
+
                 {/* Image */}
                 <div className="relative">
                   {imgUrl ? (
@@ -419,7 +438,7 @@ export default function Projects() {
                         {project.is_public ? 'Öffentlich' : 'Privat'}
                       </span>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
+                    <div className="relative flex gap-1 flex-shrink-0">
                       <button
                         type="button"
                         title={compare.isSelected(project.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
@@ -460,7 +479,7 @@ export default function Projects() {
                   )}
 
                   {project.owner_id && !isOwner && (
-                    <div className="mb-2">
+                    <div className="relative mb-2">
                       <OwnerLine
                         ownerId={project.owner_id}
                         ownerFirstName={project.owner_first_name}
@@ -485,6 +504,46 @@ export default function Projects() {
             );
           })}
         </div>
+        )}
+
+        {/* Secondary results: materials matching the current search term */}
+        {showMatchingMaterials && (
+          <div className={projects.length > 0 ? 'mt-8' : ''}>
+            <h3 className="text-base font-semibold text-primary-800 mb-3 flex items-center gap-2">
+              <Package2 className="w-4 h-4" />
+              {projects.length > 0 ? 'Auch passende Materialien' : 'Passende Materialien'} ({matchingMaterials.length})
+            </h3>
+            <div className="grid grid-cols-1 @[34rem]:grid-cols-2 @[54rem]:grid-cols-3 gap-4">
+              {matchingMaterials.map((m) => (
+                <Link
+                  key={m.id}
+                  to={m.href}
+                  className="block bg-white rounded-2xl shadow-sm border border-primary-200 overflow-hidden hover:shadow-md transition-shadow"
+                >
+                  <div className="relative">
+                    {m.imageUrl ? (
+                      <img src={m.imageUrl} alt={m.title} className="w-full h-32 object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-32 bg-primary-50 flex items-center justify-center">
+                        <Package2 className="w-8 h-8 text-primary-300" />
+                      </div>
+                    )}
+                    <div className="absolute top-2 left-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white/90 border border-primary-200 text-primary-700 text-xs font-medium shadow-sm">
+                        <Package2 className="w-3 h-3" />
+                        Material
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <h4 className="text-sm font-semibold text-gray-900 truncate">{m.title}</h4>
+                    {m.subtitle && <p className="text-xs text-gray-500 truncate mt-0.5">{m.subtitle}</p>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         </div>
       )}
 

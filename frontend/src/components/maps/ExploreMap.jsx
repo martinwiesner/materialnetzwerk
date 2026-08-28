@@ -9,6 +9,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 // Stable initial view — MapController handles all subsequent panning
 const DEFAULT_CENTER = [51.0532575, 12.1287658];
 const DEFAULT_ZOOM = 11;
+const CARTO_API_KEY = import.meta.env.VITE_CARTO_API_KEY || '';
 
 const createDefaultIcon = () =>
   new L.Icon({
@@ -297,7 +298,7 @@ export default function ExploreMap({
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+        url={`https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY}`}
         subdomains="abcd"
         maxZoom={19}
       />

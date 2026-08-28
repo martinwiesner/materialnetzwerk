@@ -25,16 +25,9 @@ import ActorForm from '../../components/actors/ActorForm';
 import { MEDIA_BASE } from '../../services/api';
 import { exportGesuchPoster, exportAngebotPoster } from '../../utils/exportUtils';
 import { useT } from '../../i18n/useT';
+import { dbImageUrl, toMaterialEntity, toProjectEntity } from '../../utils/entityMapping';
 
 const API_BASE = MEDIA_BASE;
-
-function dbImageUrl(images) {
-  const first = Array.isArray(images) ? images[0] : null;
-  if (!first?.file_path) return null;
-  const base = (API_BASE || '').replace(/\/$/, '');
-  const p = first.file_path.startsWith('/') ? first.file_path : '/' + first.file_path;
-  return `${base}${p}`;
-}
 
 function normalizeStr(v) {
   return String(v || '').toLowerCase();
@@ -194,18 +187,13 @@ function buildEntities({ materials, offers, projects, actors, gesuche, search })
       const unit = relatedOffers.find((o) => o.unit)?.unit || '';
 
       return {
-        id: `material:${m.id}`,
-        type: 'material',
-        title: m.name,
-        subtitle: m.category || 'Material',
-        imageUrl: dbImageUrl(m.images) || getMaterialImage(m),
+        ...toMaterialEntity(m, { imageResolver: getMaterialImage }),
         location: geo,
         offerLocation: offerGeoForLine,
         quantityLabel: totalQty ? formatQty(totalQty, unit) : null,
         available: relatedOffers.length > 0,
         hasGesuch: gesuchMaterialIds.has(m.id),
         offerRaw: relatedOffers[0] || null,
-        raw: m,
       };
     });
 
@@ -251,16 +239,11 @@ function buildEntities({ materials, offers, projects, actors, gesuche, search })
       const totalGwpUnit = p.total_gwp_unit ?? p.totalGwpUnit ?? null;
 
       return {
-        id: `project:${p.id}`,
-        type: 'project',
-        title: p.name,
-        subtitle: p.location_name || 'Projekt',
-        imageUrl: dbImageUrl(p.images) || getProjectImage(p),
+        ...toProjectEntity(p, { imageResolver: getProjectImage }),
         location: geo,
         gwpTotal: typeof totalGwp === 'number' ? totalGwp : null,
         gwpUnit: totalGwpUnit || 'kg CO2e',
         available: p.is_available == 1,
-        raw: p,
       };
     });
 
@@ -1067,6 +1050,7 @@ export default function Explore() {
             entity={e}
             active={selected?.id === e.id}
             onSelect={() => setSelected(e)}
+            href={e.type === 'material' || e.type === 'project' ? e.href : undefined}
             onOpenDetails={() => {
               if (e.type === 'material') navigate(`/materials/${e.raw?.id}`);
               if (e.type === 'project') navigate(`/projects/${e.raw?.id}`);

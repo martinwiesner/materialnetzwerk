@@ -28,6 +28,7 @@ import { parseDocumentForMaterial, analyzeImages } from '../../services/material
 import OekobaudatPicker from './OekobaudatPicker';
 import { EpdFullAnalysis } from './EpdAnalysis';
 import ProjectIdematSection from './ProjectIdematSection';
+import { licenseOptionsFor } from '../../utils/licenses';
 
 const API_BASE = MEDIA_BASE;
 
@@ -83,6 +84,11 @@ const CIRCULAR_PRINCIPLES_DE = [
 const GENERAL_SUSTAINABILITY = [
   'Klimaschutz', 'Ressourcenschonung', 'Biodiversitätsschutz',
   'Gesundheitsschonend', 'Soziale Fairness', 'Regionale Wertschöpfung',
+];
+
+const CONTRIBUTOR_ROLES = [
+  'Project Lead', 'Developer', 'Hardware Designer', 'Software Developer',
+  'Researcher', 'Contributor', 'Documentation', 'Other',
 ];
 
 const CONF_STYLE_P = {
@@ -374,6 +380,10 @@ const emptyForm = {
   steps: [],
   references: [],
   license: '',
+  contributors: [],
+  hardware_license: '',
+  software_license: '',
+  documentation_license: '',
   cad_share_url: '',
   oekodat_materials: [],
   idemat_lca_items: [],
@@ -594,6 +604,10 @@ export default function ProjectForm({ project, onClose }) {
         steps: Array.isArray(steps) ? steps : [],
         references: safeJsonParse(project.references, []),
         license: project.license || '',
+        contributors: safeJsonParse(project.contributors, []),
+        hardware_license: project.hardware_license || '',
+        software_license: project.software_license || '',
+        documentation_license: project.documentation_license || '',
         cad_share_url: project.cad_share_url || '',
         oekodat_materials: safeJsonParse(project.oekodat_materials, []),
         idemat_lca_items: safeJsonParse(project.idemat_lca_items, []),
@@ -640,6 +654,7 @@ export default function ProjectForm({ project, onClose }) {
     })),
     steps: formData.steps?.length ? formData.steps : null,
     references: formData.references?.length ? formData.references : null,
+    contributors: formData.contributors?.length ? formData.contributors : null,
     oekodat_materials: formData.oekodat_materials?.length
       ? formData.oekodat_materials.map(e => ({
           ...e,
@@ -1242,7 +1257,76 @@ export default function ProjectForm({ project, onClose }) {
 
               {/* Akteure & Quellen */}
               <AccordionSection icon={Users} title={t('projectForm.actorsTitle')} color="#7c3aed"
-                filled={actorIds.filter(Boolean).length > 0 || (formData.references || []).length > 0 || !!formData.license}>
+                filled={actorIds.filter(Boolean).length > 0 || (formData.references || []).length > 0 || !!formData.license
+                  || (formData.contributors || []).length > 0}>
+
+                {/* Contributors */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5" /> {t('projectForm.contributorsTitle')}
+                    </p>
+                    <button type="button"
+                      onClick={() => setFormData(f => ({
+                        ...f,
+                        contributors: [...(f.contributors || []), { first_name: '', last_name: '', organization: '', role: '' }],
+                      }))}
+                      className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                      <Plus className="w-3.5 h-3.5" /> {t('projectForm.addContributor')}
+                    </button>
+                  </div>
+                  {(!formData.contributors || formData.contributors.length === 0) ? (
+                    <p className="text-xs text-gray-400 italic">{t('projectForm.noContributors')}</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {formData.contributors.map((c, i) => {
+                        const updateC = (field, value) => setFormData(f => ({
+                          ...f,
+                          contributors: f.contributors.map((x, j) => j === i ? { ...x, [field]: value } : x),
+                        }));
+                        const fixedRoles = CONTRIBUTOR_ROLES.filter(r => r !== 'Other');
+                        const roleSelectValue = !c.role ? '' : (fixedRoles.includes(c.role) ? c.role : 'Other');
+                        return (
+                          <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <input type="text" value={c.first_name}
+                                onChange={e => updateC('first_name', e.target.value)}
+                                placeholder={t('projectForm.contributorFirstName')}
+                                className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                              <input type="text" value={c.last_name}
+                                onChange={e => updateC('last_name', e.target.value)}
+                                placeholder={t('projectForm.contributorLastName')}
+                                className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                              <button type="button"
+                                onClick={() => setFormData(f => ({ ...f, contributors: f.contributors.filter((_, j) => j !== i) }))}
+                                className="p-1.5 text-gray-400 hover:text-red-500 rounded flex-shrink-0">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input type="text" value={c.organization || ''}
+                                onChange={e => updateC('organization', e.target.value)}
+                                placeholder={t('projectForm.contributorOrg')}
+                                className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                              <select value={roleSelectValue}
+                                onChange={e => updateC('role', e.target.value)}
+                                className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none">
+                                <option value="">{t('projectForm.contributorRole')}</option>
+                                {CONTRIBUTOR_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                            </div>
+                            {roleSelectValue === 'Other' && (
+                              <input type="text" value={c.role === 'Other' ? '' : c.role}
+                                onChange={e => updateC('role', e.target.value)}
+                                placeholder={t('projectForm.contributorRoleCustom')}
+                                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 {/* Actors */}
                 <div>
@@ -1449,19 +1533,31 @@ export default function ProjectForm({ project, onClose }) {
 
           {/* Lizenz */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('projectForm.labelLicense')}</label>
-            <select value={formData.license}
-              onChange={e => setFormData({ ...formData, license: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm">
-              <option value="">{t('projectForm.noLicense')}</option>
-              <option value="CC BY 4.0">CC BY 4.0 – Namensnennung</option>
-              <option value="CC BY-SA 4.0">CC BY-SA 4.0 – Namensnennung + Weitergabe</option>
-              <option value="CC BY-NC 4.0">CC BY-NC 4.0 – Nicht kommerziell</option>
-              <option value="CC BY-NC-SA 4.0">CC BY-NC-SA 4.0 – Nicht kommerziell + Weitergabe</option>
-              <option value="CC0 1.0">CC0 1.0 – Gemeinfrei</option>
-              <option value="MIT">MIT License</option>
-              <option value="Alle Rechte vorbehalten">Alle Rechte vorbehalten</option>
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-2">{t('projectForm.labelLicense')}</label>
+            {formData.license && !formData.hardware_license && !formData.software_license && !formData.documentation_license && (
+              <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+                {t('projectForm.legacyLicenseHint', { value: formData.license })}
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { key: 'hardware_license', label: t('projectForm.labelHardwareLicense') },
+                { key: 'software_license', label: t('projectForm.labelSoftwareLicense') },
+                { key: 'documentation_license', label: t('projectForm.labelDocumentationLicense') },
+              ].map(({ key, label }) => (
+                <div key={key}>
+                  <label className="block text-xs text-gray-500 mb-1">{label}</label>
+                  <select value={formData[key]}
+                    onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm">
+                    <option value="">{t('projectForm.noLicense')}</option>
+                    {licenseOptionsFor(key.split('_')[0]).map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Actions */}

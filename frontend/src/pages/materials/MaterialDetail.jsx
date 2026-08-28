@@ -21,10 +21,11 @@ export default function MaterialDetail() {
     },
   });
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['materials', { id }],
     queryFn: () => materialService.getById(id),
     enabled: Boolean(id),
+    retry: false,
   });
 
   const material = data?.data || data;
@@ -33,6 +34,17 @@ export default function MaterialDetail() {
     return (
       <div className="py-10 text-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full mx-auto" />
+      </div>
+    );
+  }
+
+  if (error?.response?.status === 403) {
+    return (
+      <div className="py-10 text-center text-gray-600">
+        <p>Dieses Material ist privat und für dich nicht sichtbar.</p>
+        {!isAuthenticated && (
+          <p className="text-sm text-gray-400 mt-1">Melde dich an, falls dir dieses Material gehört.</p>
+        )}
       </div>
     );
   }

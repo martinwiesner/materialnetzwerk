@@ -91,6 +91,7 @@ import SharePrintBar from '../../components/shared/SharePrintBar';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectPoster } from '../../utils/exportUtils';
 import { formatDate } from '../../utils/dates';
+import { getLicenseLabel } from '../../utils/licenses';
 const API_BASE = MEDIA_BASE;
 
 function safeJsonParse(value, fallback) {
@@ -866,6 +867,17 @@ export default function ProjectDetail() {
     );
   }
 
+  if (error?.response?.status === 403) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600">Dieses Projekt ist privat und für dich nicht sichtbar.</p>
+        <Link to="/projects" className="text-primary-600 hover:underline mt-2 inline-block">
+          {t('projectDetail.backToList')}
+        </Link>
+      </div>
+    );
+  }
+
   if (error || !project) {
     return (
       <div className="text-center py-12">
@@ -1203,33 +1215,74 @@ export default function ProjectDetail() {
           </div>
         )}
 
+        {/* Contributors */}
+        {(() => {
+          const contributors = safeJsonParse(project.contributors, []);
+          if (!contributors.length) return null;
+          return (
+            <div className="p-6 border-t border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-3">
+                <Users className="w-5 h-5 text-gray-500" />
+                {t('projectDetail.sections.contributors')}
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {contributors.map((c, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 border border-gray-200">
+                    {[c.first_name, c.last_name].filter(Boolean).join(' ')}
+                    {c.role && <span className="text-gray-400">· {c.role}</span>}
+                    {c.organization && <span className="text-gray-400">· {c.organization}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* References + License */}
-        {(project.license || (project.references?.length > 0)) && (
-          <div className="p-6 border-t border-gray-200">
-            {project.license && (
-              <p className="text-sm text-gray-700 mb-2">
-                <span className="font-semibold text-gray-600"><Tag className="w-3.5 h-3.5 inline mr-1" />{t('projectDetail.labels.license')}</span> {project.license}
-              </p>
-            )}
-            {project.references?.length > 0 && (
-              <>
-                <h2 className="text-sm font-semibold text-gray-600 flex items-center gap-1 mb-2">
-                  <BookOpen className="w-4 h-4" /> {t('projectDetail.sections.references')}
-                </h2>
-                <ul className="space-y-1">
-                  {project.references.map((ref, i) => (
-                    <li key={i} className="text-sm text-primary-600">
-                      {ref.startsWith('http') ? (
-                        <a href={ref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
-                          <ExternalLink className="w-3 h-3" /> {ref}
-                        </a>
-                      ) : ref}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
+        {(() => {
+          const references = safeJsonParse(project.references, []);
+          const licenseRows = [
+            { key: 'hardware_license', label: t('projectDetail.labels.hardwareLicense') },
+            { key: 'software_license', label: t('projectDetail.labels.softwareLicense') },
+            { key: 'documentation_license', label: t('projectDetail.labels.documentationLicense') },
+          ].filter(({ key }) => !!project[key]);
+          const showLegacyLicense = project.license && licenseRows.length === 0;
+
+          if (!licenseRows.length && !showLegacyLicense && !references.length) return null;
+
+          return (
+            <div className="p-6 border-t border-gray-200">
+              {licenseRows.map(({ key, label }) => (
+                <p key={key} className="text-sm text-gray-700 mb-1">
+                  <span className="font-semibold text-gray-600"><Tag className="w-3.5 h-3.5 inline mr-1" />{label}</span> {getLicenseLabel(project[key])}
+                </p>
+              ))}
+              {showLegacyLicense && (
+                <p className="text-sm text-gray-700 mb-2">
+                  <span className="font-semibold text-gray-600"><Tag className="w-3.5 h-3.5 inline mr-1" />{t('projectDetail.labels.license')}</span> {project.license}
+                </p>
+              )}
+              {references.length > 0 && (
+                <>
+                  <h2 className="text-sm font-semibold text-gray-600 flex items-center gap-1 mb-2 mt-2">
+                    <BookOpen className="w-4 h-4" /> {t('projectDetail.sections.references')}
+                  </h2>
+                  <ul className="space-y-1">
+                    {references.map((ref, i) => (
+                      <li key={i} className="text-sm text-primary-600">
+                        {ref.startsWith('http') ? (
+                          <a href={ref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
+                            <ExternalLink className="w-3 h-3" /> {ref}
+                          </a>
+                        ) : ref}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          );
+        })()}
         )}
 
         {/* Manufacturing files */}

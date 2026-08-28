@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { MapPin, Package, Store, FolderOpen, Leaf, Tag, Users, Send, BookMarked, Printer, Pencil } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -9,7 +10,7 @@ function badgeForType(type) {
   return { label: 'Projekt', className: 'bg-project-50 text-project-700 border-project-200', icon: FolderOpen };
 }
 
-export default function EntityCard({ entity, active = false, onSelect, onOpenDetails, onRequest, onPrint, onPrintOffer, onEdit }) {
+export default function EntityCard({ entity, active = false, onSelect, href, onOpenDetails, onRequest, onPrint, onPrintOffer, onEdit }) {
   const badge = badgeForType(entity.type);
   const Icon = badge.icon;
 
@@ -127,13 +128,23 @@ export default function EntityCard({ entity, active = false, onSelect, onOpenDet
                 <Pencil className="w-3.5 h-3.5" />
               </button>
             )}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onOpenDetails?.(); }}
-              className="text-xs font-semibold text-primary-600 hover:text-primary-800"
-            >
-              Details
-            </button>
+            {href ? (
+              <Link
+                to={href}
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs font-semibold text-primary-600 hover:text-primary-800 underline-offset-2 hover:underline"
+              >
+                {entity.title} ansehen
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onOpenDetails?.(); }}
+                className="text-xs font-semibold text-primary-600 hover:text-primary-800"
+              >
+                Details
+              </button>
+            )}
           </div>
         </div>
       </div>

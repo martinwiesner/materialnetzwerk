@@ -46,6 +46,7 @@ export const getDB = () => {
   ensureMaterialCategories();
   ensureColumns();                 // ALTER TABLE ADD COLUMN IF NOT EXISTS
   backfillMaterialIds();           // Assign RZZ-IDs to legacy rows without one
+  backfillProjectLicenses();       // Split legacy license field into hardware/software/documentation
   ensureCategoryTranslations();   // Rename English → German category names
   ensureAdmin();                   // Promote ADMIN_EMAIL to superuser if set
   ensureFixedAdmins(); // Create/promote hardcoded admin accounts (fire-and-forget)
@@ -483,8 +484,15 @@ const ensureColumns = () => {
     addCol('projects', 'is_available', 'is_available BOOLEAN DEFAULT 0');
     // projects – references / bibliography
     addCol('projects', 'references', '"references" TEXT');
-    // projects – license declaration
+    // projects – license declaration (legacy, single field — superseded by the
+    // three category-specific license columns below, kept for backward compat)
     addCol('projects', 'license', 'license TEXT');
+    // projects – contributors (JSON array of {first_name, last_name, organization, role})
+    addCol('projects', 'contributors', 'contributors TEXT');
+    // projects – license split by component
+    addCol('projects', 'hardware_license', 'hardware_license TEXT');
+    addCol('projects', 'software_license', 'software_license TEXT');
+    addCol('projects', 'documentation_license', 'documentation_license TEXT');
     // image credit for all image types
     addCol('project_images',   'credit', 'credit TEXT');
     addCol('material_images',  'credit', 'credit TEXT');
@@ -512,6 +520,22 @@ const ensureColumns = () => {
     addCol('materials', 'adp_elements',      'adp_elements REAL');
     addCol('materials', 'lifecycle_scope',   'lifecycle_scope TEXT');
     addCol('materials', 'water_consumption', 'water_consumption REAL');
+    // EPD / Ökobilanz — weitere EF-3.1-Indikatoren (waren nur in migrate.js, nicht hier —
+    // fehlten dadurch auf jeder DB, die nie manuell migriert wurde, z. B. frische Installs)
+    addCol('materials', 'odp',           'odp REAL');
+    addCol('materials', 'ap',            'ap REAL');
+    addCol('materials', 'ep_terrestrial','ep_terrestrial REAL');
+    addCol('materials', 'ep_freshwater', 'ep_freshwater REAL');
+    addCol('materials', 'ep_marine',     'ep_marine REAL');
+    addCol('materials', 'pocp',          'pocp REAL');
+    addCol('materials', 'hwd',           'hwd REAL');
+    addCol('materials', 'nhwd',          'nhwd REAL');
+    addCol('materials', 'rwd',           'rwd REAL');
+    addCol('materials', 'pere',          'pere REAL');
+    addCol('materials', 'penre',         'penre REAL');
+    addCol('materials', 'perm',          'perm REAL');
+    addCol('materials', 'idemat_process_id', 'idemat_process_id TEXT');
+    addCol('materials', 'contact_person',    'contact_person TEXT');
     addCol('actors',    'material_id',   'material_id TEXT');
     addCol('inventory', 'material_id_code', 'material_id_code TEXT');
 
@@ -573,6 +597,44 @@ const backfillMaterialIds = () => {
     if (count > 0) console.log(`✓ Backfilled ${count} missing RZZ-IDs.`);
   } catch (err) {
     console.error('backfillMaterialIds error:', err.message);
+  }
+};
+
+/**
+ * Backfill the new per-component license columns from the legacy single
+ * `license` field. Idempotent — only touches rows where none of the three
+ * new columns has been set yet, so it's a no-op after the first run.
+ *
+ * Only unambiguous legacy values are migrated. 'Alle Rechte vorbehalten' is
+ * intentionally left unmigrated — it says nothing about which project
+ * component (hardware/software/documentation) it was meant to cover, so
+ * guessing would risk silently mis-categorising it. Those rows keep their
+ * legacy `license` value; the UI surfaces it for manual review.
+ */
+const backfillProjectLicenses = () => {
+  const DOC_MAP = {
+    'CC BY 4.0': 'CC-BY-4.0',
+    'CC BY-SA 4.0': 'CC-BY-SA-4.0',
+    'CC BY-NC 4.0': 'CC-BY-NC-4.0',
+    'CC BY-NC-SA 4.0': 'CC-BY-NC-SA-4.0',
+    'CC0 1.0': 'CC0-1.0',
+  };
+  const SOFTWARE_MAP = { 'MIT': 'MIT' };
+
+  try {
+    const guard = `hardware_license IS NULL AND software_license IS NULL AND documentation_license IS NULL AND license = ?`;
+    let count = 0;
+    for (const [legacy, spdx] of Object.entries(DOC_MAP)) {
+      const r = db.prepare(`UPDATE projects SET documentation_license = ? WHERE ${guard}`).run(spdx, legacy);
+      count += r.changes;
+    }
+    for (const [legacy, spdx] of Object.entries(SOFTWARE_MAP)) {
+      const r = db.prepare(`UPDATE projects SET software_license = ? WHERE ${guard}`).run(spdx, legacy);
+      count += r.changes;
+    }
+    if (count > 0) console.log(`✓ Backfilled ${count} project license value(s) into hardware/software/documentation columns.`);
+  } catch (err) {
+    console.error('backfillProjectLicenses error:', err.message);
   }
 };
 
