@@ -101,6 +101,7 @@ const ctx = {
   userIdB:      null,
   privateProjectId: null,
   publicProjectId: null,
+  privateMaterialId: null,
 };
 
 // Unique suffix so parallel runs don't collide
@@ -250,6 +251,11 @@ async function main() {
       category: 'Holz',
       description: 'Automatisch erstelltes Testmaterial',
       status: 'draft',
+      // Explicit: Material.create() defaults visibility to 'private' when omitted.
+      // Later tests fetch this material anonymously, so it must be public on
+      // purpose here — the dedicated private-material tests below cover the
+      // private + sharing paths separately.
+      visibility: 'public',
     }, ctx.token);
     assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
     assert(r.body?.id, 'Missing id');
@@ -274,6 +280,78 @@ async function main() {
   await test('PUT /api/materials/:id without auth returns 401', async () => {
     const r = await put(`/api/materials/${ctx.materialId}`, { description: 'x' });
     assert(r.status === 401, `Expected 401, got ${r.status}`);
+  });
+
+  // ── 4b. Material visibility + edit-sharing ─────────────────────────────────
+  // Mirrors 7d (projects) — canViewMaterial/canEditMaterial + /api/shares/material
+  // already existed before today; this only re-verifies they still hold up.
+  console.log(`\n${c.cyan}${c.bold}4b. Material-Sichtbarkeit & Freigaben${c.reset}`);
+
+  await test('POST /api/materials creates a private material', async () => {
+    const r = await post('/api/materials', {
+      name: `Privates Testmaterial ${SUFFIX}`,
+      visibility: 'private',
+    }, ctx.token);
+    assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
+    ctx.privateMaterialId = r.body.id;
+  });
+
+  await test('GET private material as anonymous returns 403', async () => {
+    const r = await get(`/api/materials/${ctx.privateMaterialId}`);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET private material as unrelated user B returns 403', async () => {
+    const r = await get(`/api/materials/${ctx.privateMaterialId}`, ctx.tokenB);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET private material as owner returns 200', async () => {
+    const r = await get(`/api/materials/${ctx.privateMaterialId}`, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+  });
+
+  await test('POST /api/shares/material/:id shares with user B as view-only', async () => {
+    const r = await post(`/api/shares/material/${ctx.privateMaterialId}`,
+      { email: `test_b_${SUFFIX}@rzz-test.invalid`, access_level: 'view' }, ctx.token);
+    assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET private material as view-shared user B now returns 200', async () => {
+    const r = await get(`/api/materials/${ctx.privateMaterialId}`, ctx.tokenB);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('PUT private material as view-only user B returns 403 (view != edit)', async () => {
+    const r = await put(`/api/materials/${ctx.privateMaterialId}`, { description: 'Sollte nicht klappen' }, ctx.tokenB);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('POST /api/shares/material/:id upgrades user B to edit access', async () => {
+    const r = await post(`/api/shares/material/${ctx.privateMaterialId}`,
+      { email: `test_b_${SUFFIX}@rzz-test.invalid`, access_level: 'edit' }, ctx.token);
+    assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('PUT private material as edit-shared user B now returns 200', async () => {
+    const r = await put(`/api/materials/${ctx.privateMaterialId}`, { description: 'Von User B bearbeitet' }, ctx.tokenB);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+    assert(r.body?.description === 'Von User B bearbeitet', 'Edit did not persist');
+  });
+
+  await test('DELETE private material as edit-shared user B still returns 403 (edit != delete)', async () => {
+    const r = await del(`/api/materials/${ctx.privateMaterialId}`, ctx.tokenB);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('DELETE /api/shares/material/:id/:userId revokes the share', async () => {
+    const r = await del(`/api/shares/material/${ctx.privateMaterialId}/${ctx.userIdB}`, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET private material as user B after revoke returns 403 again', async () => {
+    const r = await get(`/api/materials/${ctx.privateMaterialId}`, ctx.tokenB);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
   });
 
   // ── 5. RZZ-ID Resolver ────────────────────────────────────────────────────
@@ -645,6 +723,13 @@ async function main() {
   if (ctx.materialId) {
     await test('DELETE /api/materials/:id removes material', async () => {
       const r = await del(`/api/materials/${ctx.materialId}`, ctx.token);
+      assert([200, 204].includes(r.status), `Expected 200/204, got ${r.status}`);
+    });
+  }
+
+  if (ctx.privateMaterialId) {
+    await test('DELETE /api/materials/:id removes private test material', async () => {
+      const r = await del(`/api/materials/${ctx.privateMaterialId}`, ctx.token);
       assert([200, 204].includes(r.status), `Expected 200/204, got ${r.status}`);
     });
   }

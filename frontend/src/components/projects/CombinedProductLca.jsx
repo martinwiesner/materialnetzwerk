@@ -4,7 +4,7 @@ import { Leaf, Info, AlertTriangle } from 'lucide-react';
 // ── EF 3.1 conversion factors (EC JRC, EF 3.1 method, 2021) ─────────────────
 // Formula: Pt = (impact_value / norm_factor) * weight_factor
 // Source: EN 15804+A2 indicator → EF 3.1 normalization (unit/person·year) + weighting (dimensionless)
-const EF31_CONV = {
+export const EF31_CONV = {
   'GWP-total':      { norm: 7.55e3,  wf: 0.2106, ef31: 'climate_change',      label: 'Klimawandel',               unit: 'kg CO₂ eq.' },
   'ODP':            { norm: 5.36e-2, wf: 0.0631, ef31: 'ozone_depletion',     label: 'Ozonabbau',                 unit: 'kg CFC-11 eq.' },
   'AP':             { norm: 5.56e1,  wf: 0.0620, ef31: 'acidification',       label: 'Versauerung',               unit: 'mol H⁺ eq.' },
@@ -34,7 +34,7 @@ const EOL_KEYS  = ['C3', 'C4'];
 
 // sumAll=false: first direct-key hit wins (for composite keys like 'A1-A3' > A1+A2+A3)
 // sumAll=true:  always sum all found keys (for independent modules like C3 + C4)
-function sumMods(mods, keys, sumAll = false) {
+export function sumMods(mods, keys, sumAll = false) {
   if (!sumAll) {
     for (const k of keys) if (k in mods && mods[k] != null) return mods[k];
   }
@@ -46,7 +46,7 @@ function sumMods(mods, keys, sumAll = false) {
 }
 
 // Convert EPD indicators to EF 3.1 Pt for given module keys
-function indsToPt(indicators, modKeys, sumAll = false) {
+export function indsToPt(indicators, modKeys, sumAll = false) {
   let pt = 0;
   let covered = [];
   for (const [indKey, { norm, wf }] of Object.entries(EF31_CONV)) {
@@ -59,7 +59,7 @@ function indsToPt(indicators, modKeys, sumAll = false) {
 }
 
 // Get single EF 3.1 category value from EPD indicators, for one module set
-function indsToCatPt(indicators, ef31key, modKeys, sumAll = false) {
+export function indsToCatPt(indicators, ef31key, modKeys, sumAll = false) {
   const entry = Object.values(EF31_CONV).find(c => c.ef31 === ef31key);
   if (!entry) return null;
   const indKey = Object.entries(EF31_CONV).find(([, v]) => v.ef31 === ef31key)?.[0];
@@ -80,7 +80,7 @@ function indsToIndicatorVal(indicators, indKey, modKeys, sumAll = false) {
 }
 
 // GWP from EPD indicators (kg CO₂ eq.) for given module keys
-function indsToGWP(indicators, modKeys, sumAll = false) {
+export function indsToGWP(indicators, modKeys, sumAll = false) {
   return indsToIndicatorVal(indicators, 'GWP-total', modKeys, sumAll);
 }
 
@@ -89,7 +89,7 @@ function indsToGWP(indicators, modKeys, sumAll = false) {
 // → GWP [kg CO₂ eq.] = climate_change [Pt] × 7550 / 0.2106
 const GWP_NORM = 7.55e3;
 const GWP_WF   = 0.2106;
-function ccPtToGWP(climatePt) {
+export function ccPtToGWP(climatePt) {
   if (climatePt == null) return null;
   return climatePt * GWP_NORM / GWP_WF;
 }
@@ -97,14 +97,14 @@ function ccPtToGWP(climatePt) {
 // Generic inverse of Pt = (value / norm) * wf → value = Pt × norm / wf
 // Lets us back-calculate a physical value (e.g. m³ water, mol H⁺ eq.) from an
 // IDEMAT process's EF 3.1 Pt sub-score for any convertible indicator.
-function ptToPhysical(indKey, pt) {
+export function ptToPhysical(indKey, pt) {
   if (pt == null) return null;
   const conv = EF31_CONV[indKey];
   if (!conv) return null;
   return pt * conv.norm / conv.wf;
 }
 
-function fmtIndVal(v) {
+export function fmtIndVal(v) {
   if (v == null || isNaN(v)) return '—';
   if (v === 0) return '0';
   const a = Math.abs(v);
@@ -119,13 +119,13 @@ function fmtIndVal(v) {
 
 // Heat-scale background for a table cell, relative to the row's largest value —
 // makes the dominant contributor(s) per indicator visually obvious at a glance.
-function heatBg(intensity) {
+export function heatBg(intensity) {
   if (!intensity) return undefined;
   const alpha = 0.1 + Math.min(intensity, 1) * 0.5;
   return `rgba(220, 38, 38, ${alpha.toFixed(2)})`;
 }
 
-function fmtPt(v) {
+export function fmtPt(v) {
   if (v == null || isNaN(v)) return '—';
   if (v === 0) return '0';
   const a = Math.abs(v);
@@ -135,7 +135,7 @@ function fmtPt(v) {
   return v.toLocaleString('de-DE', { maximumFractionDigits: 10 });
 }
 
-function fmtGWP(v) {
+export function fmtGWP(v) {
   if (v == null || isNaN(v)) return '—';
   if (v === 0) return '0';
   const a = Math.abs(v);
@@ -145,13 +145,13 @@ function fmtGWP(v) {
   return v.toLocaleString('de-DE', { maximumFractionDigits: 8 });
 }
 
-function fmtPct(v) {
+export function fmtPct(v) {
   if (v == null || isNaN(v) || !isFinite(v)) return '—';
   return v.toFixed(1) + ' %';
 }
 
 // Build per-entry data for the combined table
-function buildEntries(epdMats, idematItems, selectedCat) {
+export function buildEntries(epdMats, idematItems, selectedCat) {
   const entries = [];
 
   for (const mat of epdMats) {
