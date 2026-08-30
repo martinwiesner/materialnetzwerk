@@ -1301,7 +1301,6 @@ export default function ProjectDetail() {
             </div>
           );
         })()}
-        )}
 
         {/* Manufacturing files */}
         {project.files?.length > 0 && (
