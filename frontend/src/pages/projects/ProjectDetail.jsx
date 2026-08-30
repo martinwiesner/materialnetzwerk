@@ -6,11 +6,12 @@ import { projectService } from '../../services/projectService';
 import {
   ArrowLeft, Edit2, Trash2, Globe, Lock, Package,
   Calendar, User, Leaf, ChevronLeft, ChevronRight,
-  MapPin, ExternalLink, BookOpen, Users, Tag, Database, FileDown
+  MapPin, ExternalLink, BookOpen, Users, Tag, Database, FileDown, Share2
 } from 'lucide-react';
 import { EpdFullAnalysis } from '../../components/projects/EpdAnalysis';
 import { CombinedProductLca } from '../../components/projects/CombinedProductLca';
 import LcaExportDialog from '../../components/projects/LcaExportDialog';
+import ShareDialog from '../../components/shared/ShareDialog';
 
 function ImageCarousel({ images, apiBase }) {
   const t = useT();
@@ -828,6 +829,8 @@ export default function ProjectDetail() {
   const [showForm, setShowForm] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [showLcaExport, setShowLcaExport] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [visibilityLocal, setVisibilityLocal] = useState(null);
 
   async function handleDownloadPdf() {
     setPdfLoading(true);
@@ -939,6 +942,13 @@ export default function ProjectDetail() {
               {t('projectDetail.editButton')}
             </button>
             <button
+              onClick={() => setShareOpen(true)}
+              className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+              type="button" title="Sichtbarkeit & Freigabe"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
+            <button
               onClick={handleDelete}
               className="inline-flex items-center gap-2 px-3 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
             >
@@ -976,6 +986,37 @@ export default function ProjectDetail() {
           {project.description && (
             <p className="text-lg text-gray-600">{project.description}</p>
           )}
+
+          {/* Contributors — shown prominently, above the creator */}
+          {(() => {
+            const contributors = safeJsonParse(project.contributors, []);
+            if (!contributors.length) return null;
+            return (
+              <div className="flex flex-wrap items-center gap-2 mt-4">
+                <span className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+                  <Users className="w-4 h-4" />
+                  {t('projectDetail.sections.contributors')}:
+                </span>
+                {contributors.map((c, i) => {
+                  const name = [c.first_name, c.last_name].filter(Boolean).join(' ');
+                  return (
+                    <span key={i} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-primary-50 text-primary-800 border border-primary-200">
+                      {c.email ? (
+                        <a href={`mailto:${c.email}`} className="font-medium hover:underline" title={`${name} anschreiben`}>
+                          {name}
+                        </a>
+                      ) : (
+                        <span className="font-medium">{name}</span>
+                      )}
+                      {c.role && <span className="text-primary-500">· {c.role}</span>}
+                      {c.organization && <span className="text-primary-400">· {c.organization}</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
           <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
             {project.owner_first_name && (
               <span className="flex items-center gap-1">
@@ -1215,29 +1256,6 @@ export default function ProjectDetail() {
           </div>
         )}
 
-        {/* Contributors */}
-        {(() => {
-          const contributors = safeJsonParse(project.contributors, []);
-          if (!contributors.length) return null;
-          return (
-            <div className="p-6 border-t border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-3">
-                <Users className="w-5 h-5 text-gray-500" />
-                {t('projectDetail.sections.contributors')}
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {contributors.map((c, i) => (
-                  <span key={i} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-700 border border-gray-200">
-                    {[c.first_name, c.last_name].filter(Boolean).join(' ')}
-                    {c.role && <span className="text-gray-400">· {c.role}</span>}
-                    {c.organization && <span className="text-gray-400">· {c.organization}</span>}
-                  </span>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
-
         {/* References + License */}
         {(() => {
           const references = safeJsonParse(project.references, []);
@@ -1363,6 +1381,20 @@ export default function ProjectDetail() {
           epdMats={lcaEpdMats}
           idematItems={lcaIdematItems}
           onClose={() => setShowLcaExport(false)}
+        />
+      )}
+
+      {shareOpen && (
+        <ShareDialog
+          entityType="project"
+          entityId={project.id}
+          currentVisibility={visibilityLocal ?? project.visibility ?? (project.is_public ? 'public' : 'private')}
+          isOwner={isAuthenticated && (project.owner_id === user?.id || user?.is_admin)}
+          onClose={() => setShareOpen(false)}
+          onVisibilityChange={(v) => {
+            setVisibilityLocal(v);
+            queryClient.invalidateQueries({ queryKey: ['project', id] });
+          }}
         />
       )}
     </div>

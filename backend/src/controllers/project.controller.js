@@ -5,6 +5,7 @@
 
 import Project from '../models/project.model.js';
 import { getDB } from '../config/db.js';
+import { canViewProject, canEditProject } from '../utils/access.js';
 import { unlinkSync, existsSync } from 'fs';
 import { generateProjectPdf } from '../utils/projectPdfGenerator.js';
 import { resolve, dirname } from 'path';
@@ -74,6 +75,9 @@ export const getProjectById = (req, res) => {
   try {
     const project = Project.findByIdWithDetails(req.params.id);
     if (!project) return res.status(404).json({ message: 'Project not found' });
+    if (!canViewProject(req.user?.id, project)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
     res.json(project);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch project', error: error.message });
@@ -106,7 +110,7 @@ export const updateProject = (req, res) => {
     const project = Project.findById(req.params.id);
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
-    if (project.owner_id !== req.user.id && !isAdmin(req.user)) {
+    if (!canEditProject(req.user.id, project) && !isAdmin(req.user)) {
       return res.status(403).json({ message: 'Not authorized to update this project' });
     }
 

@@ -1269,7 +1269,7 @@ export default function ProjectForm({ project, onClose }) {
                     <button type="button"
                       onClick={() => setFormData(f => ({
                         ...f,
-                        contributors: [...(f.contributors || []), { first_name: '', last_name: '', organization: '', role: '' }],
+                        contributors: [...(f.contributors || []), { first_name: '', last_name: '', organization: '', role: '', email: '' }],
                       }))}
                       className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
                       <Plus className="w-3.5 h-3.5" /> {t('projectForm.addContributor')}
@@ -1321,6 +1321,10 @@ export default function ProjectForm({ project, onClose }) {
                                 placeholder={t('projectForm.contributorRoleCustom')}
                                 className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
                             )}
+                            <input type="email" value={c.email || ''}
+                              onChange={e => updateC('email', e.target.value)}
+                              placeholder={t('projectForm.contributorEmail')}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" />
                           </div>
                         );
                       })}

@@ -2,12 +2,17 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Trash2, Globe, Lock, Users, Building2, Loader2, Check } from 'lucide-react';
 import api from '../../services/api';
 
-const VISIBILITY_OPTIONS = [
-  { value: 'private',       label: 'Privat',      desc: 'Nur du kannst dieses Material sehen.',               Icon: Lock      },
-  { value: 'actor',         label: 'Akteur-Teams', desc: 'Mitglieder ausgewählter Akteure können es sehen.',  Icon: Building2 },
-  { value: 'selectedUsers', label: 'Ausgewählte', desc: 'Nur Personen, die du direkt einlädst.',              Icon: Users     },
-  { value: 'public',        label: 'Öffentlich',  desc: 'Für alle sichtbar (auch ohne Anmeldung).',           Icon: Globe     },
-];
+const ENTITY_LABEL = { material: 'dieses Material', project: 'dieses Projekt' };
+
+function visibilityOptions(entityType) {
+  const noun = ENTITY_LABEL[entityType] || 'diesen Eintrag';
+  return [
+    { value: 'private',       label: 'Privat',      desc: `Nur du kannst ${noun} sehen.`,                       Icon: Lock      },
+    { value: 'actor',         label: 'Akteur-Teams', desc: 'Mitglieder ausgewählter Akteure können es sehen.',  Icon: Building2 },
+    { value: 'selectedUsers', label: 'Ausgewählte', desc: 'Nur Personen, die du direkt einlädst.',              Icon: Users     },
+    { value: 'public',        label: 'Öffentlich',  desc: 'Für alle sichtbar (auch ohne Anmeldung).',           Icon: Globe     },
+  ];
+}
 
 // Dropdown with fixed positioning to escape overflow:hidden parents
 function UserSearch({ onSelect }) {
@@ -129,7 +134,7 @@ function ActorMultiSelect({ selected, onChange }) {
   );
 }
 
-export default function ShareDialog({ materialId, currentVisibility = 'private', isOwner, onClose, onVisibilityChange }) {
+export default function ShareDialog({ entityType = 'material', entityId, currentVisibility = 'private', isOwner, onClose, onVisibilityChange }) {
   const [visibility, setVisibility] = useState(currentVisibility);
   const [shares, setShares] = useState([]);
   const [sharedActors, setSharedActors] = useState([]);
@@ -138,20 +143,26 @@ export default function ShareDialog({ materialId, currentVisibility = 'private',
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // Multi-actor sharing (material_shared_actors) only exists for materials —
+  // projects configure their single share_actor_id via the main project form.
+  const supportsActorMultiShare = entityType === 'material';
+
   useEffect(() => {
     if (!isOwner) return;
     setLoading(true);
     Promise.all([
-      api.get(`/shares/material/${materialId}`).then(r => r.data).catch(() => []),
-      api.get(`/shares/material/${materialId}/actors`).then(r => r.data.map(a => a.id)).catch(() => []),
+      api.get(`/shares/${entityType}/${entityId}`).then(r => r.data).catch(() => []),
+      supportsActorMultiShare
+        ? api.get(`/shares/${entityType}/${entityId}/actors`).then(r => r.data.map(a => a.id)).catch(() => [])
+        : Promise.resolve([]),
     ]).then(([s, a]) => { setShares(s); setSharedActors(a); }).finally(() => setLoading(false));
-  }, [materialId, isOwner]);
+  }, [entityType, entityId, isOwner, supportsActorMultiShare]);
 
   const handleVisibilityChange = async (v) => {
     setVisibility(v);
     setSaving(true);
     try {
-      await api.put(`/materials/${materialId}`, { visibility: v });
+      await api.put(`/${entityType}s/${entityId}`, { visibility: v });
       onVisibilityChange?.(v);
     } catch {
       setError('Sichtbarkeit konnte nicht gespeichert werden.');
@@ -161,21 +172,21 @@ export default function ShareDialog({ materialId, currentVisibility = 'private',
   const handleActorsChange = async (actorIds) => {
     setSharedActors(actorIds);
     try {
-      await api.put(`/shares/material/${materialId}/actors`, { actor_ids: actorIds });
+      await api.put(`/shares/${entityType}/${entityId}/actors`, { actor_ids: actorIds });
     } catch { setError('Akteur-Freigaben konnten nicht gespeichert werden.'); }
   };
 
   const addShare = async (user) => {
     setError(null);
     try {
-      const { data } = await api.post(`/shares/material/${materialId}`, { email: user.email, access_level: accessLevel });
+      const { data } = await api.post(`/shares/${entityType}/${entityId}`, { email: user.email, access_level: accessLevel });
       setShares(prev => [...prev.filter(s => s.shared_with_user_id !== data.shared_with_user_id), data]);
     } catch (e) { setError(e.response?.data?.message || 'Freigabe fehlgeschlagen.'); }
   };
 
   const removeShare = async (userId) => {
     try {
-      await api.delete(`/shares/material/${materialId}/${userId}`);
+      await api.delete(`/shares/${entityType}/${entityId}/${userId}`);
       setShares(prev => prev.filter(s => s.shared_with_user_id !== userId));
     } catch { setError('Freigabe konnte nicht entfernt werden.'); }
   };
@@ -195,7 +206,7 @@ export default function ShareDialog({ materialId, currentVisibility = 'private',
           {isOwner && (
             <div className="flex flex-col gap-1.5">
               <p className="text-xs font-medium text-stone-500 uppercase tracking-wide">Sichtbarkeit</p>
-              {VISIBILITY_OPTIONS.map(({ value, label, desc, Icon }) => (
+              {visibilityOptions(entityType).map(({ value, label, desc, Icon }) => (
                 <button key={value} onClick={() => handleVisibilityChange(value)}
                   className={`flex items-start gap-3 text-left rounded-xl px-3 py-2.5 border transition-colors ${
                     visibility === value ? 'bg-stone-50 border-stone-300' : 'border-transparent hover:bg-stone-50'
@@ -211,8 +222,9 @@ export default function ShareDialog({ materialId, currentVisibility = 'private',
                 </button>
               ))}
 
-              {/* Actor multi-select (when visibility = actor) */}
-              {visibility === 'actor' && (
+              {/* Actor multi-select (when visibility = actor) — materials only;
+                  projects pick their single Akteur in the main project form. */}
+              {visibility === 'actor' && supportsActorMultiShare && (
                 <div className="mt-1 px-1">
                   <p className="text-xs text-stone-500 mb-1">Akteure mit Zugriff:</p>
                   {loading ? (
@@ -221,6 +233,11 @@ export default function ShareDialog({ materialId, currentVisibility = 'private',
                     <ActorMultiSelect selected={sharedActors} onChange={handleActorsChange} />
                   )}
                 </div>
+              )}
+              {visibility === 'actor' && !supportsActorMultiShare && (
+                <p className="mt-1 px-1 text-xs text-stone-400">
+                  Welcher Akteur Zugriff hat, legst du im Projekt-Formular unter „Sichtbarkeit" fest.
+                </p>
               )}
             </div>
           )}

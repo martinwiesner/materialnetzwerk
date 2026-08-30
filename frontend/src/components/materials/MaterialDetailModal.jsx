@@ -20,7 +20,7 @@ import { useT } from '../../i18n/useT';
 import { materialService, materialImageService, parseDocumentForMaterial, analyzeImages } from '../../services/materialService';
 import { idematService } from '../../services/idematService';
 import VisibilityBadge from './VisibilityBadge';
-import ShareDialog from './ShareDialog';
+import ShareDialog from '../shared/ShareDialog';
 import { useToast } from '../../store/toastStore';
 
 const API_BASE = MEDIA_BASE;
@@ -1376,7 +1376,7 @@ export default function MaterialDetailModal({ material, onClose, onDelete, onUpd
 
     {/* Share dialog */}
     {shareOpen && (
-      <ShareDialog materialId={material.id} currentVisibility={visibilityLocal}
+      <ShareDialog entityType="material" entityId={material.id} currentVisibility={visibilityLocal}
         isOwner={canEdit} onClose={() => setShareOpen(false)}
         onVisibilityChange={v => setVisibilityLocal(v)} />
     )}

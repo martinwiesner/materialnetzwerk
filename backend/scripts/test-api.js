@@ -97,6 +97,10 @@ const ctx = {
   projectId:    null,
   legacyProjectId: null,
   favoriteId:   null,
+  tokenB:       null,
+  userIdB:      null,
+  privateProjectId: null,
+  publicProjectId: null,
 };
 
 // Unique suffix so parallel runs don't collide
@@ -168,6 +172,17 @@ async function main() {
   await test('GET /api/auth/me without token returns 401', async () => {
     const r = await get('/api/auth/me');
     assert(r.status === 401, `Expected 401, got ${r.status}`);
+  });
+
+  await test('Register second user (for sharing/visibility tests)', async () => {
+    const r = await post('/api/auth/register', {
+      name: `Test User B ${SUFFIX}`,
+      email: `test_b_${SUFFIX}@rzz-test.invalid`,
+      password: TEST_PASSWORD,
+    });
+    assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
+    ctx.tokenB  = r.body.token;
+    ctx.userIdB = r.body.user?.id;
   });
 
   // Admin login (optional — skip gracefully if no credentials)
@@ -318,6 +333,11 @@ async function main() {
       name: `Testprojekt ${SUFFIX}`,
       description: 'Automatisch erstelltes Testprojekt',
       status: 'draft',
+      // Explicit: Project.create() defaults visibility to 'private' when omitted.
+      // Later tests in this section fetch this project anonymously, so it must
+      // be public on purpose — not relying on the (now-fixed) visibility bug.
+      visibility: 'public',
+      is_public: true,
     }, ctx.token);
     assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
     assert(r.body?.id, 'Missing id');
@@ -446,6 +466,91 @@ async function main() {
     // exercises the HTTP API.
   });
 
+  // ── 7d. Project visibility + edit-sharing ──────────────────────────────────
+  console.log(`\n${c.cyan}${c.bold}7d. Projekt-Sichtbarkeit & Freigaben${c.reset}`);
+
+  await test('POST /api/projects creates a private project', async () => {
+    const r = await post('/api/projects', {
+      name: `Privates Testprojekt ${SUFFIX}`,
+      visibility: 'private',
+    }, ctx.token);
+    assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
+    ctx.privateProjectId = r.body.id;
+  });
+
+  await test('GET private project as anonymous returns 403', async () => {
+    const r = await get(`/api/projects/${ctx.privateProjectId}`);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET private project as unrelated user B returns 403', async () => {
+    const r = await get(`/api/projects/${ctx.privateProjectId}`, ctx.tokenB);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET private project as owner returns 200', async () => {
+    const r = await get(`/api/projects/${ctx.privateProjectId}`, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}`);
+    assert(r.body?.id === ctx.privateProjectId, 'id mismatch');
+  });
+
+  await test('POST /api/shares/project/:id shares with user B as view-only', async () => {
+    const r = await post(`/api/shares/project/${ctx.privateProjectId}`,
+      { email: `test_b_${SUFFIX}@rzz-test.invalid`, access_level: 'view' }, ctx.token);
+    assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
+    assert(r.body?.access_level === 'view', `Expected access_level 'view', got ${r.body?.access_level}`);
+  });
+
+  await test('GET private project as view-shared user B now returns 200', async () => {
+    const r = await get(`/api/projects/${ctx.privateProjectId}`, ctx.tokenB);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('PUT private project as view-only user B returns 403 (view != edit)', async () => {
+    const r = await put(`/api/projects/${ctx.privateProjectId}`, { description: 'Sollte nicht klappen' }, ctx.tokenB);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('POST /api/shares/project/:id upgrades user B to edit access', async () => {
+    const r = await post(`/api/shares/project/${ctx.privateProjectId}`,
+      { email: `test_b_${SUFFIX}@rzz-test.invalid`, access_level: 'edit' }, ctx.token);
+    assert(r.status === 201, `Expected 201, got ${r.status}: ${JSON.stringify(r.body)}`);
+    assert(r.body?.access_level === 'edit', `Expected access_level 'edit', got ${r.body?.access_level}`);
+  });
+
+  await test('PUT private project as edit-shared user B now returns 200', async () => {
+    const r = await put(`/api/projects/${ctx.privateProjectId}`, { description: 'Von User B bearbeitet' }, ctx.tokenB);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+    assert(r.body?.description === 'Von User B bearbeitet', 'Edit did not persist');
+  });
+
+  await test('DELETE private project as edit-shared user B still returns 403 (edit != delete)', async () => {
+    const r = await del(`/api/projects/${ctx.privateProjectId}`, ctx.tokenB);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('DELETE /api/shares/project/:id/:userId revokes the share', async () => {
+    const r = await del(`/api/shares/project/${ctx.privateProjectId}/${ctx.userIdB}`, ctx.token);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET private project as user B after revoke returns 403 again', async () => {
+    const r = await get(`/api/projects/${ctx.privateProjectId}`, ctx.tokenB);
+    assert(r.status === 403, `Expected 403, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
+  await test('GET public project as anonymous still returns 200 (no regression)', async () => {
+    const created = await post('/api/projects', {
+      name: `Öffentliches Testprojekt ${SUFFIX}`,
+      visibility: 'public',
+      is_public: true,
+    }, ctx.token);
+    assert(created.status === 201, `Setup failed: expected 201, got ${created.status}`);
+    ctx.publicProjectId = created.body.id;
+    const r = await get(`/api/projects/${ctx.publicProjectId}`);
+    assert(r.status === 200, `Expected 200, got ${r.status}: ${JSON.stringify(r.body)}`);
+  });
+
   // ── 8. Favorites ──────────────────────────────────────────────────────────
   console.log(`\n${c.cyan}${c.bold}8. Merkliste${c.reset}`);
 
@@ -519,6 +624,20 @@ async function main() {
   if (ctx.legacyProjectId) {
     await test('DELETE /api/projects/:id removes legacy-license test project', async () => {
       const r = await del(`/api/projects/${ctx.legacyProjectId}`, ctx.token);
+      assert([200, 204].includes(r.status), `Expected 200/204, got ${r.status}`);
+    });
+  }
+
+  if (ctx.privateProjectId) {
+    await test('DELETE /api/projects/:id removes private test project', async () => {
+      const r = await del(`/api/projects/${ctx.privateProjectId}`, ctx.token);
+      assert([200, 204].includes(r.status), `Expected 200/204, got ${r.status}`);
+    });
+  }
+
+  if (ctx.publicProjectId) {
+    await test('DELETE /api/projects/:id removes public test project', async () => {
+      const r = await del(`/api/projects/${ctx.publicProjectId}`, ctx.token);
       assert([200, 204].includes(r.status), `Expected 200/204, got ${r.status}`);
     });
   }

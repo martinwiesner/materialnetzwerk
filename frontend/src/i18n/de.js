@@ -475,6 +475,7 @@ const de = {
     contributorOrg: 'Organisation (optional)',
     contributorRole: 'Rolle (optional)',
     contributorRoleCustom: 'Eigene Rollenbezeichnung',
+    contributorEmail: 'E-Mail (optional, ermöglicht Kontaktaufnahme)',
     btnUpdate: 'Aktualisieren',
     btnCreateOffer: 'Angebot erstellen',
     uploadingStep: 'Hochladen…',

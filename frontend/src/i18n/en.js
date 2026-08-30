@@ -477,6 +477,7 @@ const en = {
     contributorOrg: 'Organization (optional)',
     contributorRole: 'Role (optional)',
     contributorRoleCustom: 'Custom role',
+    contributorEmail: 'Email (optional, enables contact)',
     btnUpdate: 'Update',
     btnCreateOffer: 'Create offer',
     uploadingStep: 'Uploading…',

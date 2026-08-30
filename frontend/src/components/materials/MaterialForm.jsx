@@ -2337,7 +2337,7 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
           {/* ── Materialtyp-Chips (B+C: granular, kein Ausblenden) ─────────── */}
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Materialtyp <span className="text-red-400">*</span>
+              Materialtyp <span className="ml-1 text-[11px] font-normal text-gray-400 normal-case tracking-normal">(optional)</span>
             </p>
             <div className="flex flex-wrap gap-2">
               {[

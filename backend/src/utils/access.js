@@ -59,3 +59,10 @@ export function canViewProject(userId, project) {
   }
   return false;
 }
+
+export function canEditProject(userId, project) {
+  if (!project || !userId) return false;
+  if (project.owner_id === userId) return true;
+  if (hasShare(userId, 'project', project.id, true)) return true;
+  return false;
+}
