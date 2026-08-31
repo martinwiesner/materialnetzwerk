@@ -67,8 +67,10 @@ app.use(morgan('combined', { stream: accessLogStream }));
 app.use(morgan('dev'));
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Default 100kb is too small for fields like CAD-configurator share URLs,
+// which embed gzipped project state and can run into the megabytes.
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Serve uploaded files — absolute path, cross-origin allowed via header above
 app.use('/uploads', express.static(UPLOAD_DIR));
