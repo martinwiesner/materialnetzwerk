@@ -14,6 +14,14 @@ import { CombinedProductLca } from '../../components/projects/CombinedProductLca
 import LcaExportDialog from '../../components/projects/LcaExportDialog';
 import ShareDialog from '../../components/shared/ShareDialog';
 
+// Step-Fotos gehören inhaltlich zur Schritt-für-Schritt-Anleitung (dort werden
+// sie auch nochmal angezeigt) und sollen die allgemeine Übersichts-Galerie
+// nicht dominieren — hier also allgemeine Fotos zuerst, Step-Fotos danach.
+// Stabile Sortierung: Reihenfolge innerhalb jeder Gruppe bleibt erhalten.
+export function sortImagesForCarousel(images) {
+  return [...images].sort((a, b) => (a.step_index != null) - (b.step_index != null));
+}
+
 function ImageCarousel({ images, apiBase }) {
   const t = useT();
   const [idx, setIdx] = useState(0);
@@ -151,6 +159,7 @@ import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectPoster } from '../../utils/exportUtils';
 import { formatDate } from '../../utils/dates';
 import { getLicenseLabel } from '../../utils/licenses';
+import { formatPt } from '../../utils/lcaFormat';
 const API_BASE = MEDIA_BASE;
 
 function safeJsonParse(value, fallback) {
@@ -497,8 +506,7 @@ function IdematLcaSection({ project }) {
         <div>
           <p className="text-[10px] text-emerald-200 font-semibold uppercase tracking-wider">EF 3.1 Gesamtscore</p>
           <p className="text-2xl font-mono font-bold text-white leading-tight">
-            {fmtPt(grandTotal)}
-            <span className="text-sm font-normal text-emerald-300 ml-2">Pt</span>
+            {formatPt(grandTotal)}
           </p>
         </div>
       </div>
@@ -516,7 +524,7 @@ function IdematLcaSection({ project }) {
                   <p className="text-xs text-gray-500">{it.category} · {it.quantity} {it.unit}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-mono font-bold text-emerald-800">{fmtPt(subtotal)} Pt</p>
+                  <p className="text-sm font-mono font-bold text-emerald-800">{formatPt(subtotal)}</p>
                   <p className="text-[10px] text-gray-400">{pct.toFixed(1)} % des Gesamtscores</p>
                 </div>
               </div>
@@ -542,7 +550,7 @@ function IdematLcaSection({ project }) {
               <div key={key}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="text-xs text-gray-700 min-w-0 truncate">{label}</span>
-                  <span className="text-xs font-mono text-gray-800 flex-shrink-0">{fmtPt(val)} Pt</span>
+                  <span className="text-xs font-mono text-gray-800 flex-shrink-0">{formatPt(val)}</span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${barW}%` }} />
@@ -1122,9 +1130,10 @@ export default function ProjectDetail() {
           </div>
         </div>
 
-        {/* Images carousel – all project images; step images also appear in-context below */}
+        {/* Images carousel – all project images, general photos first; step images
+            (which also appear in-context below) are sorted to the end */}
         {project.images?.length > 0 && (
-          <ImageCarousel images={project.images} apiBase={API_BASE} />
+          <ImageCarousel images={sortImagesForCarousel(project.images)} apiBase={API_BASE} />
         )}
 
         {/* Content */}

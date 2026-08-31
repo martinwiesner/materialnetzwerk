@@ -22,6 +22,7 @@ import { idematService } from '../../services/idematService';
 import VisibilityBadge from './VisibilityBadge';
 import ShareDialog from '../shared/ShareDialog';
 import { useToast } from '../../store/toastStore';
+import { formatPt } from '../../utils/lcaFormat';
 
 const API_BASE = MEDIA_BASE;
 
@@ -203,11 +204,6 @@ function IdematLinker({ processId, onSelect, onClear }) {
     staleTime: 5 * 60_000,
   });
 
-  function fmtPt(v) {
-    if (v == null) return '—';
-    return Math.abs(v) >= 0.001 ? v.toLocaleString('de-DE', { maximumFractionDigits: 5 }) : v.toExponential(3);
-  }
-
   const dropdown = open && q.trim().length >= 2 && rect ? createPortal(
     <div style={{ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 99999 }}
       className="bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto">
@@ -220,7 +216,7 @@ function IdematLinker({ processId, onSelect, onClear }) {
           <div className="text-xs font-medium text-gray-900 truncate">{r.name}</div>
           <div className="flex gap-2 mt-0.5">
             <span className="text-[10px] text-gray-500">{r.category}</span>
-            <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)} Pt</span>
+            <span className="text-[10px] font-mono text-emerald-700">{formatPt(r.ef31_total)}</span>
           </div>
         </button>
       ))}
@@ -235,7 +231,7 @@ function IdematLinker({ processId, onSelect, onClear }) {
           <Leaf className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="text-xs font-medium text-gray-900 truncate">{linked.name}</div>
-            <div className="text-[10px] text-emerald-700 font-mono">{fmtPt(linked.ef31_total)} Pt · EF 3.1</div>
+            <div className="text-[10px] text-emerald-700 font-mono">{formatPt(linked.ef31_total)} · EF 3.1</div>
           </div>
           <button type="button" onClick={onClear} className="p-1 text-gray-400 hover:text-red-500 flex-shrink-0">
             <X className="w-3.5 h-3.5" />

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, X, Leaf, Trash2, Plus, Zap } from 'lucide-react';
 import { idematService } from '../../services/idematService';
+import { formatPt } from '../../utils/lcaFormat';
 
 // ── EF 3.1 categories shown in summary ───────────────────────────────────────
 const TOP_CATS = [
@@ -37,13 +38,6 @@ const MJ_PER_KWH = 3.6;
 
 function ptBarPct(v)  { return v ? Math.min(100, (v / MAX_PT_DB)  * 100) : 0; }
 function gwpBarPct(v) { return v ? Math.min(100, (v / MAX_GWP_DB) * 100) : 0; }
-
-function fmtPt(v) {
-  if (v == null || v === 0) return '0';
-  const abs = Math.abs(v);
-  if (abs >= 0.001) return v.toLocaleString('de-DE', { maximumFractionDigits: 5 });
-  return v.toFixed(Math.min(Math.ceil(-Math.log10(abs)) + 3, 10));
-}
 
 function fmtGwp(ptClimate) {
   if (ptClimate == null) return null;
@@ -218,7 +212,7 @@ function IdematSearchBox({ onAdd }) {
                     <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
                       <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${ptBarPct(r.ef31_total)}%` }} />
                     </div>
-                    <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)} Pt</span>
+                    <span className="text-[10px] font-mono text-emerald-700">{formatPt(r.ef31_total)}</span>
                   </div>
                   {r.climate_change != null && (
                     <div className="flex items-center gap-1.5">
@@ -341,7 +335,7 @@ function Summary({ items }) {
         <Leaf className="w-4 h-4 text-emerald-600" />
         <span className="text-xs font-semibold text-emerald-800">EF 3.1 Gesamtscore</span>
         <span className="ml-auto text-base font-mono font-bold text-emerald-900">
-          {fmtPt(total)} Pt
+          {formatPt(total)}
         </span>
       </div>
 
@@ -352,7 +346,7 @@ function Summary({ items }) {
             <div key={key} className="bg-white rounded-lg border border-emerald-100 p-2">
               <div className="flex justify-between items-center gap-1 mb-1">
                 <span className="text-[10px] text-gray-600">{label}</span>
-                <span className="text-[10px] font-mono text-gray-800">{fmtPt(value)} Pt</span>
+                <span className="text-[10px] font-mono text-gray-800">{formatPt(value)}</span>
               </div>
               <div className="h-1 rounded-full bg-emerald-100 overflow-hidden">
                 <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
@@ -468,7 +462,7 @@ export default function ProjectIdematSection({ items = [], onChange }) {
                   <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-gray-400">
                     <span>{it.category}</span>
                     <span>·</span>
-                    <span className="font-mono text-emerald-700">{fmtPt(subtotal)} Pt gesamt</span>
+                    <span className="font-mono text-emerald-700">{formatPt(subtotal)} gesamt</span>
                   </div>
                   <div className="mt-1 space-y-0.5">
                     <div className="flex items-center gap-1.5">
@@ -476,7 +470,7 @@ export default function ProjectIdematSection({ items = [], onChange }) {
                         <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${ptBarPct(it.ef31_total)}%` }} />
                       </div>
                       <span className="text-[10px] font-mono text-emerald-600">
-                        {fmtPt(it.ef31_total)} Pt/{it.unit}
+                        {formatPt(it.ef31_total)}/{it.unit}
                       </span>
                     </div>
                     {it.ef31?.climate_change != null && (

@@ -764,7 +764,12 @@ export default function ProjectForm({ project, onClose }) {
     const id = await ensureDraft();
     if (!id) return;
     try {
-      const result = await projectService.uploadImages(id, files, opts);
+      // sort_start muss über den aktuellen Bildbestand hinweg fortlaufend sein —
+      // sonst faengt jeder Upload-Batch (allgemeine Fotos, Step-Fotos, ...) wieder
+      // bei sort_order 0 an und die Reihenfolge wird nur noch zufaellig per
+      // Upload-Zeitstempel aufgeloest (das war der Grund, warum Step-Fotos je nach
+      // Ausfuellreihenfolge des Formulars vor den allgemeinen Fotos landen konnten).
+      const result = await projectService.uploadImages(id, files, { ...opts, sort_start: localImages.length });
       setLocalImages(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Bild-Upload fehlgeschlagen.');

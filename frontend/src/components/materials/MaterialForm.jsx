@@ -21,6 +21,7 @@ import { useT } from '../../i18n/useT';
 import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import InlineUserPicker from '../shared/InlineUserPicker';
+import { formatPt } from '../../utils/lcaFormat';
 const API_BASE = MEDIA_BASE;
 
 // ── IDEMAT process linker (used inside AccordionSection) ──────────────────────
@@ -49,12 +50,6 @@ function IdematLinker({ processId, onSelect, onClear }) {
     setOpen(true);
   }
 
-  function fmtPt(v) {
-    if (v == null) return '—';
-    if (Math.abs(v) >= 0.001) return v.toLocaleString('de-DE', { maximumFractionDigits: 5 });
-    return v.toExponential(3);
-  }
-
   function handleResultMouseDown(e, r) {
     e.preventDefault();
     onSelect(r);
@@ -79,7 +74,7 @@ function IdematLinker({ processId, onSelect, onClear }) {
           <div className="flex gap-2 mt-0.5">
             <span className="text-[10px] text-gray-500">{r.category}</span>
             <span className="text-[10px] text-gray-400">/{r.unit}</span>
-            <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)} Pt</span>
+            <span className="text-[10px] font-mono text-emerald-700">{formatPt(r.ef31_total)}</span>
           </div>
         </button>
       ))}
@@ -94,7 +89,7 @@ function IdematLinker({ processId, onSelect, onClear }) {
           <Leaf className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="text-xs font-medium text-gray-900 truncate">{linked.name}</div>
-            <div className="text-[10px] text-emerald-700 font-mono">{fmtPt(linked.ef31_total)} Pt · EF 3.1</div>
+            <div className="text-[10px] text-emerald-700 font-mono">{formatPt(linked.ef31_total)} · EF 3.1</div>
           </div>
           <button type="button" onClick={onClear}
             className="p-1 text-gray-400 hover:text-red-500 flex-shrink-0">

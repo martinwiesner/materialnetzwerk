@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, X, Leaf, Link2, Link2Off } from 'lucide-react';
 import { idematService } from '../../services/idematService';
 import { materialService } from '../../services/materialService';
+import { formatPt } from '../../utils/lcaFormat';
 
 // ── EF 3.1 category display config ───────────────────────────────────────────
 const CATEGORIES = [
@@ -31,14 +32,6 @@ const MAX_GWP_DB  = 0.000831;
 
 function ptBarPct(v)  { return v ? Math.min(100, (v / MAX_PT_DB)  * 100) : 0; }
 function gwpBarPct(v) { return v ? Math.min(100, (v / MAX_GWP_DB) * 100) : 0; }
-
-function fmtPt(v) {
-  if (v == null) return '—';
-  if (v === 0) return '0 Pt';
-  const abs = Math.abs(v);
-  if (abs >= 0.001) return `${v.toLocaleString('de-DE', { maximumFractionDigits: 5 })} Pt`;
-  return `${v.toFixed(Math.min(Math.ceil(-Math.log10(abs)) + 3, 10))} Pt`;
-}
 
 function fmtGwp(ptClimate) {
   if (ptClimate == null) return null;
@@ -94,7 +87,7 @@ function ProcessCard({ process, canEdit, onUnlink }) {
               EF 3.1 Gesamt
             </div>
             <div className="text-lg font-mono font-bold text-emerald-900">
-              {fmtPt(total)}
+              {formatPt(total)}
             </div>
           </div>
           {fmtGwp(process.climate_change) && (
@@ -118,7 +111,7 @@ function ProcessCard({ process, canEdit, onUnlink }) {
             <div key={key} className="bg-white border border-gray-100 rounded-lg p-2">
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="text-[10px] text-gray-600 leading-tight">{label}</span>
-                <span className="text-[10px] font-mono text-gray-800 whitespace-nowrap">{fmtPt(val)}</span>
+                <span className="text-[10px] font-mono text-gray-800 whitespace-nowrap">{formatPt(val)}</span>
               </div>
               <div className="h-1 rounded-full bg-gray-100 overflow-hidden">
                 <div
@@ -191,7 +184,7 @@ function IdematSearch({ onSelect }) {
               <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
                 <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${ptBarPct(r.ef31_total)}%` }} />
               </div>
-              <span className="text-[10px] font-mono text-emerald-700">{fmtPt(r.ef31_total)}</span>
+              <span className="text-[10px] font-mono text-emerald-700">{formatPt(r.ef31_total)}</span>
             </div>
             {r.climate_change != null && (
               <div className="flex items-center gap-1.5">
