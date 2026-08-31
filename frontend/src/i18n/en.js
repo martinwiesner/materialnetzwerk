@@ -213,6 +213,7 @@ const en = {
     subtitle2: 'Share what you built with materials',
     filterMy: 'My projects',
     filterAll: 'All projects',
+    filterShared: 'Shared with me',
     filterAvailable: 'Available',
     filterStatus: 'All statuses',
     statusDraft: 'Draft',

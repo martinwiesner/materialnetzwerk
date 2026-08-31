@@ -99,8 +99,9 @@ const Project = {
       FROM projects p JOIN users u ON p.owner_id=u.id WHERE (
         p.is_public = 1 OR p.owner_id = ?
         OR EXISTS (SELECT 1 FROM user_shares us WHERE us.entity_type='project' AND us.entity_id=p.id AND us.shared_with_user_id=?)
+        OR (p.visibility='actor' AND p.share_actor_id IS NOT NULL AND p.share_actor_id IN (SELECT actor_id FROM users WHERE id=?))
       )`;
-    const params = [userId, userId];
+    const params = [userId, userId, userId];
     if (filters.status) { query += ' AND p.status = ?'; params.push(filters.status); }
     if (filters.is_available) { query += ' AND p.is_available = 1'; }
     if (filters.search) { query += ' AND (p.name LIKE ? OR p.description LIKE ?)'; params.push(`%${filters.search}%`,`%${filters.search}%`); }

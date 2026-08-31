@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import { toMaterialEntity } from '../../utils/entityMapping';
-import { Plus, Search, Edit2, Trash2, FolderOpen, Globe, Lock, MapPinned, MapPin, List, Leaf, Tag, Download, FileText, Scale, Package2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, FolderOpen, Globe, Lock, MapPinned, MapPin, List, Leaf, Tag, Download, FileText, Scale, Package2, Share2 } from 'lucide-react';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectsToCSV, exportProjectsToPDF } from '../../utils/exportUtils';
 import clsx from 'clsx';
@@ -124,7 +124,13 @@ export default function Projects() {
   // Public tab = all projects with is_public=1 (incl. own public ones)
   const publicProjects = allProjects.filter(p => p.is_public == 1);
 
-  const projectsBase = activeTab === 'my-projects' ? myProjects : publicProjects;
+  // Shared tab = projects returned for the viewer that are neither owned nor public,
+  // i.e. visible only via a direct user_shares entry or actor membership.
+  const sharedProjects = allProjects.filter(p => p.owner_id !== user?.id && p.is_public != 1);
+
+  const projectsBase = activeTab === 'my-projects' ? myProjects
+    : activeTab === 'shared-projects' ? sharedProjects
+    : publicProjects;
   const projectsFiltered = filterAvailable ? projectsBase.filter(p => p.is_available == 1) : projectsBase;
   const projects = [...projectsFiltered].sort((a, b) => projectScore(a) - projectScore(b));
 
@@ -281,6 +287,20 @@ export default function Projects() {
             {t('projects.filterMy')} ({myProjects.length})
           </button>
         )}
+        {isAuthenticated && (
+          <button
+            onClick={() => setActiveTab('shared-projects')}
+            className={clsx(
+              'pb-3 px-1 font-medium text-sm transition-colors flex items-center gap-2',
+              activeTab === 'shared-projects'
+                ? 'text-primary-600 border-b-2 border-primary-600'
+                : 'text-gray-500 hover:text-gray-700'
+            )}
+          >
+            <Share2 className="w-4 h-4" />
+            {t('projects.filterShared')} ({sharedProjects.length})
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('public-projects')}
           className={clsx(
@@ -359,11 +379,13 @@ export default function Projects() {
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {activeTab === 'my-projects' ? 'Noch keine Artikel' : 'Keine öffentlichen Artikel'}
+            {activeTab === 'my-projects' ? 'Noch keine Artikel'
+              : activeTab === 'shared-projects' ? 'Noch nichts mit dir geteilt'
+              : 'Keine öffentlichen Artikel'}
           </h3>
           <p className="text-gray-600 mb-4">
-            {activeTab === 'my-projects'
-              ? 'Erstelle deinen ersten Projekt-Artikel'
+            {activeTab === 'my-projects' ? 'Erstelle deinen ersten Projekt-Artikel'
+              : activeTab === 'shared-projects' ? 'Projekte, die andere mit dir teilen, erscheinen hier.'
               : 'Noch niemand hat Artikel veröffentlicht'}
           </p>
           {activeTab === 'my-projects' && (

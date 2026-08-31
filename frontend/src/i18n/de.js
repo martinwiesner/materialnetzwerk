@@ -213,6 +213,7 @@ const de = {
     subtitle2: 'Teile, was du mit Materialien gebaut hast',
     filterMy: 'Meine Projekte',
     filterAll: 'Alle Projekte',
+    filterShared: 'Mit mir geteilt',
     filterAvailable: 'Verfügbar',
     searchPlaceholder: 'Projekte suchen…',
     empty: 'Keine Projekte gefunden',
