@@ -945,6 +945,9 @@ export default function ProjectDetail() {
   const lcaIdematItems = safeJsonParse(project.idemat_lca_items, []);
   const hasLcaData = lcaEpdMats.length > 0 || lcaIdematItems.length > 0;
 
+  const isOwner = isAuthenticated && (project.owner_id === user?.id || user?.is_admin);
+  const canEdit = isOwner || !!project.can_edit;
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
@@ -956,29 +959,35 @@ export default function ProjectDetail() {
           <ArrowLeft className="w-4 h-4" />
           {t('projectDetail.backToList')}
         </Link>
-        {isAuthenticated && (project.owner_id === user?.id || user?.is_admin) && (
+        {(canEdit || isOwner) && (
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <Edit2 className="w-4 h-4" />
-              {t('projectDetail.editButton')}
-            </button>
-            <button
-              onClick={() => setShareOpen(true)}
-              className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-              type="button" title="Sichtbarkeit & Freigabe"
-            >
-              <Share2 className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleDelete}
-              className="inline-flex items-center gap-2 px-3 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              {t('projectDetail.deleteButton')}
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+                {t('projectDetail.editButton')}
+              </button>
+            )}
+            {isOwner && (
+              <button
+                onClick={() => setShareOpen(true)}
+                className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                type="button" title="Sichtbarkeit & Freigabe"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+            )}
+            {isOwner && (
+              <button
+                onClick={handleDelete}
+                className="inline-flex items-center gap-2 px-3 py-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                {t('projectDetail.deleteButton')}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1412,7 +1421,7 @@ export default function ProjectDetail() {
           entityType="project"
           entityId={project.id}
           currentVisibility={visibilityLocal ?? project.visibility ?? (project.is_public ? 'public' : 'private')}
-          isOwner={isAuthenticated && (project.owner_id === user?.id || user?.is_admin)}
+          isOwner={isOwner}
           onClose={() => setShareOpen(false)}
           onVisibilityChange={(v) => {
             setVisibilityLocal(v);

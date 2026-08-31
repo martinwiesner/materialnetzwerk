@@ -35,8 +35,14 @@ function makeStorage(entityType) {
 
 const imageFilter = (req, file, cb) => {
   const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  if (allowed.includes(file.mimetype)) cb(null, true);
-  else cb(new Error('Invalid file type. Only JPEG, PNG, GIF and WebP are allowed.'), false);
+  if (allowed.includes(file.mimetype)) return cb(null, true);
+  const ext = extname(file.originalname).toLowerCase();
+  const isHeic = ext === '.heic' || ext === '.heif' || file.mimetype === 'image/heic' || file.mimetype === 'image/heif';
+  const err = new Error(isHeic
+    ? 'HEIC/HEIF-Fotos werden nicht unterstützt. Bitte beim Teilen "In JPEG konvertieren" wählen (iPhone: Einstellungen → Kamera → Formate → "Meistkompatibel"), oder JPEG/PNG/GIF/WebP hochladen.'
+    : 'Ungültiger Dateityp. Nur JPEG, PNG, GIF und WebP sind erlaubt.');
+  err.status = 400;
+  cb(err, false);
 };
 
 const fileFilter = (req, file, cb) => {
@@ -50,8 +56,10 @@ const fileFilter = (req, file, cb) => {
     '.zip', '.rar',
   ];
   const ext = extname(file.originalname).toLowerCase();
-  if (allowedExt.includes(ext)) cb(null, true);
-  else cb(new Error(`Unsupported file type: ${ext}`), false);
+  if (allowedExt.includes(ext)) return cb(null, true);
+  const err = new Error(`Nicht unterstützter Dateityp: ${ext}`);
+  err.status = 400;
+  cb(err, false);
 };
 
 const upload = multer({

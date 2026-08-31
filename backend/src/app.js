@@ -178,8 +178,12 @@ app.use((err, req, res, next) => {
   if (err.name === 'MulterError') {
     return res.status(400).json({ message: `Upload error: ${err.message}` });
   }
-  
-  res.status(500).json({ 
+
+  if (err.status === 400) {
+    return res.status(400).json({ message: err.message });
+  }
+
+  res.status(500).json({
     message: 'Internal server error',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });

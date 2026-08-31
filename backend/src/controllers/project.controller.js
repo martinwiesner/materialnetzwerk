@@ -43,6 +43,7 @@ export const getProjects = (req, res) => {
         return res.status(401).json({ message: 'Authentication required for my_projects filter' });
       }
       const projects = Project.findByUser(req.user.id, filters);
+      for (const p of projects) p.can_edit = true;
       return res.json(projects);
     }
 
@@ -51,6 +52,9 @@ export const getProjects = (req, res) => {
     const projects = req.user?.id
       ? Project.findForUser(req.user.id, filters)
       : Project.findAll(filters);
+    if (req.user?.id) {
+      for (const p of projects) p.can_edit = canEditProject(req.user.id, p) || isAdmin(req.user);
+    }
     return res.json(projects);
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch projects', error: error.message });
@@ -78,6 +82,7 @@ export const getProjectById = (req, res) => {
     if (!canViewProject(req.user?.id, project)) {
       return res.status(403).json({ message: 'Access denied' });
     }
+    project.can_edit = req.user?.id ? (canEditProject(req.user.id, project) || isAdmin(req.user)) : false;
     res.json(project);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch project', error: error.message });

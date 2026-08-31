@@ -413,6 +413,7 @@ export default function Projects() {
           {projects.map((project) => {
             const imgUrl = getProjectImageUrl(project, import.meta.env.VITE_API_URL || '');
             const isOwner = isAuthenticated && (project.owner_id === user?.id || user?.is_admin);
+            const canEdit = isOwner || !!project.can_edit;
             return (
               <div
                 key={project.id}
@@ -475,23 +476,23 @@ export default function Projects() {
                         <Scale className="w-4 h-4" />
                       </button>
                       <BookmarkButton entityType="project" entityId={project.id} size="sm" showCount />
+                      {canEdit && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEdit(project); }}
+                          className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                          title="Bearbeiten"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
                       {isOwner && (
-                        <>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleEdit(project); }}
-                            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                            title="Bearbeiten"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(project.id); }}
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Löschen"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(project.id); }}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Löschen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       )}
                     </div>
                   </div>

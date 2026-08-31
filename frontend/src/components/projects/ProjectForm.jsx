@@ -16,7 +16,7 @@ import { materialService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Users,
   ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench, Box, ExternalLink, Building2,
-  Image as ImageIcon, Check, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+  Image as ImageIcon, Check, CheckCircle2, AlertCircle, Loader2, Paperclip } from 'lucide-react';
 import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
@@ -763,8 +763,12 @@ export default function ProjectForm({ project, onClose }) {
   const handleImageUpload = async (files, opts) => {
     const id = await ensureDraft();
     if (!id) return;
-    const result = await projectService.uploadImages(id, files, opts);
-    setLocalImages(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
+    try {
+      const result = await projectService.uploadImages(id, files, opts);
+      setLocalImages(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Bild-Upload fehlgeschlagen.');
+    }
   };
 
   const handleImageDelete = async (imageId) => {
@@ -791,8 +795,12 @@ export default function ProjectForm({ project, onClose }) {
   const handleFileUpload = async (files) => {
     const id = await ensureDraft();
     if (!id) return;
-    const result = await projectService.uploadFiles(id, files);
-    setLocalFiles(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
+    try {
+      const result = await projectService.uploadFiles(id, files);
+      setLocalFiles(prev => [...prev, ...(Array.isArray(result) ? result : [result])]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Datei-Upload fehlgeschlagen.');
+    }
   };
 
   const handleFileDelete = async (fileId) => {
@@ -1398,7 +1406,11 @@ export default function ProjectForm({ project, onClose }) {
                   )}
                 </div>
 
-                {/* Files */}
+              </AccordionSection>
+
+              {/* Fertigungsdaten & Dateien */}
+              <AccordionSection icon={Paperclip} title={t('projectForm.filesLabel')} color="#0d9488"
+                filled={localFiles.length > 0}>
                 <FileUploader
                   files={localFiles}
                   onUpload={handleFileUpload}
@@ -1437,9 +1449,19 @@ export default function ProjectForm({ project, onClose }) {
                     </a>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">
-                      Share-URL einfügen
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        Share-URL einfügen
+                      </label>
+                      {formData.cad_share_url && (
+                        <button type="button"
+                          onClick={() => setFormData(f => ({ ...f, cad_share_url: '' }))}
+                          title="Share-URL löschen"
+                          className="p-1 text-gray-400 hover:text-red-500 rounded">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                     <textarea
                       value={formData.cad_share_url}
                       onChange={e => setFormData(f => ({ ...f, cad_share_url: e.target.value }))}
