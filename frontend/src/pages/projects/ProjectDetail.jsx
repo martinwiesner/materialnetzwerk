@@ -737,11 +737,35 @@ function OekobilanzSection({ project }) {
 const deviceMemory = navigator.deviceMemory ?? (window.matchMedia('(pointer: coarse)').matches ? 2 : 8);
 const wasmCapable = deviceMemory >= 2;
 
+// Chromium hard-caps navigable URLs at ~2 MB (2,097,152 chars); Safari/Firefox
+// are similar or stricter. Past this the URL can be stored but never opened
+// (blank iframe, "about:blank#blocked" on target="_blank") — no server-side fix.
+const MAX_SAFE_CAD_URL_LENGTH = 2_000_000;
+
 function CadEmbed({ shareUrl }) {
   const [active, setActive] = useState(false);
   const [forceLoad, setForceLoad] = useState(false);
 
   const showIframe = active && (wasmCapable || forceLoad);
+
+  if (shareUrl.length > MAX_SAFE_CAD_URL_LENGTH) {
+    return (
+      <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-3 border-b border-amber-100">
+          <h2 className="text-base font-bold text-gray-900">CAD-Modell</h2>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">experimentell</span>
+        </div>
+        <div className="w-full flex flex-col items-center justify-center gap-2 py-12 px-6 text-center">
+          <p className="text-sm font-semibold text-gray-700">
+            CAD-Modell zu groß zum Anzeigen ({(shareUrl.length / (1024 * 1024)).toFixed(1)} MB)
+          </p>
+          <p className="text-xs text-gray-400 max-w-sm">
+            Diese Share-URL überschreitet das feste Browser-Limit für aufrufbare URLs (~2 MB) und kann in keinem Browser geöffnet werden. Bitte im Projekt ein einfacheres Modell teilen oder stattdessen einen STL-Export als Datei hochladen.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">

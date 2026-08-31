@@ -32,6 +32,10 @@ import { licenseOptionsFor } from '../../utils/licenses';
 
 const API_BASE = MEDIA_BASE;
 
+// Chromium hard-caps navigable URLs at ~2 MB (2,097,152 chars); Safari/Firefox
+// are similar or stricter. A CAD share-URL past this can be saved but never opened.
+const MAX_SAFE_CAD_URL_LENGTH = 2_000_000;
+
 function AccordionSection({ icon: Icon, title, color = '#6b7280', filled = false, defaultOpen = false, forceOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
   const isOpen = forceOpen || open;
@@ -1446,7 +1450,12 @@ export default function ProjectForm({ project, onClose }) {
                     {formData.cad_share_url && !formData.cad_share_url.includes('#share=') && (
                       <p className="text-xs text-red-500 mt-1">⚠ Das sieht nicht wie eine gültige Share-URL aus. Die URL sollte <code>#share=</code> enthalten.</p>
                     )}
-                    {formData.cad_share_url && formData.cad_share_url.includes('#share=') && (
+                    {formData.cad_share_url && formData.cad_share_url.includes('#share=') && formData.cad_share_url.length > MAX_SAFE_CAD_URL_LENGTH && (
+                      <p className="text-xs text-red-500 mt-1">
+                        ⚠ Diese URL ist {(formData.cad_share_url.length / (1024 * 1024)).toFixed(1)} MB lang — das überschreitet das feste Limit von Browsern für aufrufbare URLs (~2 MB). Sie lässt sich zwar speichern, aber später nicht öffnen. Bitte ein einfacheres Modell teilen oder stattdessen einen STL-Export als Datei hochladen.
+                      </p>
+                    )}
+                    {formData.cad_share_url && formData.cad_share_url.includes('#share=') && formData.cad_share_url.length <= MAX_SAFE_CAD_URL_LENGTH && (
                       <p className="text-xs text-green-600 mt-1">✓ Share-URL erkannt</p>
                     )}
                   </div>
