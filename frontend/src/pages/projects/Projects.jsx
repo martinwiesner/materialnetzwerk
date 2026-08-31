@@ -417,9 +417,9 @@ export default function Projects() {
             return (
               <div
                 key={project.id}
-                className="relative bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                className="relative bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
               >
-                <Link to={`/projects/${project.id}`} className="absolute inset-0" aria-label={`${project.name} ansehen`} />
+                <Link to={`/projects/${project.id}`} className="absolute inset-0 z-10" aria-label={`${project.name} ansehen`} />
 
                 {/* Image */}
                 <div className="relative">
@@ -461,7 +461,7 @@ export default function Projects() {
                         {project.is_public ? 'Öffentlich' : 'Privat'}
                       </span>
                     </div>
-                    <div className="relative flex gap-1 flex-shrink-0">
+                    <div className="relative z-20 flex gap-1 flex-shrink-0">
                       <button
                         type="button"
                         title={compare.isSelected(project.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
@@ -502,7 +502,7 @@ export default function Projects() {
                   )}
 
                   {project.owner_id && !isOwner && (
-                    <div className="relative mb-2">
+                    <div className="relative z-20 mb-2">
                       <OwnerLine
                         ownerId={project.owner_id}
                         ownerFirstName={project.owner_first_name}

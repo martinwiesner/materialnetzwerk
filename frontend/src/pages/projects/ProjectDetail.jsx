@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useT } from '../../i18n/useT';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +6,8 @@ import { projectService } from '../../services/projectService';
 import {
   ArrowLeft, Edit2, Trash2, Globe, Lock, Package,
   Calendar, User, Leaf, ChevronLeft, ChevronRight,
-  MapPin, ExternalLink, BookOpen, Users, Tag, Database, FileDown, Share2
+  MapPin, ExternalLink, BookOpen, Users, Tag, Database, FileDown, Share2,
+  Maximize2, X
 } from 'lucide-react';
 import { EpdFullAnalysis } from '../../components/projects/EpdAnalysis';
 import { CombinedProductLca } from '../../components/projects/CombinedProductLca';
@@ -16,6 +17,19 @@ import ShareDialog from '../../components/shared/ShareDialog';
 function ImageCarousel({ images, apiBase }) {
   const t = useT();
   const [idx, setIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setLightboxOpen(false);
+      else if (e.key === 'ArrowLeft') setIdx((i) => (i - 1 + images.length) % images.length);
+      else if (e.key === 'ArrowRight') setIdx((i) => (i + 1) % images.length);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxOpen, images.length]);
+
   if (!images.length) return null;
   const url = (img) => `${apiBase}${img.file_path?.replace(/^\./, '')}`;
   const prev = () => setIdx((i) => (i - 1 + images.length) % images.length);
@@ -24,12 +38,18 @@ function ImageCarousel({ images, apiBase }) {
   return (
     <div className="border-b border-gray-200">
       {/* Main image */}
-      <div className="relative">
+      <div className="relative group">
         <img
           src={url(images[idx])}
           alt={images[idx].original_name || t('projectDetail.imageAlt', { n: idx + 1 })}
-          className="w-full h-72 object-cover"
+          className="w-full h-72 object-cover cursor-zoom-in"
+          onClick={() => setLightboxOpen(true)}
         />
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <span className="bg-black/50 text-white rounded-full p-2.5">
+            <Maximize2 className="w-5 h-5" />
+          </span>
+        </div>
         {images[idx].credit && (
           <span className="absolute bottom-2 right-2 text-[10px] font-light text-white/70 tracking-wide leading-none [writing-mode:vertical-rl] rotate-180 select-none pointer-events-none">
             {images[idx].credit}
@@ -79,6 +99,44 @@ function ImageCarousel({ images, apiBase }) {
               <img src={url(img)} alt="" className="h-14 w-20 object-cover" />
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setLightboxOpen(false)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
+            className="absolute top-4 right-4 text-white/80 hover:text-white p-2"
+            title={t('projectDetail.close') || 'Schließen'}
+          >
+            <X className="w-7 h-7" />
+          </button>
+          <img
+            src={url(images[idx])}
+            alt={images[idx].original_name || t('projectDetail.imageAlt', { n: idx + 1 })}
+            className="max-w-[92vw] max-h-[92vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); prev(); }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-2.5"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); next(); }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-2.5"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
