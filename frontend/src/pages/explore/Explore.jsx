@@ -139,6 +139,14 @@ function completenessScore(e) {
 // top spot just on recency/completeness/proximity alone.
 const ACTOR_SCORE_PENALTY = 0.2;
 
+// Materials/projects imported mainly to feed LCA/EPD calculations elsewhere
+// (OEKOBAUDAT/IDEMAT reference data) tend to have rich GWP/impact fields but
+// no photo — completenessScore actually treats "has GWP data" as a point in
+// their favor, which is backwards here. No image is the reliable tell that
+// an entry is calculation-reference material rather than a real listing, so
+// it gets its own, separate penalty regardless of how filled-in the EPD data is.
+const NO_IMAGE_PENALTY = 0.2;
+
 function entityScore(e) {
   const lat = e.location?.lat ?? ZEITZ_LAT;
   const lon = e.location?.lon ?? ZEITZ_LON;
@@ -153,7 +161,10 @@ function entityScore(e) {
   const ageScore = Math.min(ageDays / 180, 1);
   const incomplete = completenessScore(e);
   const typePenalty = e.type === 'actor' ? ACTOR_SCORE_PENALTY : 0;
-  return distScore * 0.20 + ageScore * 0.50 + incomplete * 0.30 + typePenalty;
+  const noImagePenalty = (e.type === 'material' || e.type === 'project') && !(e.raw?.images?.length > 0)
+    ? NO_IMAGE_PENALTY
+    : 0;
+  return distScore * 0.20 + ageScore * 0.50 + incomplete * 0.30 + typePenalty + noImagePenalty;
 }
 
 function buildEntities({ materials, offers, projects, actors, gesuche, search }) {
