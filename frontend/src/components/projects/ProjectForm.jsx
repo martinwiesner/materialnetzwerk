@@ -797,6 +797,13 @@ export default function ProjectForm({ project, onClose }) {
     setLocalImages(Array.isArray(updated) ? updated : localImages);
   };
 
+  const handleMoveImage = async (imageId, direction) => {
+    const id = activeId;
+    if (!id) return;
+    const updated = await projectService.updateImage(id, imageId, { move: direction });
+    setLocalImages(Array.isArray(updated) ? updated : localImages);
+  };
+
   const handleFileUpload = async (files) => {
     const id = await ensureDraft();
     if (!id) return;
@@ -982,6 +989,7 @@ export default function ProjectForm({ project, onClose }) {
             onSetCover={handleSetCover}
             onSetStep={mode === 'project' ? handleSetStep : undefined}
             onSetCredit={handleSetCredit}
+            onMove={handleMoveImage}
             stepCount={mode === 'project' ? formData.steps.length : 0}
             apiBase={API_BASE}
             label={mode === 'offer-only' ? t('projectForm.imagesLabelOffer') : t('projectForm.imagesLabel')}

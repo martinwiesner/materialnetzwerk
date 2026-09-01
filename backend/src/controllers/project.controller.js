@@ -241,10 +241,12 @@ export const updateImage = (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    const { is_cover } = req.body;
+    const { is_cover, move } = req.body;
 
     if (is_cover) {
       Project.setCoverImage(req.params.id, req.params.imageId);
+    } else if (move === 'up' || move === 'down') {
+      Project.moveImage(req.params.id, req.params.imageId, move);
     } else {
       const updates = {};
       if (Object.hasOwn(req.body, 'step_index')) updates.step_index = req.body.step_index;

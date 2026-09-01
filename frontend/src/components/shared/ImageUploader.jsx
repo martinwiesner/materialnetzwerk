@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, X, Star, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, Star, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react';
 import { MEDIA_BASE } from '../../services/api';
 
 /**
@@ -11,6 +11,7 @@ import { MEDIA_BASE } from '../../services/api';
  *  onDelete     – async fn(imageId)
  *  onSetCover   – async fn(imageId)  — marks image as cover
  *  onSetStep    – async fn(imageId, stepIndex, stepCaption) — assigns step
+ *  onMove       – async fn(imageId, 'up' | 'down') — moves image one position
  *  stepCount    – number of steps available (0 = no step selectors shown)
  *  apiBase      – media base URL
  *  label        – section label
@@ -22,6 +23,7 @@ export default function ImageUploader({
   onSetCover,
   onSetStep,
   onSetCredit,
+  onMove,
   stepCount = 0,
   apiBase = MEDIA_BASE,
   label = 'Bilder',
@@ -57,7 +59,7 @@ export default function ImageUploader({
       {/* Existing images */}
       {sorted.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {sorted.map((img) => {
+          {sorted.map((img, i) => {
             const isCover = img.id === coverId;
             return (
               <div key={img.id} className="flex flex-col">
@@ -79,6 +81,31 @@ export default function ImageUploader({
                   <span className="absolute top-1 left-1 bg-primary-500 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
                     <Star className="w-2.5 h-2.5 fill-white" /> Titelbild
                   </span>
+                )}
+
+                {/* Move up/down — always visible (not just on hover) so the
+                    order is easy to find and adjust */}
+                {onMove && sorted.length > 1 && (
+                  <div className="absolute top-1 right-1 flex flex-col gap-0.5 z-10">
+                    <button
+                      type="button"
+                      onClick={() => onMove(img.id, 'up')}
+                      disabled={i === 0}
+                      className="w-5 h-5 flex items-center justify-center bg-white/90 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed rounded shadow text-gray-700"
+                      title="Nach vorne"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onMove(img.id, 'down')}
+                      disabled={i === sorted.length - 1}
+                      className="w-5 h-5 flex items-center justify-center bg-white/90 hover:bg-white disabled:opacity-30 disabled:cursor-not-allowed rounded shadow text-gray-700"
+                      title="Nach hinten"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
 
                 {/* Hover actions */}

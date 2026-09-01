@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, X, Leaf, Link2, Link2Off } from 'lucide-react';
 import { idematService } from '../../services/idematService';
 import { materialService } from '../../services/materialService';
-import { formatPt } from '../../utils/lcaFormat';
+import { formatPt, PT_LEGEND_TEXT } from '../../utils/lcaFormat';
+import InfoTooltip from '../shared/InfoTooltip';
 
 // ── EF 3.1 category display config ───────────────────────────────────────────
 const CATEGORIES = [
@@ -83,8 +84,9 @@ function ProcessCard({ process, canEdit, onUnlink }) {
         <Leaf className="w-5 h-5 text-emerald-600 flex-shrink-0" />
         <div className="flex gap-6 flex-wrap">
           <div>
-            <div className="text-[10px] text-emerald-700 font-medium uppercase tracking-wide">
+            <div className="text-[10px] text-emerald-700 font-medium uppercase tracking-wide flex items-center gap-1">
               EF 3.1 Gesamt
+              <InfoTooltip text={PT_LEGEND_TEXT} />
             </div>
             <div className="text-lg font-mono font-bold text-emerald-900">
               {formatPt(total)}

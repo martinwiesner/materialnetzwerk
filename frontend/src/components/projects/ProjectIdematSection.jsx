@@ -2,7 +2,8 @@ import { useState, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, X, Leaf, Trash2, Plus, Zap } from 'lucide-react';
 import { idematService } from '../../services/idematService';
-import { formatPt } from '../../utils/lcaFormat';
+import { formatPt, PT_LEGEND_TEXT } from '../../utils/lcaFormat';
+import InfoTooltip from '../shared/InfoTooltip';
 
 // ── EF 3.1 categories shown in summary ───────────────────────────────────────
 const TOP_CATS = [
@@ -333,7 +334,10 @@ function Summary({ items }) {
     <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-3">
       <div className="flex items-center gap-2">
         <Leaf className="w-4 h-4 text-emerald-600" />
-        <span className="text-xs font-semibold text-emerald-800">EF 3.1 Gesamtscore</span>
+        <span className="text-xs font-semibold text-emerald-800 flex items-center gap-1">
+          EF 3.1 Gesamtscore
+          <InfoTooltip text={PT_LEGEND_TEXT} />
+        </span>
         <span className="ml-auto text-base font-mono font-bold text-emerald-900">
           {formatPt(total)}
         </span>

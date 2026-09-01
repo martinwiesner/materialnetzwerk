@@ -510,15 +510,11 @@ export default function Materials() {
             <p className="text-gray-600 mb-4">Keine passenden Materialien gefunden.</p>
           )}
 
-          {/* Gesuch Cards */}
-          {filteredGesuche.length > 0 && (
-            <div className={materials.length > 0 ? 'mb-8' : ''}>
-              {!filterOnlyGesuch && (
-                <h3 className="text-base font-semibold text-purple-800 mb-3 flex items-center gap-2">
-                  <BookMarked className="w-4 h-4" />
-                  {t('materials.wanted')} ({filteredGesuche.length})
-                </h3>
-              )}
+          {/* Gesuch Cards — kept below the material library itself; browsing materials
+              is the primary intent of this page, "gesucht" listings are secondary */}
+          {filteredGesuche.length > 0 && filterOnlyGesuch && (
+            <div>
+              {/* No heading here — the active "Nur Gesuche" toggle already says it all */}
               <div className="grid grid-cols-1 @[34rem]:grid-cols-2 @[54rem]:grid-cols-3 gap-4">
                 {filteredGesuche.map((gesuch) => (
                   <div
@@ -586,7 +582,7 @@ export default function Materials() {
               key={material.id}
               className="relative bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
             >
-              <Link to={`/materials/${material.id}`} className="absolute inset-0" aria-label={`${material.name} ansehen`} />
+              <Link to={`/materials/${material.id}`} className="absolute inset-0 z-10" aria-label={`${material.name} ansehen`} />
 
               {/* Image */}
               <div className="relative">
@@ -604,7 +600,7 @@ export default function Materials() {
                 )}
 
                 {/* Top meta row */}
-                <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+                <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between gap-2">
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-sm text-gray-700 shadow-sm">
                     <MapPin className="w-4 h-4" />
                     <span className="truncate">
@@ -649,7 +645,7 @@ export default function Materials() {
                     </span>
                   </div>
 
-                  <div className="relative flex gap-1">
+                  <div className="relative z-20 flex gap-1">
                     <button
                       type="button"
                       title={compare.isSelected(material.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
@@ -723,6 +719,73 @@ export default function Materials() {
               </div>
             </div>
           ))}
+            </div>
+          )}
+
+          {/* Gesuch Cards, deprioritized below the material library — only shown here
+              when NOT already filtered to "Nur Gesuche" (that case renders above instead) */}
+          {filteredGesuche.length > 0 && !filterOnlyGesuch && (
+            <div className={materials.length > 0 ? 'mt-8' : ''}>
+              <h3 className="text-base font-semibold text-purple-800 mb-3 flex items-center gap-2">
+                <BookMarked className="w-4 h-4" />
+                {t('materials.wanted')} ({filteredGesuche.length})
+              </h3>
+              <div className="grid grid-cols-1 @[34rem]:grid-cols-2 @[54rem]:grid-cols-3 gap-4">
+                {filteredGesuche.map((gesuch) => (
+                  <div
+                    key={gesuch.id}
+                    className="bg-white rounded-2xl shadow-sm border border-purple-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/gesuch/${gesuch.id}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate(`/gesuch/${gesuch.id}`); }}
+                  >
+                    <div className="relative">
+                      <div className="w-full h-32 bg-purple-50 flex items-center justify-center">
+                        <BookMarked className="w-10 h-10 text-purple-300" />
+                      </div>
+                      <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600/90 text-white text-xs font-medium shadow-sm">
+                          <BookMarked className="w-3.5 h-3.5" />
+                          {t('materials.wanted')}
+                        </div>
+                        {(gesuch.quantity || gesuch.unit) && (
+                          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 border border-gray-200 text-xs text-gray-700 shadow-sm">
+                            <Package2 className="w-3.5 h-3.5" />
+                            <span className="truncate">
+                              {gesuch.quantity ? `${gesuch.quantity} ${gesuch.unit || ''}`.trim() : gesuch.unit || ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 truncate">{gesuch.material_name || 'Material'}</h3>
+                      {gesuch.category && (
+                        <span className="inline-block px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full mt-1">
+                          {gesuch.category}
+                        </span>
+                      )}
+                      {gesuch.notes && (
+                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{gesuch.notes}</p>
+                      )}
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="inline-flex items-center gap-2 text-sm text-gray-600 min-w-0">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{gesuch.location_name || '—'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/gesuch/${gesuch.id}`); }}
+                          className="text-sm font-medium text-purple-600 hover:text-purple-700 flex-shrink-0"
+                        >
+                          Details
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

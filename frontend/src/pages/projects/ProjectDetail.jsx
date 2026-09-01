@@ -159,7 +159,8 @@ import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectPoster } from '../../utils/exportUtils';
 import { formatDate } from '../../utils/dates';
 import { getLicenseLabel } from '../../utils/licenses';
-import { formatPt } from '../../utils/lcaFormat';
+import { formatPt, PT_LEGEND_TEXT } from '../../utils/lcaFormat';
+import InfoTooltip from '../../components/shared/InfoTooltip';
 const API_BASE = MEDIA_BASE;
 
 function safeJsonParse(value, fallback) {
@@ -504,7 +505,10 @@ function IdematLcaSection({ project }) {
       <div className="bg-emerald-700 rounded-xl p-4 flex items-center gap-4 mb-6">
         <Leaf className="w-7 h-7 text-emerald-200 flex-shrink-0" />
         <div>
-          <p className="text-[10px] text-emerald-200 font-semibold uppercase tracking-wider">EF 3.1 Gesamtscore</p>
+          <p className="text-[10px] text-emerald-200 font-semibold uppercase tracking-wider flex items-center gap-1">
+            EF 3.1 Gesamtscore
+            <InfoTooltip text={PT_LEGEND_TEXT} />
+          </p>
           <p className="text-2xl font-mono font-bold text-white leading-tight">
             {formatPt(grandTotal)}
           </p>

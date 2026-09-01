@@ -23,18 +23,19 @@ describe('formatPt', () => {
     expect(formatPt(0.001)).toBe('1 mPt');
   });
 
-  it('scales values in [0.000001, 0.001) Pt to µPt', () => {
-    // exact values from the screenshot that prompted this fix
-    expect(formatPt(0.00005549)).toBe('55,49 µPt');
-    expect(formatPt(0.000009618)).toBe('9,618 µPt');
+  it('never scales below mPt, even for very small values (stays approachable for laypeople)', () => {
+    // exact values from the screenshot that prompted this fix — capped at mPt
+    // with extra fraction digits instead of switching to µPt
+    expect(formatPt(0.00005549)).toBe('0,05549 mPt');
+    expect(formatPt(0.000009618)).toBe('0,009618 mPt');
   });
 
-  it('falls back to scientific Pt notation below the µPt range', () => {
+  it('falls back to scientific Pt notation only for practically negligible values (< 1e-9 Pt)', () => {
     expect(formatPt(0.0000000005)).toBe('5.00e-10 Pt');
   });
 
   it('preserves sign for negative values (avoided-burden credits)', () => {
-    expect(formatPt(-0.00005549)).toBe('-55,49 µPt');
+    expect(formatPt(-0.00005549)).toBe('-0,05549 mPt');
     expect(formatPt(-2)).toBe('-2 Pt');
   });
 });

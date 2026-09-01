@@ -242,6 +242,33 @@ const Project = {
     db.prepare(`UPDATE project_images SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   },
 
+  /**
+   * Moves an image one position up or down in the display order.
+   * No-op if already at that end of the list.
+   *
+   * Renumbers ALL images sequentially (not just the swapped pair) rather than
+   * swapping raw sort_order values — older projects can still have images
+   * that share the same sort_order (uploaded before sort_start was wired up
+   * correctly), where a plain value-swap would silently do nothing. This
+   * self-heals that as soon as someone uses the move buttons.
+   */
+  moveImage: (projectId, imageId, direction) => {
+    const db = getDB();
+    const images = db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(projectId);
+    const idx = images.findIndex((img) => img.id === imageId);
+    if (idx === -1) return;
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= images.length) return;
+
+    [images[idx], images[swapIdx]] = [images[swapIdx], images[idx]];
+    const renumber = db.transaction(() => {
+      images.forEach((img, i) => {
+        db.prepare('UPDATE project_images SET sort_order = ? WHERE id = ?').run(i, img.id);
+      });
+    });
+    renumber();
+  },
+
   // Files
   addFile: (projectId, fileData, label=null) => {
     const db = getDB();
