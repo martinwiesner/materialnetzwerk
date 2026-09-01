@@ -54,6 +54,7 @@ const fileFilter = (req, file, cb) => {
     '.stl', '.obj', '.3ds', '.igs', '.iges',
     '.glb', '.gltf',
     '.zip', '.rar',
+    '.xlsx', '.xls',
   ];
   const ext = extname(file.originalname).toLowerCase();
   if (allowedExt.includes(ext)) return cb(null, true);

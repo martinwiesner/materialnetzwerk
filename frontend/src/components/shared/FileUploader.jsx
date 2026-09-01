@@ -8,6 +8,7 @@ const FILE_EXT_ICONS = {
   '.pdf': '📄',
   '.svg': '🖼️',
   '.zip': '📦', '.rar': '📦',
+  '.xlsx': '📊', '.xls': '📊',
 };
 
 function extIcon(name = '') {
@@ -22,7 +23,7 @@ export default function FileUploader({ files = [], onUpload, onDelete, apiBase =
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef(null);
 
-  const defaultAccept = '.dxf,.dwg,.step,.stp,.stl,.obj,.3ds,.igs,.iges,.svg,.pdf,.zip,.rar,.png,.jpg,.jpeg';
+  const defaultAccept = '.dxf,.dwg,.step,.stp,.stl,.obj,.3ds,.igs,.iges,.svg,.pdf,.zip,.rar,.png,.jpg,.jpeg,.xlsx,.xls';
 
   const handleFiles = async (rawFiles) => {
     if (!rawFiles.length) return;
