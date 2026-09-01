@@ -133,6 +133,12 @@ function completenessScore(e) {
 
 // Combined recency + completeness + proximity score — lower = higher in list
 // Completeness (30%): penalise incomplete entries; Recency (50%): newer first; Proximity (20%): closer first
+// Actors get a small fixed penalty on top — materials/projects are this platform's
+// primary content (see nav order "Materialien • Projekte • Akteure"), a complete,
+// nearby, freshly-added actor shouldn't otherwise be able to outrank them for the
+// top spot just on recency/completeness/proximity alone.
+const ACTOR_SCORE_PENALTY = 0.2;
+
 function entityScore(e) {
   const lat = e.location?.lat ?? ZEITZ_LAT;
   const lon = e.location?.lon ?? ZEITZ_LON;
@@ -146,7 +152,8 @@ function entityScore(e) {
   const distScore = Math.min(dist / 150, 1);
   const ageScore = Math.min(ageDays / 180, 1);
   const incomplete = completenessScore(e);
-  return distScore * 0.20 + ageScore * 0.50 + incomplete * 0.30;
+  const typePenalty = e.type === 'actor' ? ACTOR_SCORE_PENALTY : 0;
+  return distScore * 0.20 + ageScore * 0.50 + incomplete * 0.30 + typePenalty;
 }
 
 function buildEntities({ materials, offers, projects, actors, gesuche, search }) {
