@@ -523,6 +523,10 @@ export default function ProjectForm({ project, onClose }) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [formData, setFormData] = useState(emptyForm);
+  // Local-only: whether the "Wiederverwendbarkeit" create/link options are shown.
+  // Separate from formData.derived_material_id, which is only set once a material
+  // actually exists/is linked — the checkbox needs to be checkable *before* that.
+  const [wantsDerivedMaterial, setWantsDerivedMaterial] = useState(false);
   const [error, setError] = useState('');
   const [locationError, setLocationError] = useState(false);
   const [draftId, setDraftId] = useState(null);
@@ -621,6 +625,7 @@ export default function ProjectForm({ project, onClose }) {
         derived_material_id: project.derived_material_id || null,
         derived_material: project.derived_material || null,
       });
+      setWantsDerivedMaterial(!!project.derived_material_id);
       const vis = project.visibility || (project.is_public ? 'public' : 'private');
       if (vis === 'selectedUsers') {
         api.get(`/shares/project/${project.id}`).then(r => {
@@ -1485,9 +1490,11 @@ export default function ProjectForm({ project, onClose }) {
                   <input
                     type="checkbox"
                     id="also-material-toggle"
-                    checked={!!formData.derived_material_id}
+                    checked={wantsDerivedMaterial}
                     onChange={(e) => {
-                      if (!e.target.checked) handleUnlinkDerivedMaterial();
+                      const checked = e.target.checked;
+                      setWantsDerivedMaterial(checked);
+                      if (!checked) handleUnlinkDerivedMaterial();
                     }}
                     className="mt-0.5 w-4 h-4 accent-emerald-600 flex-shrink-0"
                   />
@@ -1498,31 +1505,33 @@ export default function ProjectForm({ project, onClose }) {
                   </label>
                 </div>
 
-                {formData.derived_material ? (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-gray-500">Verknüpft mit:</span>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs border border-emerald-200">
-                      <Recycle className="w-3.5 h-3.5" />
-                      {formData.derived_material.name}
-                      <button type="button" onClick={handleUnlinkDerivedMaterial}
-                        className="ml-0.5 text-emerald-600 hover:text-red-500">
-                        <X className="w-3 h-3" />
+                {wantsDerivedMaterial && (
+                  formData.derived_material ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-gray-500">Verknüpft mit:</span>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs border border-emerald-200">
+                        <Recycle className="w-3.5 h-3.5" />
+                        {formData.derived_material.name}
+                        <button type="button" onClick={handleUnlinkDerivedMaterial}
+                          className="ml-0.5 text-emerald-600 hover:text-red-500">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={handleCreateDerivedMaterial}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:text-emerald-900"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Neues Material aus diesem Projekt anlegen
                       </button>
-                    </span>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={handleCreateDerivedMaterial}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:text-emerald-900"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Neues Material aus diesem Projekt anlegen
-                    </button>
-                    <p className="text-xs text-gray-400">oder mit einem bestehenden eigenen Material verknüpfen:</p>
-                    <InlineMaterialPicker value={null} onSelect={handleLinkExistingMaterial} onClear={() => {}} />
-                  </div>
+                      <p className="text-xs text-gray-400">oder mit einem bestehenden eigenen Material verknüpfen:</p>
+                      <InlineMaterialPicker value={null} onSelect={handleLinkExistingMaterial} onClear={() => {}} />
+                    </div>
+                  )
                 )}
               </AccordionSection>
 
