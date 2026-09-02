@@ -450,6 +450,8 @@ const ensureColumns = () => {
     // projects – visibility
     addCol('projects', 'visibility', "visibility TEXT NOT NULL DEFAULT 'public'");
     addCol('projects', 'share_actor_id', 'share_actor_id TEXT');
+    // projects – optional link to the Material this project's output can itself be reused as
+    addCol('projects', 'derived_material_id', 'derived_material_id TEXT');
 
     // actors – membership mode
     addCol('actors', 'membership_mode', "membership_mode TEXT NOT NULL DEFAULT 'open'");

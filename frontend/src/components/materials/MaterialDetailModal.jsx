@@ -768,6 +768,16 @@ export default function MaterialDetailModal({ material, onClose, onDelete, onUpd
               ) : null}
               {m.manufacturer && <span className="text-xs text-gray-500">{m.manufacturer}{m.sku ? ` · ${m.sku}` : ''}</span>}
             </div>
+
+            {m.derived_from_project && (
+              <Link
+                to={`/projects/${m.derived_from_project.id}`}
+                className="mt-2 inline-flex items-center gap-1.5 text-xs text-emerald-700 hover:text-emerald-900"
+              >
+                <Recycle className="w-3.5 h-3.5" />
+                Entstanden aus Projekt: <span className="font-semibold">{m.derived_from_project.name}</span>
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">

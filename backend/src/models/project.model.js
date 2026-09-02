@@ -53,6 +53,10 @@ const Project = {
       WHERE pa.project_id = ?
       ORDER BY a.name ASC
     `).all(id);
+    // If this project's output is itself declared reusable as a Material, surface its name/id
+    project.derived_material = project.derived_material_id
+      ? db.prepare('SELECT id, name FROM materials WHERE id = ?').get(project.derived_material_id)
+      : null;
     return project;
   },
 
@@ -172,6 +176,7 @@ const Project = {
       'hardware_license',
       'software_license',
       'documentation_license',
+      'derived_material_id',
     ];
     const jsonFields = new Set(['steps','references','oekodat_materials','idemat_lca_items','contributors']);
     const boolFields = new Set(['is_public','is_available']);

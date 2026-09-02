@@ -49,6 +49,8 @@ const Material = {
     if (!row) return undefined;
     row.images = db.prepare('SELECT * FROM material_images WHERE material_id = ? ORDER BY sort_order ASC').all(id);
     row.files  = db.prepare('SELECT * FROM material_files  WHERE material_id = ? ORDER BY created_at ASC').all(id);
+    // Reverse of Project.derived_material_id: which project (if any) declared this material as its output
+    row.derived_from_project = db.prepare('SELECT id, name FROM projects WHERE derived_material_id = ?').get(id) || null;
     return row;
   },
 

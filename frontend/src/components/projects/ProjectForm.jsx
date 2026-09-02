@@ -16,7 +16,7 @@ import { materialService } from '../../services/materialService';
 import { actorService } from '../../services/actorService';
 import { X, Globe, Lock, FileText, Plus, Trash2, Save, Upload, Users,
   ChevronUp, ChevronDown, BookOpen, Tag, Package, MapPin, Leaf, Wrench, Box, ExternalLink, Building2,
-  Image as ImageIcon, Check, CheckCircle2, AlertCircle, Loader2, Paperclip } from 'lucide-react';
+  Image as ImageIcon, Check, CheckCircle2, AlertCircle, Loader2, Paperclip, Recycle } from 'lucide-react';
 import LocationPicker from '../shared/LocationPicker';
 import ImageUploader from '../shared/ImageUploader';
 import FileUploader from '../shared/FileUploader';
@@ -24,6 +24,7 @@ import api, { MEDIA_BASE } from '../../services/api';
 import { useToast } from '../../store/toastStore';
 import { useT } from '../../i18n/useT';
 import InlineUserPicker from '../shared/InlineUserPicker';
+import InlineMaterialPicker from '../shared/InlineMaterialPicker';
 import { parseDocumentForMaterial, analyzeImages } from '../../services/materialService';
 import OekobaudatPicker from './OekobaudatPicker';
 import { EpdFullAnalysis } from './EpdAnalysis';
@@ -391,6 +392,8 @@ const emptyForm = {
   cad_share_url: '',
   oekodat_materials: [],
   idemat_lca_items: [],
+  derived_material_id: null,
+  derived_material: null,
 };
 
 function StepAiButton({ stepIndex, onUpload, ensureDraft, onStepResult }) {
@@ -615,6 +618,8 @@ export default function ProjectForm({ project, onClose }) {
         cad_share_url: project.cad_share_url || '',
         oekodat_materials: safeJsonParse(project.oekodat_materials, []),
         idemat_lca_items: safeJsonParse(project.idemat_lca_items, []),
+        derived_material_id: project.derived_material_id || null,
+        derived_material: project.derived_material || null,
       });
       const vis = project.visibility || (project.is_public ? 'public' : 'private');
       if (vis === 'selectedUsers') {
@@ -802,6 +807,46 @@ export default function ProjectForm({ project, onClose }) {
     if (!id) return;
     const updated = await projectService.updateImage(id, imageId, { move: direction });
     setLocalImages(Array.isArray(updated) ? updated : localImages);
+  };
+
+  // Cascade link: this project's output can itself be reused as a Material (see Kaskadenpass-Analyse)
+  const handleCreateDerivedMaterial = async () => {
+    const id = await ensureDraft();
+    if (!id) return;
+    try {
+      const newMaterial = await materialService.create({
+        name: formData.name || 'Unbenanntes Material',
+        description: formData.description || '',
+        visibility: formData.visibility === 'public' ? 'public' : 'private',
+      });
+      await projectService.update(id, { derived_material_id: newMaterial.id });
+      setFormData(f => ({ ...f, derived_material_id: newMaterial.id, derived_material: { id: newMaterial.id, name: newMaterial.name } }));
+      toast.success('Material angelegt und verknüpft.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Material konnte nicht angelegt werden.');
+    }
+  };
+
+  const handleLinkExistingMaterial = async (material) => {
+    const id = await ensureDraft();
+    if (!id) return;
+    try {
+      await projectService.update(id, { derived_material_id: material.id });
+      setFormData(f => ({ ...f, derived_material_id: material.id, derived_material: material }));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Verknüpfung fehlgeschlagen.');
+    }
+  };
+
+  const handleUnlinkDerivedMaterial = async () => {
+    const id = activeId;
+    setFormData(f => ({ ...f, derived_material_id: null, derived_material: null }));
+    if (!id) return;
+    try {
+      await projectService.update(id, { derived_material_id: null });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Verknüpfung konnte nicht entfernt werden.');
+    }
   };
 
   const handleFileUpload = async (files) => {
@@ -1431,6 +1476,54 @@ export default function ProjectForm({ project, onClose }) {
                   apiBase={API_BASE}
                   label={t('projectForm.filesLabel')}
                 />
+              </AccordionSection>
+
+              {/* Wiederverwendbarkeit — ist dieses Projekt selbst Bestandteil anderer Produkte? */}
+              <AccordionSection icon={Recycle} title="Wiederverwendbarkeit" color="#059669"
+                filled={!!formData.derived_material_id}>
+                <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                  <input
+                    type="checkbox"
+                    id="also-material-toggle"
+                    checked={!!formData.derived_material_id}
+                    onChange={(e) => {
+                      if (!e.target.checked) handleUnlinkDerivedMaterial();
+                    }}
+                    className="mt-0.5 w-4 h-4 accent-emerald-600 flex-shrink-0"
+                  />
+                  <label htmlFor="also-material-toggle" className="text-sm text-gray-700">
+                    Auch Bestandteil für andere Produkte? Wenn das Ergebnis dieses Projekts selbst
+                    wieder als Rohstoff für etwas Neues verwendet werden kann, lässt es sich hier
+                    mit einem eigenen Material-Eintrag verknüpfen.
+                  </label>
+                </div>
+
+                {formData.derived_material ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-gray-500">Verknüpft mit:</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs border border-emerald-200">
+                      <Recycle className="w-3.5 h-3.5" />
+                      {formData.derived_material.name}
+                      <button type="button" onClick={handleUnlinkDerivedMaterial}
+                        className="ml-0.5 text-emerald-600 hover:text-red-500">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleCreateDerivedMaterial}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 hover:text-emerald-900"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Neues Material aus diesem Projekt anlegen
+                    </button>
+                    <p className="text-xs text-gray-400">oder mit einem bestehenden eigenen Material verknüpfen:</p>
+                    <InlineMaterialPicker value={null} onSelect={handleLinkExistingMaterial} onClear={() => {}} />
+                  </div>
+                )}
               </AccordionSection>
 
               {/* CAD-Modell */}

@@ -177,6 +177,7 @@ CREATE TABLE IF NOT EXISTS projects (
     status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'completed', 'archived')),
     is_public BOOLEAN DEFAULT 0,
     owner_id TEXT NOT NULL,
+    derived_material_id TEXT,  -- optional: this project's output is also reusable as this Material
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE

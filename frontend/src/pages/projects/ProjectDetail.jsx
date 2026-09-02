@@ -7,7 +7,7 @@ import {
   ArrowLeft, Edit2, Trash2, Globe, Lock, Package,
   Calendar, User, Leaf, ChevronLeft, ChevronRight,
   MapPin, ExternalLink, BookOpen, Users, Tag, Database, FileDown, Share2,
-  Maximize2, X
+  Maximize2, X, Recycle
 } from 'lucide-react';
 import { EpdFullAnalysis } from '../../components/projects/EpdAnalysis';
 import { CombinedProductLca } from '../../components/projects/CombinedProductLca';
@@ -1271,6 +1271,19 @@ export default function ProjectDetail() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Kaskaden-Verknüpfung: dieses Projekt ist auch als Material wiederverwendbar */}
+        {project.derived_material && (
+          <Link
+            to={`/materials/${project.derived_material.id}`}
+            className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 hover:bg-emerald-100 transition-colors"
+          >
+            <Recycle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span className="text-sm text-emerald-800">
+              Auch verfügbar als Material: <span className="font-semibold">{project.derived_material.name}</span>
+            </span>
+          </Link>
         )}
 
         {/* CAD-Modell */}
