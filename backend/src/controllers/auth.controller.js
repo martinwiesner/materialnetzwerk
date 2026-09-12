@@ -30,7 +30,7 @@ export const register = async (req, res) => {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        is_admin: user.is_admin || false,
+        is_admin: !!user.is_admin,
       },
       token: generateToken(user.id),
     });
@@ -66,7 +66,7 @@ export const login = async (req, res) => {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
-        is_admin: user.is_admin || false,
+        is_admin: !!user.is_admin,
       },
       token: generateToken(user.id),
     });
@@ -81,7 +81,11 @@ export const login = async (req, res) => {
  * @param {Object} res
  */
 export const getMe = (req, res) => {
-  res.json(req.user);
+  // req.user.is_admin comes straight from SQLite as an integer (0/1), not a real
+  // boolean — normalise it here since this is what populates the frontend auth
+  // store's `user.is_admin`, which flows into strict-boolean-typed contexts
+  // (e.g. React Query's `enabled` option) further downstream.
+  res.json({ ...req.user, is_admin: !!req.user.is_admin });
 };
 
 /**
@@ -95,7 +99,7 @@ export const updateMe = (req, res) => {
   try {
     const updated = User.update(req.user.id, { first_name, last_name, email });
     const user = User.findByIdSecure(updated.id);
-    res.json(user);
+    res.json({ ...user, is_admin: !!user.is_admin });
   } catch (error) {
     res.status(500).json({ message: 'Update failed', error: error.message });
   }

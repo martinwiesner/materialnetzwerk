@@ -587,7 +587,9 @@ export default function MaterialDetailModal({ material, onClose, onDelete, onUpd
   // Sync localImages when material prop changes
   useEffect(() => { setLocalImages(material?.images || []); }, [material?.id]);
 
-  const isEditing = editMode === 'edit' || (editMode === 'auto' && canEdit);
+  // Boolean(...) guards against canEdit ever being a non-boolean truthy/falsy value
+  // (e.g. a raw 0/1 from the backend) — enabled below requires a strict boolean.
+  const isEditing = Boolean(editMode === 'edit' || (editMode === 'auto' && canEdit));
 
   // Merged view — overrides win over original prop
   const m = { ...material, ...overrides };

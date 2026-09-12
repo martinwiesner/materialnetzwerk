@@ -102,7 +102,7 @@ router.get('/users', protect, adminOnly, (req, res) => {
       LEFT JOIN actors a ON a.id = u.actor_id
       ORDER BY u.created_at DESC
     `).all();
-    res.json(users);
+    res.json(users.map(u => ({ ...u, is_admin: !!u.is_admin })));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

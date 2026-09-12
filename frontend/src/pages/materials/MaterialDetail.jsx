@@ -57,7 +57,7 @@ export default function MaterialDetail() {
     );
   }
 
-  const canEdit = isAuthenticated && (material.created_by === user?.id || user?.is_admin);
+  const canEdit = Boolean(isAuthenticated && (material.created_by === user?.id || user?.is_admin));
 
   // If the user landed directly on this URL (no app history), go to home instead of back
   const handleClose = () => {
