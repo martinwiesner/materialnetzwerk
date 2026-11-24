@@ -332,3 +332,37 @@ export function buildProjectLca(project) {
     epdCount: epdRaw.length,
   };
 }
+
+/**
+ * GWP-total A1–A3 of a project for cards and badges — taken from the same
+ * balance as „Umweltwirkung – Gesamtbilanz“ (library materials + ÖKOBAUDAT).
+ * IDEMAT processes are reported separately there and are not included.
+ */
+export function projectGwpSummary(project) {
+  const lca = buildProjectLca(project);
+  if (!lca.materialCount) return null;
+  const counted = lca.entries.filter(e => entryA1A3(e) != null).length;
+  return {
+    a1a3: indicatorModules(lca.totals, 'GWP-total')?.a1a3 ?? null,
+    counted,
+    count: lca.materialCount,
+    complete: counted === lca.materialCount,
+  };
+}
+
+export function formatGwp(v) {
+  return v.toLocaleString('de-DE', { maximumFractionDigits: Math.abs(v) >= 10 ? 1 : 2 });
+}
+
+/** e.g. „−40,2 kg CO₂e (A1–A3)“ plus „· 2 von 3“ when materials lack values; null without any value */
+export function formatProjectGwp(summary) {
+  if (summary?.a1a3 == null) return null;
+  const base = `${formatGwp(summary.a1a3)} kg CO₂e (A1–A3)`;
+  return summary.complete ? base : `${base} · ${summary.counted} von ${summary.count}`;
+}
+
+export function projectGwpTooltip(summary) {
+  if (!summary) return '';
+  return `Treibhauspotenzial A1–A3 aller Projektmaterialien (Bibliothek + ÖKOBAUDAT), Kennwert × Menge – wie in „Umweltwirkung – Gesamtbilanz“.`
+    + (summary.complete ? '' : `\nNur ${summary.counted} von ${summary.count} Materialien haben einen GWP-Kennwert – Summe unvollständig.`);
+}

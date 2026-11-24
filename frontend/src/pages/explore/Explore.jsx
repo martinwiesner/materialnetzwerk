@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Plus, Globe, Package, FolderOpen, X, Map as MapIcon, LayoutList, Users, BookOpen, LocateFixed } from 'lucide-react';
+import { projectGwpSummary, formatProjectGwp } from '../../utils/projectLca';
 import clsx from 'clsx';
 
 import { materialService } from '../../services/materialService';
@@ -253,14 +254,15 @@ function buildEntities({ materials, offers, projects, actors, gesuche, search })
         : null;
       const geo = realGeo || deterministicGeo(`project:${p.id}`);
 
-      const totalGwp = p.total_gwp_value ?? p.totalGwpValue ?? null;
-      const totalGwpUnit = p.total_gwp_unit ?? p.totalGwpUnit ?? null;
+      // Same balance as the project page (library + ÖKOBAUDAT), not the backend's library-only sum
+      const gwp = projectGwpSummary(p);
 
       return {
         ...toProjectEntity(p, { imageResolver: getProjectImage }),
         location: geo,
-        gwpTotal: typeof totalGwp === 'number' ? totalGwp : null,
-        gwpUnit: totalGwpUnit || 'kg CO2e',
+        gwpTotal: gwp?.a1a3 ?? null,
+        gwpUnit: 'kg CO₂e',
+        gwpLabel: formatProjectGwp(gwp),
         available: p.is_available == 1,
       };
     });

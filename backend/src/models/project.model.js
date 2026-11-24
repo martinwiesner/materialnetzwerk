@@ -13,6 +13,22 @@ function normPath(p = '') {
   return clean.startsWith('/') ? clean : '/' + clean;
 }
 
+// Project material rows incl. the library LCA fields the frontend balance needs
+// (shared by the detail view and the list views so cards and project page agree)
+const PROJECT_MATERIALS_SQL = `
+      SELECT pm.*, m.name as material_name, m.category,
+        m.gwp_value, m.gwp_unit, m.unit as lib_unit,
+        m.gwp_fossil, m.gwp_biogenic, m.gwp_luluc,
+        m.adp_fossil, m.adp_elements, m.water_consumption,
+        m.declared_unit, m.lifecycle_scope, m.tech_density,
+        m.odp, m.ap, m.ep_terrestrial, m.ep_freshwater, m.ep_marine, m.pocp,
+        m.hwd, m.nhwd, m.rwd, m.pere, m.penre, m.perm,
+        COALESCE(m.gwp_value, COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0)) as effective_gwp_value,
+        CASE WHEN m.gwp_value IS NOT NULL OR m.gwp_fossil IS NOT NULL OR m.gwp_biogenic IS NOT NULL OR m.gwp_luluc IS NOT NULL THEN 1 ELSE 0 END as has_gwp_data,
+        CASE WHEN m.gwp_value IS NULL AND (m.gwp_fossil IS NOT NULL OR m.gwp_biogenic IS NOT NULL OR m.gwp_luluc IS NOT NULL) THEN 1 ELSE 0 END as gwp_from_epd
+      FROM project_materials pm JOIN materials m ON pm.material_id = m.id WHERE pm.project_id = ?
+    `;
+
 const Project = {
   findById: (id) => {
     const db = getDB();
@@ -28,19 +44,7 @@ const Project = {
     if (!project) return undefined;
     project.images = db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(id);
     project.files  = db.prepare('SELECT * FROM project_files  WHERE project_id = ? ORDER BY created_at ASC').all(id);
-    project.materials = db.prepare(`
-      SELECT pm.*, m.name as material_name, m.category,
-        m.gwp_value, m.gwp_unit, m.unit as lib_unit,
-        m.gwp_fossil, m.gwp_biogenic, m.gwp_luluc,
-        m.adp_fossil, m.adp_elements, m.water_consumption,
-        m.declared_unit, m.lifecycle_scope, m.tech_density,
-        m.odp, m.ap, m.ep_terrestrial, m.ep_freshwater, m.ep_marine, m.pocp,
-        m.hwd, m.nhwd, m.rwd, m.pere, m.penre, m.perm,
-        COALESCE(m.gwp_value, COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0)) as effective_gwp_value,
-        CASE WHEN m.gwp_value IS NOT NULL OR m.gwp_fossil IS NOT NULL OR m.gwp_biogenic IS NOT NULL OR m.gwp_luluc IS NOT NULL THEN 1 ELSE 0 END as has_gwp_data,
-        CASE WHEN m.gwp_value IS NULL AND (m.gwp_fossil IS NOT NULL OR m.gwp_biogenic IS NOT NULL OR m.gwp_luluc IS NOT NULL) THEN 1 ELSE 0 END as gwp_from_epd
-      FROM project_materials pm JOIN materials m ON pm.material_id = m.id WHERE pm.project_id = ?
-    `).all(id);
+    project.materials = db.prepare(PROJECT_MATERIALS_SQL).all(id);
     // Aggregate all LCA indicators – only sum materials that actually have the field set
     const sumIndicator = (field) => (project.materials||[]).reduce((s,r) =>
       r[field] != null ? s + Number(r.quantity||0) * Number(r[field]) : s, 0);
@@ -74,7 +78,7 @@ const Project = {
     if (filters.search) { query += ' AND (name LIKE ? OR description LIKE ?)'; params.push(`%${filters.search}%`,`%${filters.search}%`); }
     query += ' ORDER BY p.created_at DESC';
     const rows = db.prepare(query).all(...params);
-    const matQ = db.prepare('SELECT material_id, quantity, unit FROM project_materials WHERE project_id = ?');
+    const matQ = db.prepare(PROJECT_MATERIALS_SQL);
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 
@@ -92,7 +96,7 @@ const Project = {
     query += ' ORDER BY p.created_at DESC';
     if (filters.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
     const rows = db.prepare(query).all(...params);
-    const matQ = db.prepare('SELECT material_id, quantity, unit FROM project_materials WHERE project_id = ?');
+    const matQ = db.prepare(PROJECT_MATERIALS_SQL);
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 
@@ -114,7 +118,7 @@ const Project = {
     query += ' ORDER BY p.created_at DESC';
     if (filters.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
     const rows = db.prepare(query).all(...params);
-    const matQ = db.prepare('SELECT material_id, quantity, unit FROM project_materials WHERE project_id = ?');
+    const matQ = db.prepare(PROJECT_MATERIALS_SQL);
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 
@@ -131,7 +135,7 @@ const Project = {
     query += ' ORDER BY p.created_at DESC';
     if (filters.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
     const rows = db.prepare(query).all(...params);
-    const matQ = db.prepare('SELECT material_id, quantity, unit FROM project_materials WHERE project_id = ?');
+    const matQ = db.prepare(PROJECT_MATERIALS_SQL);
     return rows.map(r=>({...r, images: db.prepare('SELECT * FROM project_images WHERE project_id = ? ORDER BY sort_order ASC, created_at ASC').all(r.id), materials: matQ.all(r.id)}));
   },
 

@@ -5,6 +5,7 @@ import { projectService } from '../../services/projectService';
 import { materialService } from '../../services/materialService';
 import { toMaterialEntity } from '../../utils/entityMapping';
 import { Plus, Search, Edit2, Trash2, FolderOpen, Globe, Lock, MapPinned, MapPin, List, Leaf, Tag, Download, FileText, Scale, Package2, Share2 } from 'lucide-react';
+import { projectGwpSummary, formatProjectGwp, projectGwpTooltip } from '../../utils/projectLca';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectsToCSV, exportProjectsToPDF } from '../../utils/exportUtils';
 import clsx from 'clsx';
@@ -146,8 +147,8 @@ export default function Projects() {
       type: 'project',
       title: p.name || 'Project',
       subtitle:
-        (typeof p.total_gwp_value === 'number'
-          ? `Total GWP: ${p.total_gwp_value.toFixed(3)} ${p.total_gwp_unit || 'kg CO2e'}`
+        (formatProjectGwp(projectGwpSummary(p))
+          ? `GWP: ${formatProjectGwp(projectGwpSummary(p))}`
           : p.description || '') + (p.location_name ? ` • ${p.location_name}` : ''),
       latitude: Number(p.latitude),
       longitude: Number(p.longitude),
@@ -514,12 +515,17 @@ export default function Projects() {
                   )}
 
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {typeof project.total_gwp_value === 'number' && project.total_gwp_value > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs font-medium text-green-800">
-                        <Leaf className="w-3 h-3 text-green-600" />
-                        GWP {project.total_gwp_value.toFixed(3)} {project.total_gwp_unit || 'kg CO₂e'}
-                      </span>
-                    )}
+                    {(() => {
+                      const gwp = projectGwpSummary(project);
+                      const label = formatProjectGwp(gwp);
+                      return label && (
+                        <span title={projectGwpTooltip(gwp)}
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${gwp.complete ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                          <Leaf className="w-3 h-3 text-green-600" />
+                          GWP {label}
+                        </span>
+                      );
+                    })()}
                     <span className="text-xs text-gray-400 self-center">{formatDate(project.created_at)}</span>
                   </div>
                 </div>

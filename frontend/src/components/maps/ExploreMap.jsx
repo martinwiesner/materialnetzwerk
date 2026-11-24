@@ -383,7 +383,9 @@ export default function ExploreMap({
                     ⬤ Materialgesuch vorhanden
                   </div>
                 ) : null}
-                {typeof e.gwpTotal === 'number' ? (
+                {e.gwpLabel ? (
+                  <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 4 }}>GWP: {e.gwpLabel}</div>
+                ) : typeof e.gwpTotal === 'number' ? (
                   <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 4 }}>
                     GWP: {e.gwpTotal.toFixed(2)} {e.gwpUnit || 'kg CO2e'}
                   </div>

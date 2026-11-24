@@ -161,7 +161,7 @@ import { exportProjectPoster } from '../../utils/exportUtils';
 import { formatDate } from '../../utils/dates';
 import { getLicenseLabel } from '../../utils/licenses';
 import { formatPt, PT_LEGEND_TEXT } from '../../utils/lcaFormat';
-import { buildProjectLca, indicatorModules, libMatToEpdEntry, normalizeEntry, entryA1A3, SKIP_REASONS } from '../../utils/projectLca';
+import { buildProjectLca, indicatorModules, libMatToEpdEntry, normalizeEntry, entryA1A3, SKIP_REASONS, projectGwpSummary, formatProjectGwp, projectGwpTooltip, formatGwp } from '../../utils/projectLca';
 import InfoTooltip from '../../components/shared/InfoTooltip';
 const API_BASE = MEDIA_BASE;
 
@@ -933,6 +933,14 @@ export default function ProjectDetail() {
   const isOwner = isAuthenticated && (project.owner_id === user?.id || user?.is_admin);
   const canEdit = isOwner || !!project.can_edit;
 
+  // Same balance as „Umweltwirkung – Gesamtbilanz“ so badge and section agree
+  const gwpSummary = projectGwpSummary(project);
+  const gwpLabel = formatProjectGwp(gwpSummary);
+  const epdRows = safeJsonParse(project.oekodat_materials, []).map((raw) => {
+    const { entry } = normalizeEntry(raw);
+    return { raw, contrib: entry ? entryA1A3(entry) : null };
+  });
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
@@ -1094,20 +1102,20 @@ export default function ProjectDetail() {
               <Package className="w-5 h-5 text-primary-500" />
               {t('projectDetail.sections.materials')}
             </h2>
-            {typeof project.total_gwp_value === 'number' && project.total_gwp_value !== 0 && (
+            {gwpLabel && (
               <span
-                title={t('projectDetail.labels.gwpProjectTooltip', { unit: project.total_gwp_unit || 'kg CO₂e' })}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-green-50 border border-green-200 px-3 py-1 text-xs font-semibold text-green-800 cursor-help"
+                title={projectGwpTooltip(gwpSummary)}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold cursor-help ${gwpSummary.complete ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}
               >
                 <Leaf className="w-3.5 h-3.5 text-green-600" />
-                GWP total: {project.total_gwp_value.toFixed(3)} {project.total_gwp_unit || 'kg CO₂e'}
+                GWP {gwpLabel}
                 <span className="text-green-500">ⓘ</span>
               </span>
             )}
           </div>
 
           {/* Materials List */}
-          {project.materials && project.materials.length > 0 ? (
+          {project.materials?.length > 0 || epdRows.length > 0 ? (
             <>
               <div className="space-y-2">
                 {project.materials.map((material) => {
@@ -1145,6 +1153,25 @@ export default function ProjectDetail() {
                     </div>
                   );
                 })}
+                {epdRows.map(({ raw, contrib }, i) => (
+                  <div key={`epd-${raw.uuid || i}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex-1 min-w-0">
+                      <span className="mr-2 inline-block rounded bg-blue-100 text-blue-800 text-[10px] font-semibold px-1.5 py-0.5 align-middle">ÖKOBAUDAT</span>
+                      <span className="font-medium text-gray-900">{raw.name}</span>
+                      <span className="text-gray-500 ml-2">
+                        {raw.quantity ?? '–'} {raw.unit || raw.declaredUnit || ''}
+                      </span>
+                    </div>
+                    {contrib != null && (
+                      <span
+                        title="Beitrag A1–A3 = Kennwert × Menge (ÖKOBAUDAT-Datensatz)"
+                        className="ml-3 flex-shrink-0 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-0.5 font-mono cursor-help"
+                      >
+                        {formatGwp(contrib)} kg CO₂e
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
 
             </>

@@ -15,7 +15,7 @@ export default function EntityCard({ entity, active = false, onSelect, href, onO
   const Icon = badge.icon;
 
   const metaLeft = entity.location?.address ? entity.location.address : entity.subtitle;
-  const metaRight = entity.quantityLabel || (typeof entity.gwpTotal === 'number' ? `${entity.gwpTotal.toFixed(2)} ${entity.gwpUnit || ''}` : null);
+  const metaRight = entity.quantityLabel || entity.gwpLabel || (typeof entity.gwpTotal === 'number' ? `${entity.gwpTotal.toFixed(2)} ${entity.gwpUnit || ''}` : null);
 
   return (
     <div

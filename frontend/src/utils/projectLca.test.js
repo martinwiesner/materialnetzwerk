@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDensity, quantityFactor, conversionGap, buildProjectLca, indicatorModules, libDeclaredUnit } from './projectLca';
+import { parseDensity, quantityFactor, conversionGap, buildProjectLca, indicatorModules, libDeclaredUnit, projectGwpSummary, formatProjectGwp } from './projectLca';
 
 describe('parseDensity', () => {
   it('parses free-text densities to kg/m³', () => {
@@ -96,5 +96,27 @@ describe('ad-hoc variant from an ÖKOBAUDAT dataset', () => {
     expect(gwp.total).toBeCloseTo(128.3);
     // same dataset per kg via its density
     expect(quantityFactor('1 kg', 'm3', 2280) * 127.2).toBeCloseTo(0.0558, 4);
+  });
+});
+
+describe('projectGwpSummary (cards & badges)', () => {
+  const climAdd = { material_name: 'Clim@Add', quantity: 60, unit: 'kg', has_gwp_data: 1, gwp_value: -2.768, effective_gwp_value: -2.768, gwp_unit: 'kg CO2e/kg', declared_unit: '1 kg' };
+  const beton = { name: 'Beton C25/30', quantity: 1, unit: 'm³', declaredUnit: 'm3', indicators: { 'GWP-total': { unit: 'kg CO₂ eq.', mods: { 'A1-A3': 125.88, C3: 2 } } } };
+
+  it('includes ÖKOBAUDAT EPDs, not only library materials', () => {
+    const s = projectGwpSummary({ materials: [climAdd], oekodat_materials: JSON.stringify([beton]) });
+    expect(s.a1a3).toBeCloseTo(-166.08 + 125.88);
+    expect(s.complete).toBe(true);
+    expect(formatProjectGwp(s)).toBe('-40,2 kg CO₂e (A1–A3)');
+  });
+
+  it('marks incomplete sums', () => {
+    const s = projectGwpSummary({ materials: [climAdd, { material_name: 'Sand', quantity: 100, unit: 'kg', has_gwp_data: 0, gwp_value: 0 }], oekodat_materials: '[]' });
+    expect(formatProjectGwp(s)).toBe('-166,1 kg CO₂e (A1–A3) · 1 von 2');
+  });
+
+  it('returns no label without materials or values', () => {
+    expect(projectGwpSummary({ materials: [], oekodat_materials: '[]' })).toBeNull();
+    expect(formatProjectGwp(projectGwpSummary({ materials: [{ material_name: 'X', quantity: 1, has_gwp_data: 0 }] }))).toBeNull();
   });
 });
