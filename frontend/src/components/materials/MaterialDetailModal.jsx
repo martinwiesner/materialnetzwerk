@@ -6,7 +6,7 @@ import {
   X, ExternalLink, Leaf, Info, Wrench, Ruler, Recycle, Trash2,
   FileDown, Share2, Loader2, Eye, Pencil, Wand2, Check, CheckCircle2,
   AlertCircle, FileText, Image as ImageIcon, Search, FlaskConical,
-  MapPin,
+  MapPin, CopyPlus,
 } from 'lucide-react';
 import LcaSection from './LcaSection';
 import { OwnerLine } from '../shared/ContactButton';
@@ -572,7 +572,7 @@ function FieldLabel({ children }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // Main component
 // ══════════════════════════════════════════════════════════════════════════════
-export default function MaterialDetailModal({ material, onClose, onDelete, onUpdate, canEdit = false }) {
+export default function MaterialDetailModal({ material, onClose, onDelete, onUpdate, onDuplicate, duplicating = false, canEdit = false }) {
   const t = useT();
   const toast = useToast();
 
@@ -787,6 +787,13 @@ export default function MaterialDetailModal({ material, onClose, onDelete, onUpd
               <OwnerLine ownerId={m.owner_id} ownerFirstName={m.owner_first_name}
                 ownerLastName={m.owner_last_name} ownerEmail={m.owner_email}
                 contextLabel={material.name} />
+            )}
+            {onDuplicate && (
+              <button onClick={onDuplicate} disabled={duplicating}
+                className="p-2 rounded-lg text-gray-500 hover:text-primary-700 hover:bg-primary-50 disabled:opacity-50" type="button"
+                title="Duplizieren – als eigene Variante anlegen (z. B. andere Festigkeitsklasse)">
+                {duplicating ? <Loader2 className="w-5 h-5 animate-spin" /> : <CopyPlus className="w-5 h-5" />}
+              </button>
             )}
             {canEdit && (
               <button onClick={() => setShareOpen(true)}

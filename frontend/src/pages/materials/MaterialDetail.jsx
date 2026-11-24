@@ -5,6 +5,7 @@ import { materialService } from '../../services/materialService';
 import MaterialDetailModal from '../../components/materials/MaterialDetailModal';
 import MaterialForm from '../../components/materials/MaterialForm';
 import { useAuthStore } from '../../store/authStore';
+import { useToast } from '../../store/toastStore';
 
 export default function MaterialDetail() {
   const navigate = useNavigate();
@@ -12,6 +13,20 @@ export default function MaterialDetail() {
   const { user, isAuthenticated } = useAuthStore();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const toast = useToast();
+
+  const duplicateMutation = useMutation({
+    mutationFn: (source) => materialService.duplicate(source),
+    onSuccess: ({ material: copy, failedMedia }) => {
+      queryClient.invalidateQueries({ queryKey: ['materials'] });
+      toast.success(failedMedia
+        ? `Kopie angelegt – ${failedMedia} Bild(er)/Datei(en) konnten nicht übernommen werden`
+        : 'Kopie angelegt – jetzt anpassen');
+      navigate(`/materials/${copy.id}`);
+      setEditing(true);
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Duplizieren fehlgeschlagen'),
+  });
 
   const deleteMutation = useMutation({
     mutationFn: () => materialService.delete(id),
@@ -72,6 +87,8 @@ export default function MaterialDetail() {
         onClose={handleClose}
         canEdit={canEdit}
         onEdit={() => setEditing(true)}
+        onDuplicate={isAuthenticated ? () => duplicateMutation.mutate(material) : undefined}
+        duplicating={duplicateMutation.isPending}
         onDelete={canEdit ? () => deleteMutation.mutate() : undefined}
       />
       {editing && (

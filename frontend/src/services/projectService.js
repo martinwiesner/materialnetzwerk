@@ -1,4 +1,5 @@
 import api from './api';
+import { projectCopyPayload, copyMedia } from '../utils/duplicate';
 
 export const projectService = {
   getAll: async (params = {}) => {
@@ -39,6 +40,24 @@ export const projectService = {
     a.download = filename || `projekt-${id}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
+  },
+
+  /** Creates a private draft copy incl. materials, EPDs, images and files. Returns { project, failedMedia }. */
+  duplicate: async (source) => {
+    const payload = projectCopyPayload(source);
+    const created = await projectService.create(payload);
+    // create() only takes the core fields; EPDs, CAD links etc. need an update
+    const { materials: _m, ...rest } = payload;
+    await projectService.update(created.id, rest);
+    const failedMedia = await copyMedia(source, {
+      uploadImage: (file, opts) => projectService.uploadImages(created.id, [file], opts),
+      uploadFile: (file, label) => projectService.uploadFiles(created.id, [file], label),
+    });
+    try {
+      const actors = await projectService.getActors(source.id);
+      if (actors.length) await projectService.setActors(created.id, actors.map(a => a.id));
+    } catch { /* actors are optional */ }
+    return { project: created, failedMedia };
   },
 
   // ── Images ──────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ import {
   ArrowLeft, Edit2, Trash2, Globe, Lock, Package,
   Calendar, User, Leaf, ChevronLeft, ChevronRight,
   MapPin, ExternalLink, BookOpen, Users, Tag, Database, FileDown, Share2,
-  Maximize2, X, Recycle
+  Maximize2, X, Recycle, CopyPlus, Loader2
 } from 'lucide-react';
 import { EpdFullAnalysis } from '../../components/projects/EpdAnalysis';
 import { CombinedProductLca } from '../../components/projects/CombinedProductLca';
@@ -154,6 +154,7 @@ import ProjectForm from '../../components/projects/ProjectForm';
 import { MEDIA_BASE } from '../../services/api';
 import MaterialIdSection from '../../components/shared/MaterialIdSection';
 import { useAuthStore } from '../../store/authStore';
+import { useToast } from '../../store/toastStore';
 import SharePrintBar from '../../components/shared/SharePrintBar';
 import BookmarkButton from '../../components/shared/BookmarkButton';
 import { exportProjectPoster } from '../../utils/exportUtils';
@@ -852,6 +853,20 @@ export default function ProjectDetail() {
     },
   });
 
+  const toast = useToast();
+  const duplicateMutation = useMutation({
+    mutationFn: (source) => projectService.duplicate(source),
+    onSuccess: ({ project: copy, failedMedia }) => {
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success(failedMedia
+        ? `Kopie angelegt – ${failedMedia} Bild(er)/Datei(en) konnten nicht übernommen werden`
+        : 'Kopie als Entwurf angelegt – jetzt anpassen');
+      navigate(`/projects/${copy.id}`);
+      setShowForm(true);
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Duplizieren fehlgeschlagen'),
+  });
+
   const handleDelete = () => {
     if (window.confirm(t('projectDetail.deleteConfirm'))) {
       deleteMutation.mutate(id);
@@ -929,8 +944,17 @@ export default function ProjectDetail() {
           <ArrowLeft className="w-4 h-4" />
           {t('projectDetail.backToList')}
         </Link>
-        {(canEdit || isOwner) && (
+        {isAuthenticated && (
           <div className="flex gap-2">
+            <button
+              onClick={() => duplicateMutation.mutate(project)}
+              disabled={duplicateMutation.isPending}
+              className="inline-flex items-center gap-2 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              title="Als eigene Variante anlegen (z. B. andere Rezeptur durchspielen)"
+            >
+              {duplicateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CopyPlus className="w-4 h-4" />}
+              Duplizieren
+            </button>
             {canEdit && (
               <button
                 onClick={() => setShowForm(true)}

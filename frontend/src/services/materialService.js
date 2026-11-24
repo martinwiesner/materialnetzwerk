@@ -1,4 +1,5 @@
 import api from './api';
+import { materialCopyPayload, copyMedia } from '../utils/duplicate';
 
 export const materialService = {
   getAll: async (params = {}) => {
@@ -39,6 +40,20 @@ export const materialService = {
     a.download = filename || `material-${id}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
+  },
+
+  /** Creates a private copy (fields, images, files, contacts). Returns { material, failedMedia }. */
+  duplicate: async (source) => {
+    const material = await materialService.create(materialCopyPayload(source));
+    const failedMedia = await copyMedia(source, {
+      uploadImage: (file, opts) => materialImageService.upload(material.id, [file], opts),
+      uploadFile: (file, label) => materialImageService.uploadFiles(material.id, [file], label),
+    });
+    try {
+      const actors = await materialActorService.getActors(source.id);
+      if (actors.length) await materialActorService.setActors(material.id, actors.map(a => a.id));
+    } catch { /* contacts are optional */ }
+    return { material, failedMedia };
   },
 };
 // appended
