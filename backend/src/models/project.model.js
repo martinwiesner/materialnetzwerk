@@ -33,7 +33,9 @@ const Project = {
         m.gwp_value, m.gwp_unit, m.unit as lib_unit,
         m.gwp_fossil, m.gwp_biogenic, m.gwp_luluc,
         m.adp_fossil, m.adp_elements, m.water_consumption,
-        m.declared_unit, m.lifecycle_scope,
+        m.declared_unit, m.lifecycle_scope, m.tech_density,
+        m.odp, m.ap, m.ep_terrestrial, m.ep_freshwater, m.ep_marine, m.pocp,
+        m.hwd, m.nhwd, m.rwd, m.pere, m.penre, m.perm,
         COALESCE(m.gwp_value, COALESCE(m.gwp_fossil,0)+COALESCE(m.gwp_biogenic,0)+COALESCE(m.gwp_luluc,0)) as effective_gwp_value,
         CASE WHEN m.gwp_value IS NOT NULL OR m.gwp_fossil IS NOT NULL OR m.gwp_biogenic IS NOT NULL OR m.gwp_luluc IS NOT NULL THEN 1 ELSE 0 END as has_gwp_data,
         CASE WHEN m.gwp_value IS NULL AND (m.gwp_fossil IS NOT NULL OR m.gwp_biogenic IS NOT NULL OR m.gwp_luluc IS NOT NULL) THEN 1 ELSE 0 END as gwp_from_epd

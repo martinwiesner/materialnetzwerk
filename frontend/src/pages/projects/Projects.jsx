@@ -465,7 +465,7 @@ export default function Projects() {
                       <button
                         type="button"
                         title={compare.isSelected(project.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
-                        onClick={(e) => { e.stopPropagation(); compare.toggle('projects', project.id); }}
+                        onClick={(e) => { e.stopPropagation(); if (e.detail > 1) return; compare.toggle('projects', project.id, project.name); }}
                         disabled={!compare.isSelected(project.id) && !compare.canAdd('projects')}
                         className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
                           compare.isSelected(project.id)

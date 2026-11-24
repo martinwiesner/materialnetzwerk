@@ -160,6 +160,7 @@ import { exportProjectPoster } from '../../utils/exportUtils';
 import { formatDate } from '../../utils/dates';
 import { getLicenseLabel } from '../../utils/licenses';
 import { formatPt, PT_LEGEND_TEXT } from '../../utils/lcaFormat';
+import { buildProjectLca, indicatorModules, libMatToEpdEntry, normalizeEntry, entryA1A3, SKIP_REASONS } from '../../utils/projectLca';
 import InfoTooltip from '../../components/shared/InfoTooltip';
 const API_BASE = MEDIA_BASE;
 
@@ -192,24 +193,6 @@ function TagGroup({ title, items }) {
 
 // ── Ökobaudat EPD LCA helpers ────────────────────────────────────────────────
 
-const EPD_INDICATOR_ORDER = [
-  'GWP-total','GWP-fossil','GWP-biogenic','GWP-luluc',
-  'ODP','AP','EP-terrestrial','EP-freshwater','EP-marine','POCP',
-  'ADP-elements','ADP-fossil','ADP','WDP',
-  'HWD','NHWD','RWD','PERE','PENRE','PERM',
-];
-
-function epdSumMods(mods, keys) {
-  for (const k of keys) {
-    if (k in mods && mods[k] != null) return mods[k];
-  }
-  let s = 0, found = false;
-  for (const k of Object.keys(mods)) {
-    if (keys.includes(k) && mods[k] != null) { s += mods[k]; found = true; }
-  }
-  return found ? s : null;
-}
-
 function epdFmtNum(v) {
   if (v == null || isNaN(v)) return '—';
   if (v === 0) return '0';
@@ -220,106 +203,24 @@ function epdFmtNum(v) {
   return v.toPrecision(3);
 }
 
-function epdNormUnit(u) {
-  if (!u) return '';
-  let s = u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
-  if (['metric ton','metric tons','tonne','tonnes','tonnen'].includes(s)) s = 't';
-  if (['m3','cubic meter','cubic metre','kubikmeter'].includes(s)) s = 'm³';
-  if (['kilogramm','kilogram','kilograms'].includes(s)) s = 'kg';
-  return s;
-}
-function epdUnitConv(fromUnit, toUnit) {
-  function toKg(u) { return u==='kg'?1:u==='t'?1000:u==='g'?0.001:null; }
-  const f = epdNormUnit(fromUnit), t = epdNormUnit(toUnit);
-  if (!f||!t||f===t) return 1;
-  const fK=toKg(f), tK=toKg(t);
-  return (fK!=null&&tK!=null&&tK!==0) ? fK/tK : 1;
-}
-function epdGetQty(epd) {
-  return (Number(epd.quantity) || 1) * epdUnitConv(epd.unit, epd.declaredUnit);
-}
-
-function epdComputeTotals(selected) {
-  const totals = {};
-  for (const epd of selected) {
-    const qty = epdGetQty(epd);
-    for (const [key, ind] of Object.entries(epd.indicators || {})) {
-      if (!totals[key]) totals[key] = { unit: ind.unit, mods: {} };
-      for (const [mod, val] of Object.entries(ind.mods || {})) {
-        if (val != null) totals[key].mods[mod] = (totals[key].mods[mod] || 0) + qty * val;
-      }
-    }
-  }
-  return totals;
-}
-
-// Convert a library material (with gwp data) into the unified EPD-entry format
-function libMatToEpdEntry(m) {
-  const perUnit = Number(m.effective_gwp_value) || 0;
-  const indicators = {};
-  if (perUnit !== 0 || m.gwp_value != null) {
-    indicators['GWP-total'] = { mods: { 'A1-A3': perUnit }, unit: 'kg CO₂e' };
-  }
-  if (m.gwp_fossil      != null) indicators['GWP-fossil']      = { mods: { 'A1-A3': Number(m.gwp_fossil)      }, unit: 'kg CO₂e' };
-  if (m.gwp_biogenic    != null) indicators['GWP-biogenic']    = { mods: { 'A1-A3': Number(m.gwp_biogenic)    }, unit: 'kg CO₂e' };
-  if (m.gwp_luluc       != null) indicators['GWP-luluc']       = { mods: { 'A1-A3': Number(m.gwp_luluc)       }, unit: 'kg CO₂e' };
-  if (m.adp_fossil      != null) indicators['ADP-fossil']      = { mods: { 'A1-A3': Number(m.adp_fossil)      }, unit: 'MJ' };
-  if (m.adp_elements    != null) indicators['ADP-elements']    = { mods: { 'A1-A3': Number(m.adp_elements)    }, unit: 'kg Sb eq.' };
-  if (m.water_consumption!=null) indicators['WDP']             = { mods: { 'A1-A3': Number(m.water_consumption)}, unit: 'm³' };
-  if (m.odp             != null) indicators['ODP']             = { mods: { 'A1-A3': Number(m.odp)             }, unit: 'kg CFC-11 eq.' };
-  if (m.ap              != null) indicators['AP']              = { mods: { 'A1-A3': Number(m.ap)              }, unit: 'mol H⁺ eq.' };
-  if (m.ep_terrestrial  != null) indicators['EP-terrestrial']  = { mods: { 'A1-A3': Number(m.ep_terrestrial)  }, unit: 'mol N eq.' };
-  if (m.ep_freshwater   != null) indicators['EP-freshwater']   = { mods: { 'A1-A3': Number(m.ep_freshwater)   }, unit: 'kg P eq.' };
-  if (m.ep_marine       != null) indicators['EP-marine']       = { mods: { 'A1-A3': Number(m.ep_marine)       }, unit: 'kg N eq.' };
-  if (m.pocp            != null) indicators['POCP']            = { mods: { 'A1-A3': Number(m.pocp)            }, unit: 'kg NMVOC eq.' };
-  if (m.hwd             != null) indicators['HWD']             = { mods: { 'A1-A3': Number(m.hwd)             }, unit: 'kg' };
-  if (m.nhwd            != null) indicators['NHWD']            = { mods: { 'A1-A3': Number(m.nhwd)            }, unit: 'kg' };
-  if (m.rwd             != null) indicators['RWD']             = { mods: { 'A1-A3': Number(m.rwd)             }, unit: 'kg' };
-  if (m.pere            != null) indicators['PERE']            = { mods: { 'A1-A3': Number(m.pere)            }, unit: 'MJ' };
-  if (m.penre           != null) indicators['PENRE']           = { mods: { 'A1-A3': Number(m.penre)           }, unit: 'MJ' };
-  if (m.perm            != null) indicators['PERM']            = { mods: { 'A1-A3': Number(m.perm)            }, unit: 'MJ' };
-  const gwpDenominator = m.gwp_unit?.split('/')?.[1]?.trim() || null;
-  const declaredUnit = m.declared_unit || gwpDenominator || 'kg';
-  return {
-    uuid:         `lib-${m.material_id || m.id}`,
-    name:         m.material_name || m.name || 'Material',
-    category:     m.category || '',
-    declaredUnit,
-    quantity:     Number(m.quantity) || 1,
-    unit:         m.unit || declaredUnit,
-    gwpA1A3:      perUnit !== 0 ? perUnit : null,
-    gwpEoL:       null,
-    gwpD:         null,
-    indicators,
-    isLibraryMaterial: true,
-  };
-}
-
 function OekobaudatLcaSection({ project }) {
-  const oekodatMaterials  = safeJsonParse(project.oekodat_materials, []);
-  // Only include library materials that have a non-zero effective GWP value
-  const libMatsWithGwp    = (project.materials || []).filter(
-    m => m.has_gwp_data && Number(m.effective_gwp_value) !== 0
-  );
-  const libAsEpd          = libMatsWithGwp.map(libMatToEpdEntry);
+  // Shared with ComparePage (utils/projectLca) so both show identical sums
+  const lca = buildProjectLca(project);
   // Library materials first so they appear on the left in the chart
-  const allMaterials      = [...libAsEpd, ...oekodatMaterials];
+  const allMaterials = lca.entries;
 
   if (!allMaterials.length) return null;
 
-  const totals = epdComputeTotals(allMaterials);
-  const indicatorKeys = Object.keys(totals).sort((a, b) => {
-    const ia = EPD_INDICATOR_ORDER.indexOf(a), ib = EPD_INDICATOR_ORDER.indexOf(b);
-    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-  });
+  const { totals, indicatorKeys, skipped } = lca;
+  const libCount = allMaterials.filter(e => e.isLibraryMaterial).length;
+  const epdCount = allMaterials.length - libCount;
 
   // Summary cards for GWP + key indicators
-  const gwpMods = totals['GWP-total']?.mods || {};
-  const gwpA1A3Total = epdSumMods(gwpMods, ['A1-A3', 'A1', 'A2', 'A3']);
-  const gwpEoL      = epdSumMods(gwpMods, ['C3', 'C4']);
-  const gwpLifecycle = [gwpA1A3Total, gwpMods['B6'] ?? null, gwpEoL]
-    .reduce((s, v) => v != null ? s + v : s, 0);
-  const hasGwpLifecycle = gwpA1A3Total != null || gwpMods['B6'] != null || gwpEoL != null;
+  const gwp = indicatorModules(totals, 'GWP-total');
+  const gwpA1A3Total = gwp?.a1a3 ?? null;
+  const gwpEoL       = gwp?.eol ?? null;
+  const gwpLifecycle = gwp?.total ?? 0;
+  const hasGwpLifecycle = gwp?.total != null;
 
   return (
     <div className="p-6 border-t border-gray-200">
@@ -329,10 +230,16 @@ function OekobaudatLcaSection({ project }) {
       </h2>
       <p className="text-xs text-gray-400 mb-5">
         {[
-          oekodatMaterials.length > 0 && `${oekodatMaterials.length} Ökobaudat-EPD${oekodatMaterials.length > 1 ? 's' : ''}`,
-          libAsEpd.length > 0 && `${libAsEpd.length} Bibliotheks-Material${libAsEpd.length > 1 ? 'ien' : ''} mit Umweltdaten`,
+          epdCount > 0 && `${epdCount} Ökobaudat-EPD${epdCount > 1 ? 's' : ''}`,
+          libCount > 0 && `${libCount} Bibliotheks-Material${libCount > 1 ? 'ien' : ''} mit Umweltdaten`,
+          `${allMaterials.length} von ${lca.materialCount} Materialien berücksichtigt`,
         ].filter(Boolean).join(' · ')}
       </p>
+      {skipped.length > 0 && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-5 -mt-3">
+          Nicht in der Bilanz: {skipped.map(s => `${s.name} (${SKIP_REASONS[s.reason]})`).join(', ')}
+        </p>
+      )}
 
       {/* Summary cards */}
       {hasGwpLifecycle && (
@@ -364,8 +271,7 @@ function OekobaudatLcaSection({ project }) {
       {/* Material list — library materials + EPD materials */}
       <div className="space-y-2 mb-5">
         {allMaterials.map(epd => {
-          const qty     = epdGetQty(epd);
-          const gwpA1A3 = epd.gwpA1A3 != null ? epd.gwpA1A3 * qty : null;
+          const gwpA1A3 = entryA1A3(epd);
           const isLib   = !!epd.isLibraryMaterial;
           return (
             <div key={epd.uuid}
@@ -382,7 +288,10 @@ function OekobaudatLcaSection({ project }) {
                   {epd.norm && <span className="px-1 py-0.5 bg-blue-100 text-blue-600 text-[10px] rounded">{epd.norm}</span>}
                 </div>
                 {epd.category && <p className="text-xs text-gray-400 truncate mt-0.5">{epd.category}</p>}
-                <p className="text-xs text-gray-500 mt-0.5">{qty} {epd.unit || epd.declaredUnit || ''}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {epd.enteredQuantity} {epd.enteredUnit || ''}
+                  {epd.enteredUnit !== epd.unit && ` = ${epdFmtNum(epd.quantity)} × ${epd.declaredUnit}`}
+                </p>
               </div>
               {gwpA1A3 != null && (
                 <span className="flex-shrink-0 text-[11px] font-mono font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-lg px-2 py-0.5">
@@ -416,13 +325,8 @@ function OekobaudatLcaSection({ project }) {
               </thead>
               <tbody>
                 {indicatorKeys.map((key, i) => {
-                  const { unit, mods } = totals[key];
-                  const a1a3      = epdSumMods(mods, ['A1-A3', 'A1', 'A2', 'A3']);
-                  const b6        = mods['B6'] ?? null;
-                  const eol       = epdSumMods(mods, ['C3', 'C4']);
-                  const d         = mods['D'] ?? null;
-                  const lifecycle = [a1a3, b6, eol].reduce((s, v) => v != null ? s + v : s, 0);
-                  const hasLifecycle = a1a3 != null || b6 != null || eol != null;
+                  const { unit, a1a3, b6, eol, d, total: lifecycle } = indicatorModules(totals, key);
+                  const hasLifecycle = lifecycle != null;
                   return (
                     <tr key={key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                       <td className="px-3 py-1.5 font-semibold text-gray-800 whitespace-nowrap">{key}</td>
@@ -635,11 +539,9 @@ function IdematLcaSection({ project }) {
 function computeContributions(materials, valueField, effectiveField) {
   return (materials || [])
     .map(m => {
-      const gwpDenominator = m.gwp_unit?.split('/')?.[1]?.trim() || null;
-      const declaredUnit   = m.declared_unit || gwpDenominator || 'kg';
-      const conv = epdUnitConv(m.unit || declaredUnit, declaredUnit);
+      const { entry } = normalizeEntry(libMatToEpdEntry(m));
       const val = effectiveField ? m[effectiveField] : m[valueField];
-      const contrib = val != null ? Number(m.quantity || 0) * conv * Number(val) : null;
+      const contrib = val != null && entry ? entry.quantity * Number(val) : null;
       return { ...m, _contrib: contrib };
     })
     .filter(m => m._contrib != null && m._contrib !== 0)
@@ -1008,9 +910,7 @@ export default function ProjectDetail() {
 
   // Pre-computed LCA data — shared between CombinedProductLca render and LcaExportDialog
   const lcaEpdMats = (() => {
-    const oekodatMats = safeJsonParse(project.oekodat_materials, []);
-    const libMats = (project.materials || []).filter(m => m.has_gwp_data);
-    return [...libMats.map(libMatToEpdEntry), ...oekodatMats];
+    return buildProjectLca(project).entries;
   })();
   const lcaIdematItems = safeJsonParse(project.idemat_lca_items, []);
   const hasLcaData = lcaEpdMats.length > 0 || lcaIdematItems.length > 0;
@@ -1188,12 +1088,8 @@ export default function ProjectDetail() {
               <div className="space-y-2">
                 {project.materials.map((material) => {
                   const effGwp = material.effective_gwp_value ?? material.gwp_value;
-                  const gwpDen = material.gwp_unit?.split('/')?.[1]?.trim() || null;
-                  const decU   = material.declared_unit || gwpDen || 'kg';
-                  const conv   = epdUnitConv(material.unit || decU, decU);
-                  const contrib = effGwp != null && material.quantity != null
-                    ? Number(material.quantity) * conv * Number(effGwp)
-                    : null;
+                  const { entry } = normalizeEntry(libMatToEpdEntry(material));
+                  const contrib = entry ? entryA1A3(entry) : null;
                   return (
                     <div
                       key={material.id}
@@ -1235,9 +1131,7 @@ export default function ProjectDetail() {
 
         {/* Ökobilanz / LCA Section (library materials) — only when no combined view is available */}
         {(() => {
-          const oekodatMaterials = safeJsonParse(project.oekodat_materials, []);
-          const libMatsWithGwp   = (project.materials || []).filter(m => m.has_gwp_data && Number(m.effective_gwp_value) !== 0);
-          const hasCombined      = oekodatMaterials.length > 0 || libMatsWithGwp.length > 0;
+          const hasCombined = lcaEpdMats.length > 0;
           return !hasCombined ? <OekobilanzSection project={project} /> : null;
         })()}
 

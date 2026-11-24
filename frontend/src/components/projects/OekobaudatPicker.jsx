@@ -20,9 +20,9 @@ function normalizeUnit(u) {
   if (['piece', 'pieces', 'stück', 'stk', 'pce', 'pcs', 'unit', 'units'].includes(s)) s = 'stk';
   return s;
 }
-const BASE  = 'https://oekobaudat.de/OEKOBAU.DAT/resource';
+export const BASE  = 'https://oekobaudat.de/OEKOBAU.DAT/resource';
 
-const DATASETS = [
+export const DATASETS = [
   { id: 'cd2bda71-760b-4fcc-8a0b-3877c10000a8', label: '2023-I (aktuell)' },
   { id: 'de0ecfe8-8cdf-4ba8-a3f7-1c2e8f1c9bd9', label: '2021-II' },
 ];
@@ -50,23 +50,26 @@ const KEY_MODULES = ['A1-A3','C3','C4','D','B6'];
 
 // ─── API helpers ────────────────────────────────────────────────────────────
 
-function proxyFetch(target) {
+export function proxyFetch(target) {
   return fetch(`${PROXY}?url=${encodeURIComponent(target)}`, { headers: { Accept: 'application/json' } })
     .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
 }
 
-function getName(obj) {
+// the JSON API uses "lang", ILCD XML-to-JSON uses "@xml:lang"
+const langOf = (x) => x?.['@xml:lang'] ?? x?.lang;
+
+export function getName(obj) {
   if (!obj) return '';
   if (typeof obj === 'string') return obj;
   // Handle being passed a shortDescription/baseName array directly
   if (Array.isArray(obj)) {
-    const v = obj.find(x => x['@xml:lang'] === 'de') || obj.find(x => x['@xml:lang'] === 'en') || obj[0] || {};
+    const v = obj.find(x => langOf(x) === 'de') || obj.find(x => langOf(x) === 'en') || obj[0] || {};
     return v.value || v['#text'] || v.name || '';
   }
   const nd = obj.name || obj['common:shortDescription'] || obj.shortDescription || obj.baseName || obj.common_name || [];
   if (typeof nd === 'string') return nd;
   if (Array.isArray(nd)) {
-    const v = nd.find(x => x['@xml:lang'] === 'de') || nd.find(x => x['@xml:lang'] === 'en') || nd[0] || {};
+    const v = nd.find(x => langOf(x) === 'de') || nd.find(x => langOf(x) === 'en') || nd[0] || {};
     return v.value || v['#text'] || v.name || '';
   }
   return '';
@@ -206,7 +209,7 @@ function parseDeclaredUnit(str) {
 
 // ─── EPD data extraction ─────────────────────────────────────────────────────
 
-function extractEpdData(raw) {
+export function extractEpdData(raw) {
   try {
     const proc = raw?.processDataSet || raw;
     const info = proc?.processInformation?.dataSetInformation;
@@ -223,6 +226,7 @@ function extractEpdData(raw) {
     }
 
     let declaredUnit = '';
+    let density = null; // kg/m³ from the reference flow's material properties
     const quantRef = proc?.processInformation?.quantitativeReference;
     if (quantRef) {
       const funco = quantRef?.functionalUnitOrOther;
@@ -231,7 +235,7 @@ function extractEpdData(raw) {
         let raw = '';
         if (typeof funco === 'string') raw = funco;
         else if (Array.isArray(funco)) {
-          const v = funco.find(x => x['@xml:lang'] === 'de') || funco.find(x => x['@xml:lang'] === 'en') || funco[0] || {};
+          const v = funco.find(x => langOf(x) === 'de') || funco.find(x => langOf(x) === 'en') || funco[0] || {};
           raw = v['#text'] || v.value || '';
         } else {
           raw = getName(funco);
@@ -239,16 +243,30 @@ function extractEpdData(raw) {
         declaredUnit = parseDeclaredUnit(raw);
       }
     }
+    const exchanges = proc?.exchanges?.exchange;
+    const exchArr = Array.isArray(exchanges) ? exchanges : (exchanges ? [exchanges] : []);
+    const refRaw = quantRef?.referenceToReferenceFlow ?? quantRef?.referenceToReferenceFlows ?? 0;
+    const refIdx = Number(Array.isArray(refRaw) ? refRaw[0] : refRaw);
+    const refFlow = exchArr.find(e => Number(e?.['@dataSetInternalID'] ?? e?.dataSetInternalID) === refIdx)
+      || exchArr.find(e => e?.referenceFlow === true) || exchArr[0];
+    if (refFlow) {
+      const mp = refFlow.materialProperties;
+      const gross = (Array.isArray(mp) ? mp : mp ? [mp] : []).find(p => /density/i.test(p?.name || '') && /kg\/m(\^3|³|3)/.test(p?.unit || ''));
+      if (gross && Number(gross.value) > 0) density = Number(gross.value);
+    }
     if (!declaredUnit) {
-      const exchanges = proc?.exchanges?.exchange;
-      const exchArr = Array.isArray(exchanges) ? exchanges : (exchanges ? [exchanges] : []);
-      const refIdx = Number(quantRef?.referenceToReferenceFlow ?? quantRef?.referenceToReferenceFlows ?? 0);
-      const refFlow = exchArr.find(e => Number(e?.['@dataSetInternalID']) === refIdx) || exchArr[0];
       if (refFlow) {
-        const fpArr = (() => { const fp = refFlow?.flowProperties?.flowProperty; return Array.isArray(fp) ? fp : (fp ? [fp] : []); })();
-        const refFp = fpArr.find(fp => fp?.['@isReference'] === 'true' || fp?.['@isReference'] === true) || fpArr[0];
+        // JSON API: flowProperties is the array itself; ILCD JSON: flowProperties.flowProperty
+        const fpArr = (() => { const fp = refFlow?.flowProperties?.flowProperty ?? refFlow?.flowProperties; return Array.isArray(fp) ? fp : (fp ? [fp] : []); })();
+        const refFp = fpArr.find(fp => fp?.['@isReference'] === 'true' || fp?.['@isReference'] === true || fp?.referenceFlowProperty === true) || fpArr[0];
         const raw2 = refFp?.referenceUnit || refFp?.unit || '';
         declaredUnit = parseDeclaredUnit(raw2) || raw2;
+        // e.g. reference flow "Hanfvlies (m3)"
+        if (!declaredUnit) {
+          const flowName = getName(refFlow?.referenceToFlowDataSet?.shortDescription);
+          const m = flowName.match(/\(\s*([^()]+?)\s*\)\s*$/) || flowName.match(/\s(m3|m³|m2|m²|kg|t|pcs\.?|stk|stück)\s*$/i);
+          if (m) declaredUnit = m[1];
+        }
       }
     }
     // Last-resort: extract from EPD name like "Acetylated wood (1 m³, 510 kg/m³)" → "m³"
@@ -304,9 +322,17 @@ function extractEpdData(raw) {
       }
     }
 
+    // typeOfDataSet is just "EPD" in ÖKOBAUDAT; generic/specific/average lives in subType
+    const lcm = proc?.modellingAndValidation?.LCIMethodAndAllocation || {};
+    const anies = lcm.other?.anies || lcm['common:other']?.anies || [];
+    const typeOfDataSet = (Array.isArray(anies) ? anies : [anies]).find(a => a?.name === 'subType')?.value
+      || (/dataset/i.test(lcm.typeOfDataSet || '') ? lcm.typeOfDataSet : '');
+    const timeInfo = proc?.processInformation?.time || {};
+    const validUntil = timeInfo['common:dataSetValidUntil'] ?? timeInfo.dataSetValidUntil ?? null;
+
     const gwpMods = indicators['GWP-total']?.mods || {};
     return {
-      name, category, declaredUnit, norm, indicators,
+      name, category, declaredUnit, density, norm, indicators, typeOfDataSet, validUntil,
       gwpA1A3: sumMods(gwpMods, ['A1-A3', 'A1', 'A2', 'A3']),
       gwpEoL:  sumMods(gwpMods, ['C3', 'C4']),
       gwpD:    gwpMods?.D ?? null,
@@ -595,7 +621,32 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
 
 // ─── Main component ──────────────────────────────────────────────────────────
 
-export default function OekobaudatPicker({ selected = [], onChange }) {
+// Project/compare entry for an ÖKOBAUDAT dataset — a linked record (UUID + version),
+// never a copy in the material library.
+export function buildEpdEntry(uuid, version, dsLabel, extracted) {
+  return {
+    uuid,
+    version:      version || '',
+    datasetLabel: dsLabel,
+    name:         extracted.name,
+    category:     extracted.category,
+    declaredUnit: extracted.declaredUnit,
+    norm:         extracted.norm,
+    datasetType:  extracted.typeOfDataSet || '',
+    density:      extracted.density ?? null,
+    validUntil:   extracted.validUntil ?? null,
+    gwpA1A3:      extracted.gwpA1A3,
+    gwpEoL:       extracted.gwpEoL,
+    gwpD:         extracted.gwpD,
+    indicators:   extracted.indicators,
+    quantity:     1,
+    unit:         extracted.declaredUnit || '',
+    added_at:     new Date().toISOString(),
+  };
+}
+
+// searchOnly: render only the add button + search (e.g. reference products in /compare)
+export default function OekobaudatPicker({ selected = [], onChange, searchOnly = false, buttonLabel = 'Ökobaudat-EPD suchen & hinzufügen' }) {
   const [open, setOpen]             = useState(false);
   const [query, setQuery]           = useState('');
   const [dsId, setDsId]             = useState(DATASETS[0].id);
@@ -678,29 +729,12 @@ export default function OekobaudatPicker({ selected = [], onChange }) {
     }
   }, [query, dsId]);
 
-  const buildEntry = (uuid, version, dsLabel, extracted) => ({
-    uuid,
-    version:      version || '',
-    datasetLabel: dsLabel,
-    name:         extracted.name,
-    category:     extracted.category,
-    declaredUnit: extracted.declaredUnit,
-    norm:         extracted.norm,
-    gwpA1A3:      extracted.gwpA1A3,
-    gwpEoL:       extracted.gwpEoL,
-    gwpD:         extracted.gwpD,
-    indicators:   extracted.indicators,
-    quantity:     1,
-    unit:         extracted.declaredUnit || '',
-    added_at:     new Date().toISOString(),
-  });
-
   const handleAdd = async (uuid, version, dsLabel) => {
     // Use cached data if the background fetch already completed
     const cached = epdCache[uuid];
     if (cached && typeof cached === 'object' && cached.extracted) {
       if (!selected.find(s => s.uuid === uuid)) {
-        onChange([...selected, buildEntry(uuid, version, dsLabel, cached.extracted)]);
+        onChange([...selected, buildEpdEntry(uuid, version, dsLabel, cached.extracted)]);
       }
       closeModal();
       return;
@@ -715,7 +749,7 @@ export default function OekobaudatPicker({ selected = [], onChange }) {
       if (!extracted) throw new Error('EPD-Daten konnten nicht extrahiert werden');
 
       if (!selected.find(s => s.uuid === uuid)) {
-        onChange([...selected, buildEntry(uuid, version, dsLabel, extracted)]);
+        onChange([...selected, buildEpdEntry(uuid, version, dsLabel, extracted)]);
       }
       closeModal();
     } catch (e) {
@@ -733,7 +767,7 @@ export default function OekobaudatPicker({ selected = [], onChange }) {
   return (
     <div className="space-y-2">
       {/* Selected EPD panels */}
-      {selected.map((epd, idx) => (
+      {!searchOnly && selected.map((epd, idx) => (
         <EpdDataPanel
           key={epd.uuid}
           epd={epd}
@@ -743,16 +777,16 @@ export default function OekobaudatPicker({ selected = [], onChange }) {
       ))}
 
       {/* Totals table */}
-      {selected.length > 0 && <TotalsSummary selected={selected} />}
+      {!searchOnly && selected.length > 0 && <TotalsSummary selected={selected} />}
 
       {/* Analysis: per-material chart + breakdown table */}
-      {selected.length > 0 && <EpdFullAnalysis selected={selected} />}
+      {!searchOnly && selected.length > 0 && <EpdFullAnalysis selected={selected} />}
 
       {/* Add button */}
       <button type="button" onClick={() => setOpen(true)}
         className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-sm text-emerald-700 border border-dashed border-emerald-300 rounded-lg hover:bg-emerald-50 hover:border-emerald-400 transition-colors">
         <Plus className="w-4 h-4" />
-        Ökobaudat-EPD suchen &amp; hinzufügen
+        {buttonLabel}
       </button>
 
       {/* Search modal */}

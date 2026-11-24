@@ -1,353 +1,398 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { materialService } from '../../services/materialService';
 import { projectService } from '../../services/projectService';
 import { useCompareStore } from '../../store/compareStore';
-import { ArrowLeft, Download, Minus, Leaf } from 'lucide-react';
+import { useT } from '../../i18n/useT';
+import OekobaudatPicker from '../../components/projects/OekobaudatPicker';
+import {
+  buildProjectLca, indicatorModules, libMatToEpdEntry, libraryMaterialRow, libDeclaredUnit,
+  quantityFactor, conversionGap, CONV_LABELS, SKIP_REASONS, parseDensity, parseUnit, normLabel,
+} from '../../utils/projectLca';
+import { ArrowLeft, Download, Leaf, Database, Plus, X, AlertTriangle, Search } from 'lucide-react';
 
 // ─── generic helpers ──────────────────────────────────────────────────────────
 
-function safeJsonParse(v, fallback = []) {
-  try { return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-}
-
-function val(v) {
-  if (v === null || v === undefined || v === '') return null;
-  return v;
-}
-
-function fmt(v, unit) {
+function fmt(v) {
   if (v === null || v === undefined || v === '') return '–';
-  const n = parseFloat(v);
+  const n = Number(v);
   if (Number.isNaN(n)) return String(v);
-  if (n === 0) return unit ? `0 ${unit}` : '0';
-  if (Math.abs(n) < 0.0001) return `${n.toExponential(2)}${unit ? ' ' + unit : ''}`;
-  if (Math.abs(n) >= 1000)  return `${n.toFixed(0)}${unit ? ' ' + unit : ''}`;
-  if (Math.abs(n) >= 100)   return `${n.toFixed(1)}${unit ? ' ' + unit : ''}`;
-  if (Math.abs(n) >= 1)     return `${n.toFixed(2)}${unit ? ' ' + unit : ''}`;
-  return `${n.toPrecision(3)}${unit ? ' ' + unit : ''}`;
+  if (n === 0) return '0';
+  if (Math.abs(n) < 0.0001) return n.toExponential(2);
+  if (Math.abs(n) >= 1000)  return n.toLocaleString('de-DE', { maximumFractionDigits: 0 });
+  if (Math.abs(n) >= 100)   return n.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+  if (Math.abs(n) >= 1)     return n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+  return n.toPrecision(3).replace('.', ',');
 }
 
 function bool(v) {
   if (v === true || v === 1) return '✓';
-  if (v === false || v === 0) return '–';
-  return '–';
+  return null;
 }
 
-// ─── EPD / LCA computation (mirrors ProjectDetail logic) ─────────────────────
-
-function epdNormUnit(u) {
-  if (!u) return '';
-  let s = u.trim().replace(/^[\d.,]+\s*/, '').trim().toLowerCase();
-  if (['metric ton','metric tons','tonne','tonnes','tonnen','metrische tonne'].includes(s)) s = 't';
-  if (['m3','cubic meter','cubic metre','kubikmeter'].includes(s)) s = 'm³';
-  if (['m2','square meter','square metre','quadratmeter'].includes(s)) s = 'm²';
-  if (['kilogramm','kilogram','kilograms'].includes(s)) s = 'kg';
-  if (['piece','pieces','stück','stk','pce','pcs','unit','units'].includes(s)) s = 'stk';
-  return s;
+function num(v) {
+  if (v === '' || v == null) return null;
+  const n = Number(String(v).replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function epdUnitConv(from, to) {
-  function toKg(u) { return u==='kg'?1:u==='t'?1000:u==='g'?0.001:null; }
-  const f = epdNormUnit(from), t = epdNormUnit(to);
-  if (!f||!t||f===t) return 1;
-  const fK=toKg(f), tK=toKg(t);
-  return (fK!=null&&tK!=null&&tK!==0) ? fK/tK : 1;
+// "kg CO2e/unit" → "kg CO₂e"; the reference unit is shown separately
+function prettyUnit(u) {
+  return String(u || '').replace(/CO2/g, 'CO₂');
 }
 
-function epdGetQty(epd) {
-  return (Number(epd.quantity) || 1) * epdUnitConv(epd.unit, epd.declaredUnit);
+const MODULES = [
+  { key: 'a1a3',  label: 'A1–A3' },
+  { key: 'eol',   label: 'C3+C4' },
+  { key: 'd',     label: 'D' },
+  { key: 'total', label: 'Gesamt (A–C)' },
+];
+
+const GWP_SPLIT = [
+  ['GWP-fossil',   'GWP fossil'],
+  ['GWP-biogenic', 'GWP biogen'],
+  ['GWP-luluc',    'GWP LULUC'],
+];
+
+const OTHER_INDICATORS = [
+  ['ODP',            'Ozonabbau (ODP)',               'kg CFC-11 eq.'],
+  ['AP',             'Versauerung (AP)',              'mol H⁺ eq.'],
+  ['EP-terrestrial', 'Eutrophierung terrestr.',       'mol N eq.'],
+  ['EP-freshwater',  'Eutrophierung Süßwasser',       'kg P eq.'],
+  ['EP-marine',      'Eutrophierung Meer',            'kg N eq.'],
+  ['POCP',           'Sommersmog (POCP)',             'kg NMVOC eq.'],
+  ['ADP-fossil',     'ADP fossil',                    'MJ'],
+  ['ADP-elements',   'ADP Elemente',                  'kg Sb eq.'],
+  ['WDP',            'Wassernutzung (WDP)',           'm³'],
+  ['PERE',           'Primärenergie ern. (PERE)',     'MJ'],
+  ['PENRE',          'Primärenergie n.-ern. (PENRE)', 'MJ'],
+  ['HWD',            'Gefährl. Abfall (HWD)',         'kg'],
+  ['NHWD',           'Nicht-gef. Abfall (NHWD)',      'kg'],
+];
+
+const TARGET_UNITS = [
+  { key: 'declared', label: 'deklariert' },
+  { key: 'kg',       label: 'kg' },
+  { key: 'm³',       label: 'm³' },
+  { key: 'm²',       label: 'm²' },
+  { key: 'stk',      label: 'Stück' },
+];
+
+const DATASET_TYPE_DE = {
+  'generic dataset': 'generisch', 'specific dataset': 'herstellerspezifisch',
+  'average dataset': 'Durchschnitt', 'representative dataset': 'repräsentativ', 'template dataset': 'Vorlage',
+};
+
+const KIND_BADGE = {
+  library: { label: 'Bibliothek',        cls: 'bg-blue-100 text-blue-700',       icon: true },
+  epd:     { label: 'EPD',               cls: 'bg-emerald-100 text-emerald-700' },
+  project: { label: 'Projekt',           cls: 'bg-gray-100 text-gray-600' },
+  adhoc:   { label: 'Ad-hoc-Variante',   cls: 'bg-amber-100 text-amber-700' },
+};
+
+const empty = (note) => ({ v: null, note });
+
+// Groups (A1–A3, C3+C4, D) for which GWP-total has values
+function declaredGroups(indicators) {
+  const m = indicatorModules(indicators, 'GWP-total');
+  if (!m) return [];
+  return [['A1–A3', m.a1a3], ['C3+C4', m.eol], ['D', m.d]].filter(([, v]) => v != null).map(([l]) => l);
 }
 
-function epdSumMods(mods, keys) {
-  for (const k of keys) if (k in mods && mods[k] != null) return mods[k];
-  let s = 0, found = false;
-  for (const k of Object.keys(mods)) {
-    if (keys.includes(k) && mods[k] != null) { s += mods[k]; found = true; }
-  }
-  return found ? s : null;
+// ─── column builders ─────────────────────────────────────────────────────────
+
+function projectColumn(p) {
+  return { id: p.id, name: p.name, kind: 'project', raw: p, lca: buildProjectLca(p) };
 }
 
-function epdComputeTotals(selected) {
-  const totals = {};
-  for (const epd of selected) {
-    const qty = epdGetQty(epd);
-    const uf  = Number(epd.uncertainty_factor) || 1;
-    for (const [key, ind] of Object.entries(epd.indicators || {})) {
-      if (!totals[key]) totals[key] = { unit: ind.unit, mods: {} };
-      for (const [mod, v] of Object.entries(ind.mods || {})) {
-        if (v != null) totals[key].mods[mod] = (totals[key].mods[mod] || 0) + qty * uf * v;
-      }
-    }
-  }
-  return totals;
+function adhocColumn(v) {
+  const project = {
+    id: v.id,
+    name: v.name,
+    materials: [libraryMaterialRow(v.material, v.quantity, v.unit)],
+    oekodat_materials: '[]',
+  };
+  return { id: v.id, name: v.name, kind: 'adhoc', raw: project, lca: buildProjectLca(project), adhoc: v };
 }
 
-function libMatToEpdEntry(m) {
-  const f = m.gwp_fossil   != null ? Number(m.gwp_fossil)   : null;
-  const b = m.gwp_biogenic != null ? Number(m.gwp_biogenic) : null;
-  const l = m.gwp_luluc    != null ? Number(m.gwp_luluc)    : null;
-  const hasFBL = f != null || b != null || l != null;
-  const perUnit = hasFBL
-    ? ((f||0)+(b||0)+(l||0))
-    : (Number(m.effective_gwp_value ?? m.gwp_value) || 0);
-  if (!perUnit && !hasFBL) return null;
-  const indicators = {};
-  if (perUnit !== 0) indicators['GWP-total']    = { mods: { 'A1-A3': perUnit }, unit: 'kg CO₂e' };
-  if (f != null)     indicators['GWP-fossil']   = { mods: { 'A1-A3': f }, unit: 'kg CO₂e' };
-  if (b != null)     indicators['GWP-biogenic'] = { mods: { 'A1-A3': b }, unit: 'kg CO₂e' };
-  if (l != null)     indicators['GWP-luluc']    = { mods: { 'A1-A3': l }, unit: 'kg CO₂e' };
-  const n = (field) => m[field] != null ? Number(m[field]) : null;
-  const addInd = (k, field, unit) => { const v = n(field); if (v != null) indicators[k] = { mods: { 'A1-A3': v }, unit }; };
-  addInd('ADP-fossil',     'adp_fossil',        'MJ');
-  addInd('ADP-elements',   'adp_elements',      'kg Sb eq.');
-  addInd('WDP',            'water_consumption', 'm³');
-  addInd('ODP',            'odp',               'kg CFC-11 eq.');
-  addInd('AP',             'ap',                'mol H⁺ eq.');
-  addInd('EP-terrestrial', 'ep_terrestrial',    'mol N eq.');
-  addInd('EP-freshwater',  'ep_freshwater',     'kg P eq.');
-  addInd('EP-marine',      'ep_marine',         'kg N eq.');
-  addInd('POCP',           'pocp',              'kg NMVOC eq.');
-  addInd('HWD',            'hwd',               'kg');
-  addInd('NHWD',           'nhwd',              'kg');
-  addInd('PERE',           'pere',              'MJ');
-  addInd('PENRE',          'penre',             'MJ');
-  const gwpDenominator = m.gwp_unit?.split('/')?.[1]?.trim() || null;
-  // gwpDenominator (Einheit aus dem Bruch, z.B. 'unit', 'kg', 't') hat Vorrang vor
-  // declared_unit, damit epdUnitConv für 'unit'-Mengen korrekt 1:1 multipliziert.
-  const declaredUnit   = gwpDenominator || m.declared_unit || 'kg';
+// EPD names often carry the density, e.g. "Acetylated wood (1 m³, 510 kg/m³)"
+function densityFromName(name) {
+  const m = String(name || '').match(/([\d.,]+)\s*kg\s*\/\s*m(³|3)/i);
+  return m ? parseDensity(`${m[1]} kg/m³`) : null;
+}
+function arealFromName(name) {
+  const m = String(name || '').match(/([\d.,]+)\s*kg\s*\/\s*m(²|2)/i);
+  return m ? num(m[1]) : null;
+}
+
+function libraryColumn(m) {
+  const entry = libMatToEpdEntry(libraryMaterialRow(m));
   return {
-    uuid: `lib-${m.material_id || m.id}`,
-    name: m.material_name || m.name || 'Material',
-    category: m.category || '',
-    declaredUnit,
-    quantity: Number(m.quantity) || 1,
-    unit: m.unit || declaredUnit,
-    gwpA1A3: perUnit !== 0 ? perUnit : null,
-    indicators,
-    isLibraryMaterial: true,
+    id: m.id, name: m.name, kind: 'library', raw: m,
+    indicators: entry.indicators,
+    declaredUnit: libDeclaredUnit(m),
+    conv: { density: parseDensity(m.tech_density), areal: null, piece: null },
+    source: m.gwp_source || 'RZZ-Bibliothek',
+    norm: normLabel(`${m.gwp_source || ''} ${m.lifecycle_scope || ''}`),
   };
 }
 
-function projectLcaTotals(project) {
-  const oekodatMats  = safeJsonParse(project.oekodat_materials, []);
-  const libMatsWithGwp = (project.materials || []).filter(
-    m => m.has_gwp_data || m.gwp_value != null || m.gwp_fossil != null
-  );
-  const libAsEpd = libMatsWithGwp.map(libMatToEpdEntry).filter(Boolean);
-  return epdComputeTotals([...libAsEpd, ...oekodatMats]);
+function epdColumn(e) {
+  return {
+    id: e.uuid, name: e.name, kind: 'epd', raw: e,
+    indicators: e.indicators || {},
+    declaredUnit: e.declaredUnit || '',
+    conv: { density: e.density ?? densityFromName(e.name), areal: arealFromName(e.name), piece: null },
+    source: `ÖKOBAUDAT${e.datasetLabel ? ' ' + e.datasetLabel : ''}${e.datasetType ? ' · ' + (DATASET_TYPE_DE[e.datasetType] || e.datasetType) : ''}`,
+    norm: normLabel(e.norm) || (e.norm || null),
+  };
 }
 
-function getA1A3(totals, indicator) {
-  return epdSumMods(totals?.[indicator]?.mods || {}, ['A1-A3','A1','A2','A3']);
-}
+// ─── row definitions ─────────────────────────────────────────────────────────
 
-// ─── sections definition ─────────────────────────────────────────────────────
+function buildProjectRows({ t, module, fu }) {
+  const per = fu.on ? ` je ${fu.unit || 'FE'}` : '';
+  const divisor = (col) => (fu.on ? num(fu.qty[col.id]) : 1);
 
-const MAT_SECTIONS = [
-  {
-    title: 'Klimawirkung (GWP)',
-    rows: [
-      { label: 'GWP gesamt',  key: 'gwp_total_value', unit: (m) => m.gwp_total_unit || 'kg CO₂e' },
-      { label: 'GWP fossil',  key: 'gwp_fossil',       unit: () => 'kg CO₂e' },
-      { label: 'GWP biogen',  key: 'gwp_biogenic',     unit: () => 'kg CO₂e' },
-      { label: 'GWP LULUC',   key: 'gwp_luluc',        unit: () => 'kg CO₂e' },
-      { label: 'GWP (einfach)',key: 'gwp_value',        unit: (m) => m.gwp_unit || 'kg CO₂e' },
-    ],
-  },
-  {
-    title: 'Weitere Umweltindikatoren',
-    rows: [
-      { label: 'ADP fossil',      key: 'adp_fossil',        unit: () => 'MJ' },
-      { label: 'ADP Elemente',    key: 'adp_elements',      unit: () => 'kg Sb-Äq.' },
-      { label: 'Wasserverbrauch', key: 'water_consumption', unit: () => 'm³' },
-    ],
-  },
-  {
-    title: 'Technische Daten',
-    rows: [
-      { label: 'Rohdichte',    key: 'tech_density',            unit: () => '' },
-      { label: 'Wärmedämmung', key: 'tech_thermal_insulation', unit: () => '' },
-      { label: 'Schallschutz', key: 'tech_acoustics',          unit: () => '' },
-      { label: 'Brandschutz',  key: 'tech_flammability',       unit: () => '' },
-      { label: 'Abmessungen',  key: 'tech_dimensions',         unit: () => '' },
-      { label: 'Stärken',      key: 'tech_thicknesses',        unit: () => '' },
-    ],
-  },
-  {
-    title: 'Nachhaltigkeit & Kreislauf',
-    rows: [
-      { label: 'Recyclat-Anteil', key: 'recyclate_content', unit: () => '%', isPercent: true },
-      { label: 'Kreislauffähigkeit', key: 'circularity',    unit: () => '%', isPercent: true },
-      { label: 'Wiederverwendbar', key: 'is_reusable',      format: bool },
-      { label: 'Übertragbar',     key: 'is_transferable',   format: bool },
-      { label: 'Schenkbar',       key: 'is_giftable',       format: bool },
-    ],
-  },
-  {
-    title: 'Zertifizierungen',
-    rows: [
-      { label: 'EPD',             key: 'cert_epd',            format: bool },
-      { label: 'Cradle to Cradle',key: 'cert_cradle_to_cradle',format: bool },
-      { label: 'FSC / PEFC',      key: 'cert_fsc_pefc',       format: bool },
-    ],
-  },
-];
+  const lcaCell = (key, mod) => (col) => {
+    if (!col.lca.entries.length) return empty('keine Umweltdaten');
+    const m = indicatorModules(col.lca.totals, key);
+    const v = m?.[mod];
+    if (v == null) return empty('nicht deklariert');
+    const d = divisor(col);
+    if (!d) return empty('Bezugsmenge fehlt');
+    return { v: v / d };
+  };
 
-// builds PROJ_SECTIONS dynamically so derive functions can reference helpers
-function buildProjSections() {
-  const lca = (label, indicator, unit) => ({
-    label,
-    unit: () => unit,
-    derive: (p) => getA1A3(p._lca, indicator),
+  const rows = [];
+  if (fu.on) {
+    rows.push({
+      section: `Normierung auf funktionale Einheit`,
+      rows: [{
+        label: `Bezugsmenge (${fu.unit || 'FE'})`,
+        input: { get: (col) => fu.qty[col.id] ?? '', set: (col, v) => fu.setQty(col.id, v), placeholder: 'z. B. 12' },
+        get: (col) => ({ v: num(fu.qty[col.id]) }),
+      }],
+    });
+  }
+  rows.push({
+    section: 'Datenabdeckung',
+    rows: [
+      {
+        label: 'Materialien mit Umweltkennwerten',
+        get: (col) => ({
+          v: `${col.lca.entries.length} von ${col.lca.materialCount}`,
+          warn: col.lca.entries.length < col.lca.materialCount,
+          sub: col.lca.skipped.length
+            ? 'Ausgelassen: ' + col.lca.skipped.map(s => `${s.name} (${SKIP_REASONS[s.reason]})`).join(', ')
+            : null,
+        }),
+      },
+      { label: 'Bibliotheks-Materialien', get: (col) => ({ v: String(col.lca.libCount) }) },
+      { label: 'Ökobaudat-EPDs',          get: (col) => ({ v: String(col.lca.epdCount) }) },
+    ],
   });
+  rows.push({
+    section: `Klimawirkung GWP — kg CO₂e${per}`,
+    rows: [
+      ...MODULES.map(({ key, label }) => ({
+        label: `GWP ${label}`, lowerBetter: true, strong: key === 'total', get: lcaCell('GWP-total', key),
+      })),
+      ...GWP_SPLIT.map(([key, label]) => ({ label: `${label} A1–A3`, lowerBetter: true, get: lcaCell(key, 'a1a3') })),
+    ],
+  });
+  const modLabel = MODULES.find(m => m.key === module)?.label;
+  rows.push({
+    section: `Weitere Umweltindikatoren — ${modLabel}${per}`,
+    rows: OTHER_INDICATORS.map(([key, label, unit]) => ({
+      label, unit, lowerBetter: true, hideEmpty: true, get: lcaCell(key, module),
+    })),
+  });
+  rows.push({
+    section: 'Allgemein',
+    rows: [
+      { label: 'Art',    get: (col) => ({ v: col.kind === 'adhoc' ? `Ad-hoc: ${col.adhoc.quantity} ${col.adhoc.unit} ${col.adhoc.material.name}` : 'Projekt' }) },
+      { label: 'Ort',    hideEmpty: true, get: (col) => ({ v: col.raw.location_name || null }) },
+      { label: 'Status', hideEmpty: true, get: (col) => ({ v: col.raw.status ? t(`projectDetail.status.${col.raw.status}`) : null }) },
+    ],
+  });
+  return rows;
+}
+
+function buildMaterialRows({ module, target, conv, convInput, columns }) {
+  const targetLabel = TARGET_UNITS.find(u => u.key === target)?.label;
+  const per = target === 'declared' ? ' je deklarierter Einheit' : ` je ${targetLabel}`;
+
+  // factor: indicator value per declared unit → per target unit
+  const factor = (col) => {
+    if (target === 'declared') return { f: 1 };
+    const c = conv(col);
+    const f = quantityFactor(`1 ${target}`, col.declaredUnit, c);
+    return f == null ? { gap: CONV_LABELS[conversionGap(target, col.declaredUnit, c)] } : { f };
+  };
+
+  const lcaCell = (key, mod) => (col) => {
+    const m = indicatorModules(col.indicators, key);
+    const v = m?.[mod];
+    if (v == null) return empty(m ? 'nicht deklariert' : 'keine Daten');
+    const { f, gap } = factor(col);
+    if (f == null) return { v: null, note: gap, muted: v, mutedUnit: col.declaredUnit };
+    return { v: v * f };
+  };
+
+  const libOnly = (fn) => (col) => (col.kind === 'library' ? fn(col.raw) : empty('nur Bibliothek'));
+  const text = (key) => libOnly((m) => ({ v: m[key] || null }));
+
+  // show a conversion row when the chosen unit or a declared unit needs it, or data exists
+  const UNIT_PARAM = { 'm³': 'density', 'm²': 'areal', stk: 'piece' };
+  const needs = (param) => UNIT_PARAM[target] === param || columns.some(c =>
+    conv(c)[param] != null || UNIT_PARAM[parseUnit(c.declaredUnit).unit] === param);
+  const convRow = (param, label, unit) => ({
+    label: `${label} (${unit})`, hidden: !needs(param),
+    input: {
+      get: (col) => convInput(col)[param] ?? '',
+      set: (col, v) => conv.set(col.id, param, v),
+      placeholder: 'fehlt',
+    },
+    get: (col) => ({ v: conv(col)[param] }),
+  });
+
   return [
     {
-      title: 'Klimawirkung — A1–A3 Herstellung',
+      section: 'Datenbasis',
       rows: [
-        lca('GWP gesamt',             'GWP-total',      'kg CO₂e'),
-        lca('GWP fossil',             'GWP-fossil',     'kg CO₂e'),
-        lca('GWP biogen',             'GWP-biogenic',   'kg CO₂e'),
-        lca('GWP LULUC',              'GWP-luluc',      'kg CO₂e'),
+        { label: 'Datenquelle', get: (col) => ({ v: col.source }) },
+        { label: 'Normbezug',   get: (col) => (col.norm ? { v: col.norm } : empty('nicht angegeben')) },
+        { label: 'Deklarierte Einheit', get: (col) => ({ v: col.declaredUnit || null }) },
+        { label: 'Deklarierte Module (GWP)', get: (col) => {
+          const g = declaredGroups(col.indicators);
+          return g.length ? { v: g.join(', ') } : empty('keine');
+        } },
+        convRow('density', 'Rohdichte',       'kg/m³'),
+        convRow('areal',   'Flächengewicht',  'kg/m²'),
+        convRow('piece',   'Stückgewicht',    'kg/Stk'),
       ],
     },
     {
-      title: 'Weitere Umweltindikatoren — A1–A3',
+      section: `Klimawirkung GWP — kg CO₂e${per}`,
       rows: [
-        lca('Ozonabbau (ODP)',          'ODP',            'kg CFC-11 eq.'),
-        lca('Versauerung (AP)',         'AP',             'mol H⁺ eq.'),
-        lca('Eutrophierung terrestr.', 'EP-terrestrial', 'mol N eq.'),
-        lca('Eutrophierung Süßwasser', 'EP-freshwater',  'kg P eq.'),
-        lca('Eutrophierung Meer',      'EP-marine',      'kg N eq.'),
-        lca('Sommersmog (POCP)',        'POCP',           'kg NMVOC eq.'),
-        lca('ADP fossil',              'ADP-fossil',     'MJ'),
-        lca('ADP Elemente',            'ADP-elements',   'kg Sb eq.'),
-        lca('Wassernutzung (WDP)',      'WDP',            'm³'),
-        lca('Primärenergie ern. (PERE)','PERE',          'MJ'),
-        lca('Primärenergie n.-ern. (PENRE)','PENRE',     'MJ'),
-        lca('Gefährl. Abfall (HWD)',   'HWD',            'kg'),
-        lca('Nicht-gef. Abfall (NHWD)','NHWD',           'kg'),
+        ...MODULES.map(({ key, label }) => ({
+          label: `GWP ${label}`, lowerBetter: true, strong: key === 'total', get: lcaCell('GWP-total', key),
+        })),
+        ...GWP_SPLIT.map(([key, label]) => ({ label: `${label} A1–A3`, lowerBetter: true, hideEmpty: true, get: lcaCell(key, 'a1a3') })),
       ],
     },
     {
-      title: 'Materialien',
+      section: `Weitere Umweltindikatoren — ${MODULES.find(m => m.key === module)?.label}${per}`,
+      rows: OTHER_INDICATORS.map(([key, label, unit]) => ({
+        label, unit, lowerBetter: true, hideEmpty: true, get: lcaCell(key, module),
+      })),
+    },
+    {
+      section: 'Technische Daten',
       rows: [
-        {
-          label: 'Bibliotheks-Materialien',
-          unit: () => '',
-          derive: (p) => p.materials?.length || 0,
-        },
-        {
-          label: 'Ökobaudat-EPDs',
-          unit: () => '',
-          derive: (p) => safeJsonParse(p.oekodat_materials, []).length,
-        },
+        ['Wärmedämmung', 'tech_thermal_insulation'],
+        ['Schallschutz', 'tech_acoustics'],
+        ['Brandschutz',  'tech_flammability'],
+        ['Abmessungen',  'tech_dimensions'],
+        ['Stärken',      'tech_thicknesses'],
+      ].map(([label, key]) => ({ label, hideEmpty: true, get: text(key) })),
+    },
+    {
+      section: 'Nachhaltigkeit & Kreislauf',
+      rows: [
+        { label: 'Recyclat-Anteil', unit: '%', hideEmpty: true, get: libOnly((m) => ({ v: m.recyclate_content != null && m.recyclate_content !== '' ? Number(m.recyclate_content) : null })) },
+        { label: 'Kreislauffähigkeit', hideEmpty: true, get: text('circularity') },
+        { label: 'Wiederverwendbar', hideEmpty: true, get: libOnly((m) => ({ v: bool(m.is_reusable) })) },
+        { label: 'Übertragbar',      hideEmpty: true, get: libOnly((m) => ({ v: bool(m.is_transferable) })) },
+        { label: 'Schenkbar',        hideEmpty: true, get: libOnly((m) => ({ v: bool(m.is_giftable) })) },
       ],
     },
     {
-      title: 'Allgemein',
+      section: 'Zertifizierungen',
       rows: [
-        { label: 'Ort',        key: 'location_name', unit: () => '' },
-        { label: 'Status',     key: 'status',        unit: () => '' },
-        { label: 'Nutzfläche', key: 'floor_area',    unit: () => 'm²' },
-      ],
+        ['EPD', 'cert_epd'], ['Cradle to Cradle', 'cert_cradle_to_cradle'], ['FSC / PEFC', 'cert_fsc_pefc'],
+      ].map(([label, key]) => ({ label, hideEmpty: true, get: libOnly((m) => ({ v: bool(m[key]) })) })),
     },
   ];
 }
 
-// ─── GWP summary cards ────────────────────────────────────────────────────────
+// ─── consistency hints ───────────────────────────────────────────────────────
 
-function ProjGwpSummary({ items }) {
-  const vals = items.map(p => ({
-    name: p.name || p.id?.slice(0, 8),
-    gwp:  getA1A3(p._lca, 'GWP-total'),
-  })).filter(x => x.gwp != null);
+function materialHints(columns, target, rowsGwp) {
+  const hints = [];
+  const norms = new Set(columns.map(c => c.norm || 'ohne Angabe'));
+  if (norms.size > 1) {
+    hints.push(`Unterschiedlicher Normbezug (${[...norms].join(' / ')}): Werte nach EN 15804+A1 und +A2 sind nur eingeschränkt vergleichbar (u. a. abweichende GWP-Definition).`);
+  }
+  const groups = columns.map(c => declaredGroups(c.indicators).join(', ') || 'keine');
+  if (new Set(groups).size > 1) {
+    hints.push(`Deklarierte Module unterscheiden sich (${columns.map((c, i) => `${c.name}: ${groups[i]}`).join(' · ')}). „Gesamt“ ist nur bei gleichen Modulen vergleichbar.`);
+  }
+  if (target === 'declared') {
+    const units = new Set(columns.map(c => c.declaredUnit || '?'));
+    if (units.size > 1) hints.push(`Unterschiedliche deklarierte Einheiten (${[...units].join(', ')}) – für einen Vergleich oben eine gemeinsame Bezugseinheit wählen.`);
+  } else {
+    const gaps = columns.map(c => ({ c, cell: rowsGwp(c) })).filter(x => x.cell.note && x.cell.muted != null);
+    if (gaps.length) hints.push(`Keine Umrechnung möglich für: ${gaps.map(x => `${x.c.name} (${x.cell.note})`).join(', ')}. Fehlende Werte können unter „Datenbasis“ ergänzt werden.`);
+  }
+  return hints;
+}
 
-  if (!vals.length) return null;
+function projectHints(columns, fu) {
+  const hints = [];
+  const withData = columns.filter(c => c.lca.entries.length);
+  const groups = withData.map(c => {
+    const m = indicatorModules(c.lca.totals, 'GWP-total');
+    return [['A1–A3', m?.a1a3], ['C3+C4', m?.eol], ['D', m?.d]].filter(([, v]) => v != null).map(([l]) => l).join(', ') || 'keine';
+  });
+  if (new Set(groups).size > 1) {
+    hints.push(`Deklarierte Module unterscheiden sich (${withData.map((c, i) => `${c.name}: ${groups[i]}`).join(' · ')}). „Gesamt“ ist nur bei gleichen Modulen vergleichbar.`);
+  }
+  const incomplete = columns.filter(c => c.lca.entries.length < c.lca.materialCount);
+  if (incomplete.length) {
+    hints.push(`Unvollständige Datenbasis: ${incomplete.map(c => `${c.name} (${c.lca.entries.length} von ${c.lca.materialCount} Materialien)`).join(', ')}. Die Summen enthalten nur Materialien mit Menge und Kennwert.`);
+  }
+  if (fu.on && columns.some(c => !num(fu.qty[c.id]))) {
+    hints.push('Für die Normierung fehlt bei mindestens einer Spalte die Bezugsmenge.');
+  }
+  return hints;
+}
 
-  const absMax = Math.max(...vals.map(x => Math.abs(x.gwp)), 0.001);
-  const minGwp = Math.min(...vals.map(x => x.gwp));
+// ─── GWP summary bar ─────────────────────────────────────────────────────────
 
-  const COLORS = ['#2563eb','#7c3aed','#d97706','#e11d48','#0891b2','#65a30d'];
+function GwpSummary({ columns, getGwp, title }) {
+  const vals = columns.map(c => ({ name: c.name, kind: c.kind, cell: getGwp(c) }));
+  const nums = vals.filter(x => typeof x.cell.v === 'number');
+  if (!nums.length) return null;
+  const absMax = Math.max(...nums.map(x => Math.abs(x.cell.v)), 0.001);
+  const minV = Math.min(...nums.map(x => x.cell.v));
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Leaf className="w-4 h-4 text-emerald-600" />
-        <h3 className="text-sm font-semibold text-gray-700">GWP gesamt A1–A3 (kg CO₂e)</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
       </div>
       <div className="space-y-3">
-        {vals.map((entry, i) => {
-          const isBest = entry.gwp === minGwp;
-          const pct = (Math.abs(entry.gwp) / absMax) * 100;
-          const neg = entry.gwp < 0;
+        {vals.map((x, i) => {
+          const v = x.cell.v;
+          const has = typeof v === 'number';
+          const pct = has ? (Math.abs(v) / absMax) * 100 : 0;
+          const isBest = has && nums.length > 1 && v === minV;
           return (
             <div key={i} className="flex items-center gap-3">
-              <span className="text-xs text-gray-600 w-36 truncate shrink-0 font-medium">{entry.name}</span>
-              <div className="flex-1 flex items-center gap-1 min-w-0">
-                {neg ? (
-                  <div className="flex-1 flex justify-end">
-                    <div
-                      className="h-4 rounded-full bg-emerald-400"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
+              <span className="text-xs text-gray-600 w-40 truncate shrink-0 font-medium" title={x.name}>{x.name}</span>
+              <div className="flex-1 min-w-0">
+                {has ? (
+                  <div className={`h-4 rounded-full ${v < 0 ? 'bg-emerald-400' : isBest ? 'bg-green-500' : 'bg-blue-400'}`} style={{ width: `${Math.max(pct, 1)}%` }} />
                 ) : (
-                  <div className="flex-1">
-                    <div
-                      className="h-4 rounded-full"
-                      style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}
-                    />
-                  </div>
+                  <span className="text-xs text-gray-400 italic">{x.cell.note || 'keine Daten'}</span>
                 )}
               </div>
-              <span className={`text-xs font-mono font-semibold w-28 text-right shrink-0 ${isBest ? 'text-emerald-700' : neg ? 'text-emerald-600' : 'text-gray-700'}`}>
-                {fmt(entry.gwp, 'kg CO₂e')}
-                {isBest && <span className="ml-1">↓</span>}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function GwpBar({ items, type }) {
-  const gwpKey = type === 'materials' ? 'gwp_total_value' : null;
-  const values = items.map((item) => ({
-    name: item.name || item.project_name || item.id?.slice(0, 8),
-    v: type === 'materials'
-      ? (parseFloat(item[gwpKey]) || 0)
-      : (getA1A3(item._lca, 'GWP-total') ?? 0),
-  }));
-  const max = Math.max(...values.map((x) => Math.abs(x.v)), 0.001);
-  if (values.every((x) => x.v === 0)) return null;
-  if (type === 'projects') return null; // handled by ProjGwpSummary
-
-  const sorted = [...values].sort((a, b) => a.v - b.v);
-  const minVal = sorted[0]?.v;
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">GWP Vergleich (kg CO₂e)</h3>
-      <div className="space-y-3">
-        {values.map((entry, i) => {
-          const pct = (Math.abs(entry.v) / max) * 100;
-          const isBest = entry.v === minVal;
-          return (
-            <div key={i} className="flex items-center gap-3">
-              <span className="text-xs text-gray-500 w-28 truncate shrink-0">{entry.name}</span>
-              <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden">
-                <div
-                  className={`h-4 rounded-full transition-all ${isBest ? 'bg-green-500' : 'bg-blue-400'}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <span className={`text-xs font-medium w-20 text-right ${isBest ? 'text-green-700' : 'text-gray-600'}`}>
-                {entry.v.toFixed(3)}
-                {isBest && <span className="ml-1 text-green-600">↓</span>}
+              <span className={`text-xs font-mono font-semibold w-28 text-right shrink-0 ${isBest ? 'text-emerald-700' : 'text-gray-700'}`}>
+                {has ? fmt(v) : '–'}{isBest && <span className="ml-1">↓</span>}
               </span>
             </div>
           );
@@ -359,89 +404,108 @@ function GwpBar({ items, type }) {
 
 // ─── comparison table ────────────────────────────────────────────────────────
 
-function CompareTable({ sections, items }) {
-  function renderCell(item, row) {
-    if (row.format) return row.format(item[row.key]);
-    if (row.derive) {
-      const v = row.derive(item);
-      if (v === null || v === undefined) return <span className="text-gray-300"><Minus className="w-3 h-3 inline" /></span>;
-      const unit = row.unit ? row.unit(item) : '';
-      if (typeof v === 'number') return fmt(v, unit);
-      return String(v);
-    }
-    const v = val(item[row.key]);
-    if (v === null) return <span className="text-gray-300"><Minus className="w-3 h-3 inline" /></span>;
-    const unit = row.unit ? row.unit(item) : '';
-    if (row.isPercent) return fmt(parseFloat(v) * 100, '%');
-    return fmt(v, unit);
+function CellContent({ cell, row }) {
+  if (cell.v == null || cell.v === '') {
+    return (
+      <span className="text-gray-400 text-xs italic" title={cell.note || undefined}>
+        {cell.muted != null && <span className="block not-italic font-mono text-gray-300 line-through">{fmt(cell.muted)} /{cell.mutedUnit}</span>}
+        {cell.note || '–'}
+      </span>
+    );
   }
+  const text = typeof cell.v === 'number' ? fmt(cell.v) : String(cell.v);
+  return (
+    <>
+      <span className={`${row.strong ? 'font-semibold' : ''} ${cell.warn ? 'text-amber-700' : ''} ${typeof cell.v === 'string' && cell.v.length > 60 ? 'block text-left text-xs line-clamp-3' : ''}`} title={typeof cell.v === 'string' ? cell.v : undefined}>
+        {text}
+      </span>
+      {cell.sub && <span className="block text-[10px] text-amber-700 mt-0.5 text-left">{cell.sub}</span>}
+    </>
+  );
+}
 
-  function getNum(row, item) {
-    if (row.derive) {
-      const v = row.derive(item);
-      return (v != null && !Number.isNaN(Number(v))) ? Number(v) : NaN;
-    }
-    return parseFloat(item[row.key]);
-  }
-
-  function isBestInRow(row, item) {
-    if (row.format) return false;
-    const nums = items.map(i => getNum(row, i)).filter(n => !Number.isNaN(n));
-    if (nums.length < 2) return false;
-    const best = Math.min(...nums);
-    return getNum(row, item) === best;
-  }
-
-  // only render rows where at least one item has a value
-  function hasAnyValue(row) {
-    return items.some(item => {
-      if (row.derive) { const v = row.derive(item); return v != null; }
-      return item[row.key] != null && item[row.key] !== '';
-    });
-  }
-
+function CompareTable({ sections, columns, onRemove }) {
   const colBase = 'border border-gray-100 px-3 py-2 text-sm';
+
+  function bestValue(row) {
+    if (!row.lowerBetter) return null;
+    const nums = columns.map(c => row.get(c).v).filter(v => typeof v === 'number');
+    return nums.length >= 2 ? Math.min(...nums) : null;
+  }
+  const visible = (row) => !row.hidden && (row.input || !row.hideEmpty || columns.some(c => {
+    const cell = row.get(c);
+    return (cell.v != null && cell.v !== '') || cell.muted != null;
+  }));
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 mb-6">
       <table className="w-full text-left">
         <thead>
           <tr className="bg-gray-50">
-            <th className={`${colBase} font-semibold text-gray-600 w-52`}>Indikator</th>
-            {items.map((item, i) => (
-              <th key={i} className={`${colBase} font-semibold text-gray-800 text-center`}>
-                {item.name || item.id?.slice(0, 8)}
-              </th>
-            ))}
+            <th className={`${colBase} font-semibold text-gray-600 w-56`}>Indikator</th>
+            {columns.map((col) => {
+              const badge = KIND_BADGE[col.kind];
+              return (
+                <th key={col.id} className={`${colBase} font-semibold text-gray-800 text-center align-top`}>
+                  <div className="flex items-start justify-center gap-1">
+                    <span className="line-clamp-2" title={col.name}>{col.name}</span>
+                    {onRemove && (
+                      <button type="button" onClick={() => onRemove(col)} title="Aus Vergleich entfernen"
+                        className="text-gray-300 hover:text-gray-600 shrink-0 mt-0.5">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <span className={`inline-flex items-center gap-0.5 mt-1 px-1.5 py-0.5 text-[10px] font-bold rounded uppercase tracking-wide ${badge.cls}`}>
+                    {badge.icon && <Database className="w-2.5 h-2.5" />}{badge.label}
+                  </span>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
           {sections.map((section) => {
-            const visibleRows = section.rows.filter(hasAnyValue);
-            if (!visibleRows.length) return null;
+            const rows = section.rows.filter(visible);
+            if (!rows.length) return null;
             return (
-              <React.Fragment key={section.title}>
+              <React.Fragment key={section.section}>
                 <tr className="bg-emerald-50">
-                  <td colSpan={items.length + 1} className="px-3 py-1.5 text-xs font-bold text-emerald-700 uppercase tracking-wide border border-gray-100">
-                    {section.title}
+                  <td colSpan={columns.length + 1} className="px-3 py-1.5 text-xs font-bold text-emerald-700 uppercase tracking-wide border border-gray-100">
+                    {section.section}
                   </td>
                 </tr>
-                {visibleRows.map((row) => (
-                  <tr key={row.key || row.label} className="even:bg-gray-50/40 hover:bg-blue-50/30 transition-colors">
-                    <td className={`${colBase} text-gray-600`}>{row.label}</td>
-                    {items.map((item, i) => {
-                      const best = isBestInRow(row, item);
-                      return (
-                        <td
-                          key={i}
-                          className={`${colBase} text-center tabular-nums ${best ? 'text-green-700 font-semibold bg-green-50' : 'text-gray-700'}`}
-                        >
-                          {renderCell(item, row)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                {rows.map((row) => {
+                  const best = bestValue(row);
+                  return (
+                    <tr key={row.label} className="even:bg-gray-50/40 hover:bg-blue-50/30 transition-colors">
+                      <td className={`${colBase} text-gray-600`}>
+                        {row.label}
+                        {row.unit && <span className="text-gray-400 text-xs ml-1">[{row.unit}]</span>}
+                      </td>
+                      {columns.map((col) => {
+                        const cell = row.get(col);
+                        const isBest = best != null && cell.v === best;
+                        return (
+                          <td key={col.id}
+                            className={`${colBase} text-center tabular-nums ${isBest ? 'text-green-700 font-semibold bg-green-50' : 'text-gray-700'}`}>
+                            {row.input ? (
+                              <input
+                                type="number" min="0" step="any"
+                                value={row.input.get(col)}
+                                onChange={(e) => row.input.set(col, e.target.value)}
+                                placeholder={row.input.placeholder}
+                                className="w-24 px-2 py-1 text-xs text-right border border-gray-200 rounded focus:ring-1 focus:ring-emerald-400 outline-none"
+                              />
+                            ) : (
+                              <CellContent cell={cell} row={row} />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </React.Fragment>
             );
           })}
@@ -453,28 +517,23 @@ function CompareTable({ sections, items }) {
 
 // ─── CSV export ───────────────────────────────────────────────────────────────
 
-function exportCsv(items, sections, type) {
-  const nameKey = type === 'materials' ? 'name' : 'name';
-  const headers = ['Indikator', ...items.map((i) => i[nameKey] || i.id)];
-  const rows = [headers];
-
+function exportCsv(columns, sections, type) {
+  const rows = [['Indikator', ...columns.map(c => `${c.name} [${KIND_BADGE[c.kind].label}]`)]];
   for (const section of sections) {
-    rows.push([section.title, ...items.map(() => '')]);
+    rows.push([section.section, ...columns.map(() => '')]);
     for (const row of section.rows) {
-      const cells = [row.label];
-      for (const item of items) {
-        if (row.format) cells.push(row.format(item[row.key]));
-        else if (row.derive) {
-          const v = row.derive(item);
-          cells.push(v != null ? String(v) : '');
-        } else cells.push(item[row.key] ?? '');
-      }
-      rows.push(cells);
+      rows.push([
+        row.unit ? `${row.label} [${row.unit}]` : row.label,
+        ...columns.map(c => {
+          const cell = row.get(c);
+          if (cell.v == null || cell.v === '') return cell.note || '';
+          return typeof cell.v === 'number' ? String(cell.v).replace('.', ',') : String(cell.v);
+        }),
+      ]);
     }
   }
-
-  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
@@ -483,51 +542,201 @@ function exportCsv(items, sections, type) {
   URL.revokeObjectURL(url);
 }
 
+// ─── toolbar pieces ──────────────────────────────────────────────────────────
+
+function Segmented({ value, options, onChange }) {
+  return (
+    <div className="inline-flex p-0.5 bg-gray-100 rounded-lg">
+      {options.map(o => (
+        <button key={o.key} type="button" onClick={() => onChange(o.key)}
+          className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${value === o.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function AdhocVariantForm({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [material, setMaterial] = useState(null);
+  const [quantity, setQuantity] = useState('1');
+  const [unit, setUnit] = useState('');
+
+  const { data, isFetching } = useQuery({
+    queryKey: ['compare', 'material-search', query],
+    queryFn: () => materialService.getAll({ search: query, limit: 20 }),
+    enabled: open && query.trim().length >= 2,
+  });
+  const results = Array.isArray(data) ? data : (data?.data || []);
+
+  function pick(m) {
+    setMaterial(m);
+    setUnit(libDeclaredUnit(m).replace(/^[\d.,]+\s*/, ''));
+  }
+
+  function submit() {
+    const q = num(quantity);
+    if (!material || !q) return;
+    onAdd({
+      id: `adhoc-${material.id}-${Date.now()}`,
+      name: `${material.name} (${quantity} ${unit})`,
+      material, quantity: q, unit,
+    });
+    setOpen(false); setQuery(''); setMaterial(null); setQuantity('1');
+  }
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-dashed border-amber-300 text-amber-700 hover:bg-amber-50 transition-colors">
+        <Plus className="w-4 h-4" /> Material mit Menge hinzufügen
+      </button>
+    );
+  }
+
+  return (
+    <div className="w-full bg-amber-50/50 border border-amber-200 rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-gray-800">Ad-hoc-Variante: ein Material mit Menge</p>
+        <button type="button" onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+      </div>
+      {!material ? (
+        <>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Bibliotheksmaterial suchen…"
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-300 outline-none" />
+          </div>
+          <div className="max-h-56 overflow-y-auto space-y-1">
+            {isFetching && <p className="text-xs text-gray-400">Suche…</p>}
+            {results.map(m => (
+              <button key={m.id} type="button" onClick={() => pick(m)}
+                className="w-full text-left px-3 py-2 rounded-lg bg-white border border-gray-100 hover:border-amber-300 text-sm">
+                <span className="font-medium text-gray-800">{m.name}</span>
+                {m.category && <span className="text-xs text-gray-400 ml-2">{m.category}</span>}
+                {m.gwp_value != null && <span className="text-xs text-emerald-700 ml-2">{fmt(m.gwp_value)} {prettyUnit(m.gwp_unit)}</span>}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-xs text-gray-500">Material</p>
+            <p className="text-sm font-medium text-gray-800">{material.name}
+              <button type="button" onClick={() => setMaterial(null)} className="ml-2 text-xs text-amber-700 underline">ändern</button>
+            </p>
+            <p className="text-[11px] text-gray-400">Kennwert je {libDeclaredUnit(material)}</p>
+          </div>
+          <label className="text-xs text-gray-500">Menge
+            <input type="number" min="0" step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)}
+              className="block w-24 px-2 py-1.5 border border-gray-300 rounded-lg text-sm" />
+          </label>
+          <label className="text-xs text-gray-500">Einheit
+            <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="kg"
+              className="block w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm" />
+          </label>
+          <button type="button" onClick={submit} disabled={!num(quantity)}
+            className="px-4 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-40">
+            Hinzufügen
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── page ────────────────────────────────────────────────────────────────────
 
 export default function ComparePage() {
-  const [params]  = useSearchParams();
+  const t = useT();
+  const [params, setParams] = useSearchParams();
   const navigate  = useNavigate();
-  const { setItems } = useCompareStore();
+  const { setItems, toggle, refEpds, setRefEpds, adhocVariants, setAdhocVariants } = useCompareStore();
 
   const type = params.get('type') || 'materials';
   const ids  = (params.get('ids') || '').split(',').filter(Boolean);
-
   const isMaterials = type === 'materials';
-  const sections    = isMaterials ? MAT_SECTIONS : buildProjSections();
 
-  const fetcher = isMaterials
-    ? (id) => materialService.getById(id)
-    : (id) => projectService.getById(id);
+  const [module, setModule] = useState('total');
+  const [target, setTarget] = useState('kg');
+  const [convOverrides, setConvOverrides] = useState({});
+  const [fu, setFu] = useState({ on: false, unit: 'm²', qty: {} });
 
   const queries = useQueries({
     queries: ids.map((id) => ({
-      queryKey: [type, id],
-      queryFn:  () => fetcher(id),
+      queryKey: ['compare', type, id],
+      queryFn:  () => (isMaterials ? materialService.getById(id) : projectService.getById(id)),
       enabled:  !!id,
     })),
   });
 
-  const loading  = queries.some((q) => q.isLoading);
-  const rawItems = queries.map((q) => q.data).filter(Boolean);
+  const loading = queries.some((q) => q.isLoading);
+  const dataKey = queries.map((q) => `${q.data?.id || ''}:${q.dataUpdatedAt}`).join(',');
 
-  // augment project items with precomputed LCA totals
-  const items = useMemo(
-    () => isMaterials
-      ? rawItems
-      : rawItems.map(p => ({ ...p, _lca: projectLcaTotals(p) })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rawItems.map(p => p?.id).join(','), isMaterials]
-  );
-
-  const dataKey = queries.map((q) => q.data?.id || '').join(',');
   useEffect(() => {
     const loaded = queries.map((q) => q.data).filter(Boolean);
     if (loaded.length) setItems(loaded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataKey, setItems]);
 
-  if (!ids.length) {
+  const columns = useMemo(() => {
+    const loaded = queries.map((q) => q.data).filter(Boolean);
+    return isMaterials
+      ? [...loaded.map(libraryColumn), ...refEpds.map(epdColumn)]
+      : [...loaded.map(projectColumn), ...adhocVariants.map(adhocColumn)];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataKey, isMaterials, refEpds, adhocVariants]);
+
+  // conversion data per column: overrides from the table win over stored values
+  const conv = useMemo(() => {
+    const fn = (col) => {
+      const o = convOverrides[col.id] || {};
+      const pick = (k) => (o[k] !== undefined ? num(o[k]) : col.conv?.[k] ?? null);
+      return { density: pick('density'), areal: pick('areal'), piece: pick('piece') };
+    };
+    fn.set = (id, param, v) => setConvOverrides(prev => ({ ...prev, [id]: { ...prev[id], [param]: v } }));
+    return fn;
+  }, [convOverrides]);
+  // raw input text for the table inputs (keeps what the user typed)
+  const convInput = useMemo(() => (col) => {
+    const o = convOverrides[col.id] || {};
+    const base = col.conv || {};
+    return Object.fromEntries(['density', 'areal', 'piece'].map(k => [k, o[k] !== undefined ? o[k] : base[k]]));
+  }, [convOverrides]);
+
+  const fuState = useMemo(() => ({
+    ...fu,
+    setQty: (id, v) => setFu(prev => ({ ...prev, qty: { ...prev.qty, [id]: v } })),
+  }), [fu]);
+
+  const sections = useMemo(() => {
+    if (!isMaterials) return buildProjectRows({ t, module, fu: fuState });
+    return buildMaterialRows({ module, target, conv, convInput, columns });
+  }, [isMaterials, t, module, fuState, target, conv, convInput, columns]);
+
+  const gwpRow = sections.flatMap(s => s.rows).find(r => r.label === 'GWP A1–A3');
+  const hints = isMaterials
+    ? materialHints(columns, target, gwpRow ? gwpRow.get : () => ({}))
+    : projectHints(columns, fuState);
+
+  function removeColumn(col) {
+    if (col.kind === 'epd') return setRefEpds(refEpds.filter(e => e.uuid !== col.id));
+    if (col.kind === 'adhoc') return setAdhocVariants(adhocVariants.filter(v => v.id !== col.id));
+    toggle(type, col.id);
+    const next = ids.filter(i => i !== col.id);
+    setParams({ type, ids: next.join(',') }, { replace: true });
+  }
+
+  const typeLabel = isMaterials ? 'Materialien' : 'Projekte';
+  const targetLabel = TARGET_UNITS.find(u => u.key === target)?.label;
+  const summaryTitle = isMaterials
+    ? `GWP A1–A3 (kg CO₂e ${target === 'declared' ? 'je deklarierter Einheit' : 'je ' + targetLabel})`
+    : `GWP A1–A3 (kg CO₂e${fu.on ? ' je ' + (fu.unit || 'FE') : ''})`;
+
+  if (!ids.length && !(isMaterials ? refEpds.length : adhocVariants.length)) {
     return (
       <div className="max-w-2xl mx-auto py-20 text-center text-gray-500">
         Keine Elemente zum Vergleichen ausgewählt.
@@ -535,54 +744,91 @@ export default function ComparePage() {
     );
   }
 
-  const typeLabel = isMaterials ? 'Materialien' : 'Projekte';
-
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 pb-28">
       {/* header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-          >
+          <button type="button" onClick={() => navigate(-1)}
+            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">{typeLabel} vergleichen</h1>
-            <p className="text-sm text-gray-500">{ids.length} Element{ids.length !== 1 ? 'e' : ''} ausgewählt</p>
+            <p className="text-sm text-gray-500">{columns.length} Spalte{columns.length !== 1 ? 'n' : ''}</p>
           </div>
         </div>
-        {!loading && items.length >= 2 && (
-          <button
-            type="button"
-            onClick={() => exportCsv(items, sections, type)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            CSV Export
+        {!loading && columns.length >= 2 && (
+          <button type="button" onClick={() => exportCsv(columns, sections, type)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors">
+            <Download className="w-4 h-4" /> CSV Export
           </button>
         )}
       </div>
 
-      {loading && (
-        <div className="text-center py-16 text-gray-400">Lade Daten…</div>
-      )}
+      {/* toolbar */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-3 mb-5">
+        {isMaterials ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Bezugseinheit</span>
+              <Segmented value={target} options={TARGET_UNITS} onChange={setTarget} />
+            </div>
+            <div className="w-full sm:w-auto sm:min-w-[320px]">
+              <OekobaudatPicker
+                searchOnly
+                selected={refEpds}
+                onChange={setRefEpds}
+                buttonLabel="Referenzprodukt aus ÖKOBAUDAT hinzufügen"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <label className="inline-flex items-center gap-2 text-xs text-gray-600">
+              <input type="checkbox" checked={fu.on} onChange={(e) => setFu(prev => ({ ...prev, on: e.target.checked }))} />
+              Je funktionaler Einheit
+              {fu.on && (
+                <input value={fu.unit} onChange={(e) => setFu(prev => ({ ...prev, unit: e.target.value }))}
+                  placeholder="m², Stück…" className="w-20 px-2 py-1 border border-gray-300 rounded text-xs" />
+              )}
+            </label>
+            <AdhocVariantForm onAdd={(v) => setAdhocVariants([...adhocVariants, v])} />
+          </>
+        )}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">Modul weitere Indikatoren</span>
+          <Segmented value={module} options={MODULES} onChange={setModule} />
+        </div>
+      </div>
 
-      {!loading && items.length < 2 && (
+      {loading && <div className="text-center py-16 text-gray-400">Lade Daten…</div>}
+
+      {!loading && columns.length < 2 && (
         <div className="text-center py-16 text-gray-400">
           Mindestens 2 Elemente werden für den Vergleich benötigt.
+          {isMaterials && <span className="block text-xs mt-1">Tipp: ein Referenzprodukt aus ÖKOBAUDAT hinzufügen.</span>}
         </div>
       )}
 
-      {!loading && items.length >= 2 && (
+      {!loading && columns.length >= 2 && (
         <>
-          {isMaterials
-            ? <GwpBar items={items} type={type} />
-            : <ProjGwpSummary items={items} />
-          }
-          <CompareTable sections={sections} items={items} />
+          {hints.length > 0 && (
+            <div className="mb-5 space-y-1.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              {hints.map((h, i) => (
+                <p key={i} className="flex gap-2 text-xs text-amber-800">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {h}
+                </p>
+              ))}
+            </div>
+          )}
+          <GwpSummary columns={columns} getGwp={gwpRow ? gwpRow.get : () => ({})} title={summaryTitle} />
+          <CompareTable sections={sections} columns={columns} onRemove={removeColumn} />
+          <p className="text-[11px] text-gray-400">
+            {isMaterials
+              ? 'Kennwerte je Bezugseinheit; Umrechnung über Rohdichte, Flächengewicht bzw. Stückgewicht. Gesamt = A1–A3 + B6 + C3 + C4, D wird separat ausgewiesen.'
+              : 'Projektbilanz wie in der Gesamtbilanz der Projektseite: Bibliotheksmaterialien und ÖKOBAUDAT-EPDs, Kennwert × Menge (umgerechnet auf die deklarierte Einheit). Gesamt = A1–A3 + B6 + C3 + C4, D wird separat ausgewiesen.'}
+          </p>
         </>
       )}
     </div>

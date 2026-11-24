@@ -19,6 +19,7 @@ import RzzDecoration from '../../components/ui/RzzDecoration';
 import { useT } from '../../i18n/useT';
 import { MEDIA_BASE } from '../../services/api';
 import { useCompareStore } from '../../store/compareStore';
+import OekobaudatFallback from '../../components/materials/OekobaudatFallback';
 
 function getMaterialImage(material) {
   // 1. Real DB image takes priority
@@ -490,8 +491,10 @@ export default function Materials() {
       ) : (filteredGesuche.length === 0 && materials.length === 0 && !showMatchingProjects) ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
           <Leaf className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Keine Einträge gefunden</h3>
-          <p className="text-gray-600 mb-4">Lege dein erstes Material an</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            {search.trim() ? `Keine Bibliotheksmaterialien zu „${search.trim()}“` : 'Keine Einträge gefunden'}
+          </h3>
+          <p className="text-gray-600 mb-4">{search.trim() ? 'Lege das Material an oder suche unten in ÖKOBAUDAT.' : 'Lege dein erstes Material an'}</p>
           <button
             onClick={() => {
               if (!requireAuth()) return;
@@ -649,7 +652,7 @@ export default function Materials() {
                     <button
                       type="button"
                       title={compare.isSelected(material.id) ? 'Aus Vergleich entfernen' : 'Zum Vergleich hinzufügen'}
-                      onClick={(e) => { e.stopPropagation(); compare.toggle('materials', material.id); }}
+                      onClick={(e) => { e.stopPropagation(); if (e.detail > 1) return; compare.toggle('materials', material.id, material.name); }}
                       disabled={!compare.isSelected(material.id) && !compare.canAdd('materials')}
                       className={`p-2 rounded-lg transition-colors disabled:opacity-30 ${
                         compare.isSelected(material.id)
@@ -828,6 +831,17 @@ export default function Materials() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Fallback: few or no library hits → offer the same term in ÖKOBAUDAT */}
+      {viewMode !== 'map' && !isLoading && !filterOnlyGesuch && search.trim().length >= 3 && materials.length <= 2 && (
+        <OekobaudatFallback
+          term={search.trim()}
+          libraryCount={materials.length}
+          requireAuth={requireAuth}
+          onCreateMaterial={() => { if (!requireAuth()) return; setFormInitialMode('material'); setShowForm(true); }}
+          onCreateGesuch={() => { if (!requireAuth()) return; setFormInitialMode('gesuch'); setShowForm(true); }}
+        />
       )}
 
       {/* Material Form Modal */}
