@@ -83,3 +83,18 @@ describe('conversion via areal / piece weight', () => {
     expect(conversionGap('kg', 'lfm')).toBe('unit');
   });
 });
+
+describe('ad-hoc variant from an ÖKOBAUDAT dataset', () => {
+  it('balances 1 m³ of a concrete EPD declared per m³', () => {
+    const epd = {
+      uuid: 'b1', name: 'Beton C25/30', declaredUnit: 'm3', density: 2280,
+      indicators: { 'GWP-total': { unit: 'kg CO₂ eq.', mods: { 'A1-A3': 127.2, C3: 1.1, D: -3 } } },
+    };
+    const lca = buildProjectLca({ materials: [], oekodat_materials: [{ ...epd, quantity: 1, unit: 'm³' }] });
+    const gwp = indicatorModules(lca.totals, 'GWP-total');
+    expect(gwp.a1a3).toBeCloseTo(127.2);
+    expect(gwp.total).toBeCloseTo(128.3);
+    // same dataset per kg via its density
+    expect(quantityFactor('1 kg', 'm3', 2280) * 127.2).toBeCloseTo(0.0558, 4);
+  });
+});

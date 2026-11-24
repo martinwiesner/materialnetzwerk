@@ -10,7 +10,7 @@ import {
   buildProjectLca, indicatorModules, libMatToEpdEntry, libraryMaterialRow, libDeclaredUnit,
   quantityFactor, conversionGap, CONV_LABELS, SKIP_REASONS, parseDensity, parseUnit, normLabel,
 } from '../../utils/projectLca';
-import { ArrowLeft, Download, Leaf, Database, Plus, X, AlertTriangle, Search } from 'lucide-react';
+import { ArrowLeft, Download, Leaf, Database, Plus, X, AlertTriangle, Search, FlaskConical, FolderPlus } from 'lucide-react';
 
 // ─── generic helpers ──────────────────────────────────────────────────────────
 
@@ -106,12 +106,13 @@ function projectColumn(p) {
   return { id: p.id, name: p.name, kind: 'project', raw: p, lca: buildProjectLca(p) };
 }
 
+// Ad-hoc variant = one library material or one ÖKOBAUDAT dataset with a quantity
 function adhocColumn(v) {
   const project = {
     id: v.id,
     name: v.name,
-    materials: [libraryMaterialRow(v.material, v.quantity, v.unit)],
-    oekodat_materials: '[]',
+    materials: v.material ? [libraryMaterialRow(v.material, v.quantity, v.unit)] : [],
+    oekodat_materials: v.epd ? [{ ...v.epd, quantity: v.quantity, unit: v.unit }] : [],
   };
   return { id: v.id, name: v.name, kind: 'adhoc', raw: project, lca: buildProjectLca(project), adhoc: v };
 }
@@ -212,7 +213,7 @@ function buildProjectRows({ t, module, fu }) {
   rows.push({
     section: 'Allgemein',
     rows: [
-      { label: 'Art',    get: (col) => ({ v: col.kind === 'adhoc' ? `Ad-hoc: ${col.adhoc.quantity} ${col.adhoc.unit} ${col.adhoc.material.name}` : 'Projekt' }) },
+      { label: 'Art',    get: (col) => ({ v: col.kind === 'adhoc' ? `Ad-hoc: ${col.adhoc.quantity} ${col.adhoc.unit} ${(col.adhoc.material || col.adhoc.epd).name}` : 'Projekt' }) },
       { label: 'Ort',    hideEmpty: true, get: (col) => ({ v: col.raw.location_name || null }) },
       { label: 'Status', hideEmpty: true, get: (col) => ({ v: col.raw.status ? t(`projectDetail.status.${col.raw.status}`) : null }) },
     ],
@@ -320,6 +321,13 @@ function buildMaterialRows({ module, target, conv, convInput, columns }) {
 
 // ─── consistency hints ───────────────────────────────────────────────────────
 
+// Additives (biochar, admixtures …) make up a few percent of a product; per kg they
+// are not comparable with finished products — only the recipe is.
+const ADDITIVE_RE = /zusatzstoff|zusatzmittel|additiv|additive|admixture|biokohle|pflanzenkohle|biochar|fließmittel|fliessmittel|beimischung|betonzusatz/i;
+export function isAdditive(col) {
+  return ADDITIVE_RE.test(`${col.name} ${col.raw?.category || ''} ${col.raw?.description || ''}`);
+}
+
 function materialHints(columns, target, rowsGwp) {
   const hints = [];
   const norms = new Set(columns.map(c => c.norm || 'ohne Angabe'));
@@ -366,8 +374,13 @@ function GwpSummary({ columns, getGwp, title }) {
   const vals = columns.map(c => ({ name: c.name, kind: c.kind, cell: getGwp(c) }));
   const nums = vals.filter(x => typeof x.cell.v === 'number');
   if (!nums.length) return null;
-  const absMax = Math.max(...nums.map(x => Math.abs(x.cell.v)), 0.001);
   const minV = Math.min(...nums.map(x => x.cell.v));
+  const maxV = Math.max(...nums.map(x => x.cell.v));
+  // diverging scale around a zero axis: negative values extend left, positive right
+  const negSpan = Math.max(0, -minV);
+  const posSpan = Math.max(0, maxV);
+  const span = negSpan + posSpan || 1;
+  const zeroPct = (negSpan / span) * 100;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
@@ -379,24 +392,39 @@ function GwpSummary({ columns, getGwp, title }) {
         {vals.map((x, i) => {
           const v = x.cell.v;
           const has = typeof v === 'number';
-          const pct = has ? (Math.abs(v) / absMax) * 100 : 0;
+          const width = has ? Math.max((Math.abs(v) / span) * 100, 0.6) : 0;
+          const left = has && v < 0 ? zeroPct - width : zeroPct;
           const isBest = has && nums.length > 1 && v === minV;
           return (
             <div key={i} className="flex items-center gap-3">
               <span className="text-xs text-gray-600 w-40 truncate shrink-0 font-medium" title={x.name}>{x.name}</span>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 relative h-4">
+                <div className="absolute inset-y-[-4px] w-px bg-gray-300" style={{ left: `${zeroPct}%` }} />
                 {has ? (
-                  <div className={`h-4 rounded-full ${v < 0 ? 'bg-emerald-400' : isBest ? 'bg-green-500' : 'bg-blue-400'}`} style={{ width: `${Math.max(pct, 1)}%` }} />
+                  <div
+                    className={`absolute inset-y-0 ${v < 0 ? 'bg-emerald-400 rounded-l-full' : 'bg-blue-400 rounded-r-full'}`}
+                    style={{ left: `${left}%`, width: `${width}%` }}
+                  />
                 ) : (
-                  <span className="text-xs text-gray-400 italic">{x.cell.note || 'keine Daten'}</span>
+                  <span className="absolute inset-y-0 left-0 text-xs text-gray-400 italic">{x.cell.note || 'keine Daten'}</span>
                 )}
               </div>
-              <span className={`text-xs font-mono font-semibold w-28 text-right shrink-0 ${isBest ? 'text-emerald-700' : 'text-gray-700'}`}>
+              <span className={`text-xs font-mono font-semibold w-28 text-right shrink-0 ${isBest ? 'text-emerald-700' : v < 0 ? 'text-emerald-600' : 'text-gray-700'}`}>
                 {has ? fmt(v) : '–'}{isBest && <span className="ml-1">↓</span>}
               </span>
             </div>
           );
         })}
+      </div>
+      {/* axis labels: min · 0 · max */}
+      <div className="flex items-center gap-3 mt-1.5">
+        <span className="w-40 shrink-0" />
+        <div className="flex-1 relative h-3 text-[10px] text-gray-400 font-mono">
+          {negSpan > 0 && <span className="absolute left-0">{fmt(minV)}</span>}
+          <span className="absolute -translate-x-1/2" style={{ left: `${zeroPct}%` }}>0</span>
+          {posSpan > 0 && <span className="absolute right-0">{fmt(maxV)}</span>}
+        </div>
+        <span className="w-28 shrink-0" />
       </div>
     </div>
   );
@@ -557,6 +585,50 @@ function Segmented({ value, options, onChange }) {
   );
 }
 
+// Adds a project column (e.g. the recipe after "Als Rezeptur vergleichen")
+function ProjectAddForm({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const { data, isFetching } = useQuery({
+    queryKey: ['compare', 'project-search', query],
+    queryFn: () => projectService.getAll({ search: query }),
+    enabled: open && query.trim().length >= 2,
+  });
+  const results = (Array.isArray(data) ? data : (data?.data || [])).slice(0, 20);
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border border-dashed border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+        <FolderPlus className="w-4 h-4" /> Projekt hinzufügen
+      </button>
+    );
+  }
+
+  return (
+    <div className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-gray-800">Projekt (Rezeptur) hinzufügen</p>
+        <button type="button" onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Projekt suchen, z. B. Klimapositiver Beton…"
+          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-300 outline-none" />
+      </div>
+      <div className="max-h-56 overflow-y-auto space-y-1">
+        {isFetching && <p className="text-xs text-gray-400">Suche…</p>}
+        {results.map(p => (
+          <button key={p.id} type="button" onClick={() => { onAdd(p); setOpen(false); setQuery(''); }}
+            className="w-full text-left px-3 py-2 rounded-lg bg-white border border-gray-100 hover:border-gray-300 text-sm">
+            <span className="font-medium text-gray-800">{p.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AdhocVariantForm({ onAdd }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -654,7 +726,7 @@ export default function ComparePage() {
   const t = useT();
   const [params, setParams] = useSearchParams();
   const navigate  = useNavigate();
-  const { setItems, toggle, refEpds, setRefEpds, adhocVariants, setAdhocVariants } = useCompareStore();
+  const { setItems, toggle, refEpds, setRefEpds, adhocVariants, setAdhocVariants, startRecipeCompare } = useCompareStore();
 
   const type = params.get('type') || 'materials';
   const ids  = (params.get('ids') || '').split(',').filter(Boolean);
@@ -721,6 +793,28 @@ export default function ComparePage() {
   const hints = isMaterials
     ? materialHints(columns, target, gwpRow ? gwpRow.get : () => ({}))
     : projectHints(columns, fuState);
+
+  // additive next to finished products → offer the recipe comparison instead
+  const additiveCols = isMaterials ? columns.filter(isAdditive) : [];
+  const productCols  = isMaterials ? columns.filter(c => !isAdditive(c)) : [];
+  const showRecipeHint = additiveCols.length > 0 && productCols.length > 0;
+
+  function startRecipe() {
+    const variants = productCols.map(col => {
+      const wanted = target === 'declared' ? col.declaredUnit : target;
+      const unit = quantityFactor(wanted, col.declaredUnit, conv(col)) != null ? wanted : col.declaredUnit;
+      const base = { id: `adhoc-${col.id}`, name: `${col.name} (1 ${unit})`, quantity: 1, unit };
+      return col.kind === 'epd' ? { ...base, epd: col.raw } : { ...base, material: col.raw };
+    });
+    startRecipeCompare(variants);
+    navigate('/compare?type=projects&ids=');
+  }
+
+  function addProject(p) {
+    if (ids.includes(p.id)) return;
+    toggle('projects', p.id, p.name);
+    setParams({ type: 'projects', ids: [...ids, p.id].join(',') }, { replace: true });
+  }
 
   function removeColumn(col) {
     if (col.kind === 'epd') return setRefEpds(refEpds.filter(e => e.uuid !== col.id));
@@ -793,6 +887,7 @@ export default function ComparePage() {
                   placeholder="m², Stück…" className="w-20 px-2 py-1 border border-gray-300 rounded text-xs" />
               )}
             </label>
+            <ProjectAddForm onAdd={addProject} />
             <AdhocVariantForm onAdd={(v) => setAdhocVariants([...adhocVariants, v])} />
           </>
         )}
@@ -813,6 +908,21 @@ export default function ComparePage() {
 
       {!loading && columns.length >= 2 && (
         <>
+          {showRecipeHint && (
+            <div className="mb-3 flex flex-wrap items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <FlaskConical className="w-4 h-4 text-blue-600 shrink-0" />
+              <p className="flex-1 min-w-[240px] text-xs text-blue-900">
+                <strong>{additiveCols.map(c => c.name).join(', ')}</strong>{' '}
+                {additiveCols.length > 1 ? 'sind Zusatzstoffe' : 'ist ein Zusatzstoff'} und {additiveCols.length > 1 ? 'machen' : 'macht'} im
+                Produkt nur wenige Prozent der Masse aus. {target === 'declared' ? 'Je deklarierter Einheit' : `Je ${targetLabel}`} ist
+                das nicht mit Fertigprodukten vergleichbar – vergleiche besser die Rezeptur (Projekt) mit dem Referenzprodukt.
+              </p>
+              <button type="button" onClick={startRecipe}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+                Als Rezeptur vergleichen
+              </button>
+            </div>
+          )}
           {hints.length > 0 && (
             <div className="mb-5 space-y-1.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
               {hints.map((h, i) => (

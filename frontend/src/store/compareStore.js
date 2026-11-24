@@ -51,6 +51,10 @@ export const useCompareStore = create((set, get) => ({
   },
   setAdhocVariants: (adhocVariants) => set({ adhocVariants }),
 
+  // material comparison → project comparison with the given variants (recipes are added there)
+  startRecipeCompare: (adhocVariants) =>
+    set({ type: 'projects', ids: [], items: [], refEpds: [], adhocVariants }),
+
   clear: () => set({ type: null, ids: [], items: [], refEpds: [], adhocVariants: [] }),
 
   isSelected: (id) => get().ids.includes(id),
