@@ -192,7 +192,8 @@ export default function ShareDialog({ entityType = 'material', entityId, current
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    // Above the material detail modal (z-[9999]) and its edit toggle (z-[10000])
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col overflow-hidden max-h-[90vh]">
         <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
           <h2 className="text-base font-semibold text-stone-800">Sichtbarkeit & Freigabe</h2>
