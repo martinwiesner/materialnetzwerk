@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDensity, quantityFactor, conversionGap, buildProjectLca, indicatorModules, libDeclaredUnit, projectGwpSummary, formatProjectGwp, epdToMaterialFields, libraryMaterialRow } from './projectLca';
+import { parseDensity, quantityFactor, conversionGap, buildProjectLca, indicatorModules, libDeclaredUnit, projectGwpSummary, formatProjectGwp, epdToMaterialFields, libraryMaterialRow, epdPdfEntry, freetextEntry, entrySource } from './projectLca';
 
 describe('parseDensity', () => {
   it('parses free-text densities to kg/m³', () => {
@@ -151,5 +151,21 @@ describe('epdToMaterialFields (ÖKOBAUDAT als Basis eines Materials)', () => {
 
   it('does not set a GWP unit for non-unit declared amounts', () => {
     expect(epdToMaterialFields({ ...epd, declaredUnit: '1000 kg' }).gwp_unit).toBeUndefined();
+  });
+});
+
+describe('free-text materials and PDF EPDs as project entries', () => {
+  it('counts free-text materials as "ohne Kennwert" and balances PDF EPDs like library data', () => {
+    const pdf = epdPdfEntry({ name: 'Lehmputz XY', declared_unit: '1 kg', gwp_value: 0.05, penre: 0.4, manufacturer: 'Hersteller GmbH' });
+    expect(pdf).toMatchObject({ source: 'epd-pdf', name: 'Lehmputz XY', declaredUnit: '1 kg', unit: '1 kg', manufacturer: 'Hersteller GmbH', isLibraryMaterial: false });
+    const txt = freetextEntry({ name: 'Schrauben', quantity: 2, unit: 'kg' });
+    expect(entrySource(txt)).toBe('freetext');
+    expect(entrySource({ uuid: 'x' })).toBe('oekobaudat');
+
+    const lca = buildProjectLca({ materials: [], oekodat_materials: JSON.stringify([{ ...pdf, quantity: 200, unit: 'kg' }, txt]) });
+    expect(indicatorModules(lca.totals, 'GWP-total').a1a3).toBeCloseTo(10);
+    expect(indicatorModules(lca.totals, 'PENRE').a1a3).toBeCloseTo(80);
+    expect(lca.skipped).toEqual([{ name: 'Schrauben', reason: 'data', isLibraryMaterial: false }]);
+    expect(formatProjectGwp(projectGwpSummary({ materials: [], oekodat_materials: [{ ...pdf, quantity: 200, unit: 'kg' }, txt] }))).toBe('10 kg CO₂e (A1–A3) · 1 von 2');
   });
 });

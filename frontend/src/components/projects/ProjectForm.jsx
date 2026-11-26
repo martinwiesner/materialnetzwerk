@@ -29,6 +29,8 @@ import { parseDocumentForMaterial, analyzeImages } from '../../services/material
 import OekobaudatPicker from './OekobaudatPicker';
 import { EpdFullAnalysis } from './EpdAnalysis';
 import ProjectIdematSection from './ProjectIdematSection';
+import { EpdPdfDropZone } from '../materials/MaterialForm';
+import { entrySource, epdPdfEntry, freetextEntry } from '../../utils/projectLca';
 import { licenseOptionsFor } from '../../utils/licenses';
 
 const API_BASE = MEDIA_BASE;
@@ -759,6 +761,19 @@ export default function ProjectForm({ project, onClose }) {
   const addMaterial = () =>
     setFormData({ ...formData, materials: [...formData.materials, { material_id: '', quantity: 1, unit: '' }] });
 
+  // Free-text materials and PDF EPDs live in oekodat_materials next to the
+  // ÖKOBAUDAT datasets (distinguished by `source`), so storage stays unchanged
+  const freetextItems = (formData.oekodat_materials || []).filter(e => entrySource(e) === 'freetext');
+  const epdItems = (formData.oekodat_materials || []).filter(e => entrySource(e) !== 'freetext');
+  const addFreetext = () =>
+    setFormData(f => ({ ...f, oekodat_materials: [...(f.oekodat_materials || []), freetextEntry({ quantity: 1 })] }));
+  const updateFreetext = (uuid, field, value) =>
+    setFormData(f => ({ ...f, oekodat_materials: f.oekodat_materials.map(e => e.uuid === uuid ? { ...e, [field]: value } : e) }));
+  const removeFreetext = (uuid) =>
+    setFormData(f => ({ ...f, oekodat_materials: f.oekodat_materials.filter(e => e.uuid !== uuid) }));
+  const setEpdItems = (items) =>
+    setFormData(f => ({ ...f, oekodat_materials: [...items, ...(f.oekodat_materials || []).filter(e => entrySource(e) === 'freetext')] }));
+
   const removeMaterial = (i) =>
     setFormData({ ...formData, materials: formData.materials.filter((_, j) => j !== i) });
 
@@ -920,7 +935,7 @@ export default function ProjectForm({ project, onClose }) {
       return full ? libEntryFromFormMat(m, full) : null;
     })
     .filter(Boolean);
-  const allMaterialsForLca = [...libAsEpdForm, ...(formData.oekodat_materials || [])];
+  const allMaterialsForLca = [...libAsEpdForm, ...epdItems];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
@@ -1166,14 +1181,20 @@ export default function ProjectForm({ project, onClose }) {
 
               {/* Materialien */}
               <AccordionSection icon={Package} title={t('projectForm.materialsTitle')} color="#16a34a"
-                filled={formData.materials.length > 0}>
-                <div className="flex justify-end">
+                filled={formData.materials.length > 0 || freetextItems.length > 0}>
+                <div className="flex justify-end items-center gap-2">
                   <button type="button" onClick={addMaterial}
                     className="flex items-center gap-1 px-3 py-1 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
                     <Plus className="w-4 h-4" /> {t('projectForm.addMaterial')}
                   </button>
+                  {/* Fallback only — deliberately low-key next to the main action */}
+                  <button type="button" onClick={addFreetext}
+                    title="Notlösung für weniger wichtige Zutaten: nur Name und Menge – ohne Bibliothekseintrag und ohne Umweltkennwert"
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+                    <Plus className="w-3 h-3" /> Freitext (ohne Umweltdaten)
+                  </button>
                 </div>
-                {formData.materials.length === 0 ? (
+                {formData.materials.length === 0 && freetextItems.length === 0 ? (
                   <p className="text-sm text-gray-500 italic p-3 bg-gray-50 rounded-lg">{t('projectForm.noMaterials')}</p>
                 ) : (
                   <div className="space-y-2">
@@ -1239,19 +1260,48 @@ export default function ProjectForm({ project, onClose }) {
                     })}
                   </div>
                 )}
+                {freetextItems.length > 0 && (
+                  <div className="mt-3 space-y-2 border border-gray-200 rounded-xl p-3 bg-gray-50/50">
+                    <p className="text-[11px] text-gray-500">
+                      Freitext-Materialien – nur Name und Menge, ohne Umweltkennwert. Sie erscheinen in der Materialliste und
+                      zählen in der Bilanz als „ohne Kennwert“ (z. B. „2 von 3 Materialien berücksichtigt“).
+                    </p>
+                    {freetextItems.map((e) => (
+                      <div key={e.uuid} className="flex flex-wrap gap-2 items-center">
+                        <input type="text" value={e.name} onChange={(ev) => updateFreetext(e.uuid, 'name', ev.target.value)}
+                          placeholder="z. B. Schrauben, Kleber, Wasser" required
+                          className="flex-1 min-w-[160px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+                        <input type="text" inputMode="decimal" value={e.quantity ?? ''}
+                          onChange={(ev) => updateFreetext(e.uuid, 'quantity', ev.target.value)}
+                          placeholder={t('common.quantity')}
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+                        <input type="text" value={e.unit ?? ''} onChange={(ev) => updateFreetext(e.uuid, 'unit', ev.target.value)}
+                          placeholder={t('common.unit')}
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none" />
+                        <button type="button" onClick={() => removeFreetext(e.uuid)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </AccordionSection>
 
               {/* Ökobaudat EPDs */}
               <AccordionSection icon={Leaf} title="Ökobaudat-Umweltdaten (EPD)" color="#059669"
-                filled={formData.oekodat_materials?.length > 0}
-                defaultOpen={!!(project?.oekodat_materials && safeJsonParse(project?.oekodat_materials, []).length > 0)}>
+                filled={epdItems.length > 0}
+                defaultOpen={safeJsonParse(project?.oekodat_materials, []).some(e => entrySource(e) !== 'freetext')}>
                 <p className="text-xs text-gray-500 mb-3">
                   Materialien aus der professionellen Ökobaudat-Datenbank suchen und Umweltwerte (GWP, ODP, AP, EP, ADP …) für alle Lebenszyklusphasen extrahieren.
                 </p>
-                <OekobaudatPicker
-                  selected={formData.oekodat_materials || []}
-                  onChange={(items) => setFormData(f => ({ ...f, oekodat_materials: items }))}
-                />
+                <OekobaudatPicker selected={epdItems} onChange={setEpdItems} />
+                <div className="mt-3">
+                  <p className="text-[11px] text-gray-500 mb-1.5">
+                    Oder eine eigene EPD (PDF, JSON, XML) hier ablegen – die A1–A3-Werte werden ausgelesen und als
+                    Projekt-Eintrag mit Menge übernommen, ohne ein Bibliotheksmaterial anzulegen.
+                  </p>
+                  <EpdPdfDropZone onApply={(fields) => setEpdItems([...epdItems, epdPdfEntry(fields)])} />
+                </div>
               </AccordionSection>
 
               {/* IDEMAT 2026 LCA */}
@@ -1277,7 +1327,7 @@ export default function ProjectForm({ project, onClose }) {
                   <p className="text-[11px] text-gray-400 mb-3">
                     {[
                       libAsEpdForm.length > 0 && `${libAsEpdForm.length} Bibliotheks-Material${libAsEpdForm.length > 1 ? 'ien' : ''} mit Umweltdaten`,
-                      (formData.oekodat_materials?.length > 0) && `${formData.oekodat_materials.length} Ökobaudat-EPD${formData.oekodat_materials.length > 1 ? 's' : ''}`,
+                      epdItems.length > 0 && `${epdItems.length} EPD${epdItems.length > 1 ? 's' : ''} (ÖKOBAUDAT/PDF)`,
                     ].filter(Boolean).join(' · ')}
                   </p>
                   <EpdFullAnalysis selected={allMaterialsForLca} />

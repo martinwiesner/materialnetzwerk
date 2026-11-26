@@ -396,3 +396,39 @@ export function epdToMaterialFields(epd) {
   }
   return fields;
 }
+
+// ── Further project entries stored alongside the ÖKOBAUDAT datasets ─────────
+// oekodat_materials holds every non-library entry; `source` tells them apart
+// (missing = ÖKOBAUDAT, for entries saved before sources existed).
+export const ENTRY_SOURCE_LABELS = { oekobaudat: 'ÖKOBAUDAT', 'epd-pdf': 'EPD (PDF)', freetext: 'Freitext' };
+export const entrySource = (e) => e?.source || 'oekobaudat';
+
+const newId = (prefix) => `${prefix}-${globalThis.crypto?.randomUUID?.() || Date.now().toString(36)}`;
+
+/**
+ * EPD imported from a PDF/JSON/XML (fields as returned by the EPD import of the
+ * material form) → project entry. Like a library material it carries A1–A3
+ * values per declared unit only.
+ */
+export function epdPdfEntry(fields, fileName = '') {
+  const row = libraryMaterialRow({ id: 'pdf', name: fields.name || fileName || 'EPD (PDF)', ...fields });
+  const base = libMatToEpdEntry(row);
+  return {
+    ...base,
+    uuid:         newId('pdf'),
+    source:       'epd-pdf',
+    isLibraryMaterial: false,
+    manufacturer: fields.manufacturer || '',
+    epdNumber:    fields.notes || '',
+    sourceUrl:    fields.source_url || '',
+    datasetType:  'EPD (PDF-Import)',
+    quantity:     1,
+    unit:         base.declaredUnit,
+    added_at:     new Date().toISOString(),
+  };
+}
+
+/** Free-text material without environmental data (minor ingredients) */
+export function freetextEntry({ name = '', quantity = '', unit = '' } = {}) {
+  return { uuid: newId('txt'), source: 'freetext', name, quantity, unit, indicators: {} };
+}

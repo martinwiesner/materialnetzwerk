@@ -161,7 +161,7 @@ import { exportProjectPoster } from '../../utils/exportUtils';
 import { formatDate } from '../../utils/dates';
 import { getLicenseLabel } from '../../utils/licenses';
 import { formatPt, PT_LEGEND_TEXT } from '../../utils/lcaFormat';
-import { buildProjectLca, indicatorModules, libMatToEpdEntry, normalizeEntry, entryA1A3, SKIP_REASONS, projectGwpSummary, formatProjectGwp, projectGwpTooltip, formatGwp } from '../../utils/projectLca';
+import { buildProjectLca, indicatorModules, libMatToEpdEntry, normalizeEntry, entryA1A3, SKIP_REASONS, ENTRY_SOURCE_LABELS, entrySource, projectGwpSummary, formatProjectGwp, projectGwpTooltip, formatGwp } from '../../utils/projectLca';
 import InfoTooltip from '../../components/shared/InfoTooltip';
 const API_BASE = MEDIA_BASE;
 
@@ -1156,7 +1156,9 @@ export default function ProjectDetail() {
                 {epdRows.map(({ raw, contrib }, i) => (
                   <div key={`epd-${raw.uuid || i}`} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex-1 min-w-0">
-                      <span className="mr-2 inline-block rounded bg-blue-100 text-blue-800 text-[10px] font-semibold px-1.5 py-0.5 align-middle">ÖKOBAUDAT</span>
+                      <span className={`mr-2 inline-block rounded text-[10px] font-semibold px-1.5 py-0.5 align-middle ${entrySource(raw) === 'freetext' ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-800'}`}>
+                        {ENTRY_SOURCE_LABELS[entrySource(raw)]}
+                      </span>
                       <span className="font-medium text-gray-900">{raw.name}</span>
                       <span className="text-gray-500 ml-2">
                         {raw.quantity ?? '–'} {raw.unit || raw.declaredUnit || ''}
@@ -1164,7 +1166,7 @@ export default function ProjectDetail() {
                     </div>
                     {contrib != null && (
                       <span
-                        title="Beitrag A1–A3 = Kennwert × Menge (ÖKOBAUDAT-Datensatz)"
+                        title={`Beitrag A1–A3 = Kennwert × Menge (${ENTRY_SOURCE_LABELS[entrySource(raw)]})`}
                         className="ml-3 flex-shrink-0 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg px-2 py-0.5 font-mono cursor-help"
                       >
                         {formatGwp(contrib)} kg CO₂e

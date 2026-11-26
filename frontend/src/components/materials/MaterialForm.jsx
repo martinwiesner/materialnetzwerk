@@ -211,7 +211,8 @@ function ConfidenceDot({ level }) {
   );
 }
 
-function EpdPdfDropZone({ onApply }) {
+// Also used by the project form to import an EPD as project entry
+export function EpdPdfDropZone({ onApply }) {
   const [dragOver, setDragOver] = useState(false);
   const [status, setStatus] = useState('idle'); // idle | loading | preview | error
   const [extracted, setExtracted] = useState(null);

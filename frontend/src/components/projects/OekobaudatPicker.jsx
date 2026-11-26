@@ -609,7 +609,15 @@ function EpdDataPanel({ epd, onChange, onRemove }) {
             </div>
           )}
           <div className="pt-1 border-t border-emerald-100 text-[10px] text-gray-400 space-y-0.5">
-            <div>UUID: <span className="font-mono">{epd.uuid}</span></div>
+            {epd.source === 'epd-pdf' ? (
+              <div>
+                Quelle: EPD (PDF-Import){epd.manufacturer ? ` · ${epd.manufacturer}` : ''}{epd.epdNumber ? ` · ${epd.epdNumber}` : ''}
+                {epd.sourceUrl && <> · <a href={epd.sourceUrl} target="_blank" rel="noreferrer" className="underline">Link</a></>}
+                {' '}· nur A1–A3
+              </div>
+            ) : (
+              <div>UUID: <span className="font-mono">{epd.uuid}</span></div>
+            )}
             {epd.version && <div>Version: {epd.version}</div>}
             {epd.datasetLabel && <div>Datensatz: {epd.datasetLabel}</div>}
           </div>
