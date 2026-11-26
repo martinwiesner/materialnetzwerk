@@ -5,7 +5,15 @@ import MaterialForm from './MaterialForm';
 
 // Heavy/unrelated sub-components stubbed out — this test only exercises the
 // name/location required-field validation added to handleSubmit this session.
-vi.mock('../shared/LocationPicker', () => ({ default: () => <div data-testid="location-picker-stub" /> }));
+// The stub can place a pin (coordinates only, as when reverse geocoding finds no address)
+vi.mock('../shared/LocationPicker', () => ({
+  default: ({ onChange }) => (
+    <button type="button" data-testid="location-picker-stub"
+      onClick={() => onChange({ location_name: '', address: '', latitude: 51.0533, longitude: 12.1288 })}>
+      Pin setzen
+    </button>
+  ),
+}));
 vi.mock('../shared/ImageUploader', () => ({ default: () => <div data-testid="image-uploader-stub" /> }));
 vi.mock('../shared/FileUploader', () => ({ default: () => <div data-testid="file-uploader-stub" /> }));
 vi.mock('../shared/GeolocateButton', () => ({ default: () => <button type="button">Geolocate stub</button> }));
@@ -60,7 +68,7 @@ describe('MaterialForm — required-field validation on submit', () => {
     fireEvent.change(nameInput, { target: { value: 'Recyceltes Testholz' } });
     const form = document.querySelector('form');
     fireEvent.submit(form);
-    expect(screen.getByText('Bitte einen Standort angeben.')).toBeInTheDocument();
+    expect(screen.getByText(/Bitte einen Standort angeben/)).toBeInTheDocument();
   });
 
   it('never silently does nothing — some error is always shown when required fields are missing', () => {
@@ -72,5 +80,16 @@ describe('MaterialForm — required-field validation on submit', () => {
     const errorBanner = document.querySelector('.bg-red-50');
     expect(errorBanner).not.toBeNull();
     expect(errorBanner.textContent.length).toBeGreaterThan(0);
+  });
+
+  it('starts without a preset pin and accepts a pin placed on the map as location', () => {
+    renderForm();
+    fireEvent.change(document.querySelector('input[name="name"]'), { target: { value: 'Recyceltes Testholz' } });
+    fireEvent.submit(document.querySelector('form'));
+    expect(screen.getByText(/Bitte einen Standort angeben/)).toBeInTheDocument();
+
+    screen.getAllByTestId('location-picker-stub').forEach((b) => fireEvent.click(b));
+    fireEvent.submit(document.querySelector('form'));
+    expect(screen.queryByText(/Bitte einen Standort angeben/)).toBeNull();
   });
 });

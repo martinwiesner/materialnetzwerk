@@ -850,9 +850,10 @@ const initialFormState = {
   notes: '',
   contact_person: '',
 
-  // Location
-  latitude: '51.0532575',
-  longitude: '12.1287658',
+  // Location — no preset pin: the map opens on Zeitz, but a location only
+  // counts once the user picks an address or places the pin
+  latitude: '',
+  longitude: '',
   location_name: '',
   address: '',
 
@@ -1837,7 +1838,8 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (!formData.location_name?.trim() && !formData.address?.trim()) {
+    const hasPin = formData.latitude !== '' && formData.latitude != null && formData.longitude !== '' && formData.longitude != null;
+    if (!formData.location_name?.trim() && !formData.address?.trim() && !hasPin) {
       setError(t('materialForm.errorEnterLocation'));
       scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       return;

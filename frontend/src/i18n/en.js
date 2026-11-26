@@ -687,6 +687,7 @@ const en = {
     errorGesuch: 'Request could not be submitted.',
     errorChooseMaterial: 'Please select a material.',
     errorEnterName: 'Please enter a material name.',
+    errorEnterLocation: 'Please enter a location – search for an address or place the pin on the map.',
   },
 
   onboarding: {
