@@ -22,6 +22,8 @@ import { useAuthStore } from '../../store/authStore';
 import { useAuthOverlayStore } from '../../store/authOverlayStore';
 import InlineUserPicker from '../shared/InlineUserPicker';
 import { formatPt } from '../../utils/lcaFormat';
+import OekobaudatPicker from '../projects/OekobaudatPicker';
+import { epdToMaterialFields } from '../../utils/projectLca';
 const API_BASE = MEDIA_BASE;
 
 // ── IDEMAT process linker (used inside AccordionSection) ──────────────────────
@@ -1386,6 +1388,40 @@ function OfferAvailabilitySection({ materialId }) {
   );
 }
 
+// Search ÖKOBAUDAT and take a dataset's A1–A3 values as the EPD base of this material
+function OekobaudatBase({ hasValues, hasSourceUrl, onApply }) {
+  const [applied, setApplied] = useState(null);
+  return (
+    <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
+      <OekobaudatPicker
+        searchOnly
+        buttonLabel="In ÖKOBAUDAT suchen und als Basis übernehmen"
+        onChange={(list) => {
+          const epd = list[list.length - 1];
+          if (!epd) return;
+          if (hasValues && !window.confirm(`Vorhandene EPD-Werte durch „${epd.name}“ ersetzen?`)) return;
+          const fields = epdToMaterialFields(epd);
+          if (hasSourceUrl) delete fields.source_url;
+          onApply(fields);
+          setApplied(epd);
+        }}
+      />
+      {applied ? (
+        <p className="mt-2 text-[11px] text-blue-900">
+          Übernommen: <span className="font-semibold">{applied.name}</span>
+          {applied.declaredUnit ? ` · je ${applied.declaredUnit}` : ''}
+          {applied.datasetType ? ` · ${applied.datasetType}` : ''}.
+          {' '}Nur Module A1–A3 – Werte bitte an das eigene Material anpassen.
+        </p>
+      ) : (
+        <p className="mt-2 text-[11px] text-gray-500">
+          Ein ÖKOBAUDAT-Datensatz (z. B. generischer Beton C30/37) füllt die Kennwerte A1–A3, die Einheit, die Dichte und die Quelle als Ausgangspunkt.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function MaterialForm({ material, onClose, enableOfferOnCreate = false, initialMode }) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -1890,6 +1926,34 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
     setOfferData({
       ...offerData,
       [name]: type === 'checkbox' ? checked : value,
+    });
+  };
+
+  // Shared by the PDF/JSON EPD import and the ÖKOBAUDAT base search
+  const applyEpdFields = (fields) => {
+    setFormData(prev => {
+      const next = { ...prev };
+      Object.entries(fields).forEach(([k, v]) => {
+        // Boolean certifications
+        if (k === 'cert_epd' || k === 'cert_cradle_to_cradle' || k === 'cert_fsc_pefc') {
+          next[k] = Boolean(v); return;
+        }
+        // Array principle fields — replace directly
+        if (k === 'principles_consistency' || k === 'principles_efficiency') {
+          if (Array.isArray(v) && v.length > 0) next[k] = v;
+          return;
+        }
+        // Numeric LCA fields → stringify for controlled inputs
+        if (['gwp_value','gwp_fossil','gwp_biogenic','gwp_luluc','odp','ap',
+             'ep_terrestrial','ep_freshwater','ep_marine','pocp','adp_elements',
+             'adp_fossil','water_consumption','hwd','nhwd','rwd',
+             'pere','penre','perm','tech_density'].includes(k)) {
+          next[k] = v != null ? String(v) : ''; return;
+        }
+        // gwp_source is not part of the initial form state but is saved with it
+        if (k in next || k === 'gwp_source') next[k] = v;
+      });
+      return next;
     });
   };
 
@@ -2737,31 +2801,12 @@ export default function MaterialForm({ material, onClose, enableOfferOnCreate = 
               filled={!!(formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '' || formData.declared_unit || formData.lifecycle_scope)}
             >
               <p className="text-[11px] text-gray-400 mb-3">{t('materialForm.epdHint')}</p>
-              <EpdPdfDropZone onApply={(fields) => {
-                setFormData(prev => {
-                  const next = { ...prev };
-                  Object.entries(fields).forEach(([k, v]) => {
-                    // Boolean certifications
-                    if (k === 'cert_epd' || k === 'cert_cradle_to_cradle' || k === 'cert_fsc_pefc') {
-                      next[k] = Boolean(v); return;
-                    }
-                    // Array principle fields — replace directly
-                    if (k === 'principles_consistency' || k === 'principles_efficiency') {
-                      if (Array.isArray(v) && v.length > 0) next[k] = v;
-                      return;
-                    }
-                    // Numeric LCA fields → stringify for controlled inputs
-                    if (['gwp_value','gwp_fossil','gwp_biogenic','gwp_luluc','odp','ap',
-                         'ep_terrestrial','ep_freshwater','ep_marine','pocp','adp_elements',
-                         'adp_fossil','water_consumption','hwd','nhwd','rwd',
-                         'pere','penre','perm','tech_density'].includes(k)) {
-                      next[k] = v != null ? String(v) : ''; return;
-                    }
-                    if (k in next) next[k] = v;
-                  });
-                  return next;
-                });
-              }} />
+              <OekobaudatBase
+                hasValues={formData.gwp_fossil !== '' || formData.gwp_value !== '' || formData.adp_fossil !== ''}
+                hasSourceUrl={!!formData.source_url}
+                onApply={applyEpdFields}
+              />
+              <EpdPdfDropZone onApply={applyEpdFields} />
               {(() => {
                 const f = parseFloat(formData.gwp_fossil), b = parseFloat(formData.gwp_biogenic), l = parseFloat(formData.gwp_luluc);
                 const hasAny = formData.gwp_fossil !== '' || formData.gwp_biogenic !== '' || formData.gwp_luluc !== '';

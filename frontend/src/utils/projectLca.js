@@ -366,3 +366,33 @@ export function projectGwpTooltip(summary) {
   return `Treibhauspotenzial A1–A3 aller Projektmaterialien (Bibliothek + ÖKOBAUDAT), Kennwert × Menge – wie in „Umweltwirkung – Gesamtbilanz“.`
     + (summary.complete ? '' : `\nNur ${summary.counted} von ${summary.count} Materialien haben einen GWP-Kennwert – Summe unvollständig.`);
 }
+
+/**
+ * ÖKOBAUDAT dataset (OekobaudatPicker entry) → material EPD form fields, so a
+ * dataset can serve as the base of a library material. Library materials hold
+ * A1–A3 per declared unit only (see LIB_FIELDS / libMatToEpdEntry), so modules
+ * C and D are not carried over. Values are strings for controlled inputs.
+ */
+export function epdToMaterialFields(epd) {
+  const fields = {};
+  const a1a3 = (key) => sumMods(epd.indicators?.[key]?.mods || {}, A1A3_KEYS);
+  // Indicators missing in the dataset are cleared so no stale values remain
+  const gwp = a1a3('GWP-total');
+  fields.gwp_value = gwp != null ? String(gwp) : '';
+  for (const [key, field] of LIB_FIELDS) {
+    const v = a1a3(key);
+    fields[field] = v != null ? String(v) : '';
+  }
+  const { amount, unit } = parseUnit(epd.declaredUnit);
+  if (epd.declaredUnit) fields.declared_unit = /^\s*[\d.,]/.test(epd.declaredUnit) ? epd.declaredUnit : `${amount} ${epd.declaredUnit}`;
+  // Only a per-1-unit dataset maps onto the GWP unit select; declared_unit stays authoritative
+  const gwpUnit = { kg: 'kg', 'm²': 'm2', 'm³': 'm3', stk: 'unit', '': 'unit' }[unit];
+  if (gwpUnit && amount === 1) fields.gwp_unit = `kg CO2e/${gwpUnit}`;
+  if (epd.density) fields.tech_density = String(epd.density);
+  fields.lifecycle_scope = 'A1-A3';
+  fields.gwp_source = `ÖKOBAUDAT ${epd.datasetLabel || ''}: ${epd.name} (UUID ${epd.uuid}${epd.version ? `, Version ${epd.version}` : ''})`.replace(/\s+:/, ':');
+  if (epd.uuid) {
+    fields.source_url = `https://oekobaudat.de/OEKOBAU.DAT/datasetdetail/process.xhtml?uuid=${epd.uuid}${epd.version ? `&version=${epd.version}` : ''}`;
+  }
+  return fields;
+}

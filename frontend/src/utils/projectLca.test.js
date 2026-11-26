@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseDensity, quantityFactor, conversionGap, buildProjectLca, indicatorModules, libDeclaredUnit, projectGwpSummary, formatProjectGwp } from './projectLca';
+import { parseDensity, quantityFactor, conversionGap, buildProjectLca, indicatorModules, libDeclaredUnit, projectGwpSummary, formatProjectGwp, epdToMaterialFields, libraryMaterialRow } from './projectLca';
 
 describe('parseDensity', () => {
   it('parses free-text densities to kg/m³', () => {
@@ -118,5 +118,38 @@ describe('projectGwpSummary (cards & badges)', () => {
   it('returns no label without materials or values', () => {
     expect(projectGwpSummary({ materials: [], oekodat_materials: '[]' })).toBeNull();
     expect(formatProjectGwp(projectGwpSummary({ materials: [{ material_name: 'X', quantity: 1, has_gwp_data: 0 }] }))).toBeNull();
+  });
+});
+
+describe('epdToMaterialFields (ÖKOBAUDAT als Basis eines Materials)', () => {
+  const epd = {
+    uuid: 'abc-123', version: '00.03.000', datasetLabel: '2023-I', name: 'Beton C30/37', declaredUnit: 'm3', density: 2365, datasetType: 'generic dataset',
+    indicators: {
+      'GWP-total': { mods: { 'A1-A3': 221.5, C3: 1.2, D: -5 } },
+      'GWP-fossil': { mods: { 'A1-A3': 221 } },
+      'PENRE': { mods: { 'A1-A3': 1050 } },
+    },
+  };
+
+  it('fills A1–A3 values, unit, density, scope and source', () => {
+    const f = epdToMaterialFields(epd);
+    expect(f).toMatchObject({
+      gwp_value: '221.5', gwp_fossil: '221', penre: '1050', odp: '',
+      declared_unit: '1 m3', gwp_unit: 'kg CO2e/m3', tech_density: '2365', lifecycle_scope: 'A1-A3',
+    });
+    expect(f.gwp_source).toBe('ÖKOBAUDAT 2023-I: Beton C30/37 (UUID abc-123, Version 00.03.000)');
+    expect(f.source_url).toContain('uuid=abc-123&version=00.03.000');
+  });
+
+  it('round-trips: the new library material balances like the dataset (A1–A3)', () => {
+    const f = epdToMaterialFields(epd);
+    const mat = libraryMaterialRow({ id: 'm1', name: 'Mein Beton', ...f, gwp_fossil: null }, 2, 'm³');
+    const lca = buildProjectLca({ materials: [mat], oekodat_materials: [] });
+    expect(indicatorModules(lca.totals, 'GWP-total').a1a3).toBeCloseTo(443);
+    expect(indicatorModules(lca.totals, 'PENRE').a1a3).toBeCloseTo(2100);
+  });
+
+  it('does not set a GWP unit for non-unit declared amounts', () => {
+    expect(epdToMaterialFields({ ...epd, declaredUnit: '1000 kg' }).gwp_unit).toBeUndefined();
   });
 });
