@@ -38,6 +38,9 @@ export const getMaterials = (req, res) => {
     if (req.user?.id) filters.viewer_id = req.user.id;
 
     const materials = Material.findAll(filters);
+    if (req.user?.id) {
+      for (const m of materials) m.can_edit = canEditMaterial(req.user.id, m) || isAdmin(req.user);
+    }
     const total = Material.count({
       category: filters.category,
       created_by: filters.created_by,
@@ -73,6 +76,8 @@ export const getMaterialById = (req, res) => {
     }
 
     material.actors = Material.getActors(req.params.id);
+    // Same flag as projects: owners, admins and users with an "edit" share may edit
+    material.can_edit = req.user?.id ? (canEditMaterial(req.user.id, material) || isAdmin(req.user)) : false;
     res.json(material);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch material', error: error.message });
@@ -131,7 +136,14 @@ export const updateMaterial = (req, res) => {
       }
     }
 
-    const updated = Material.update(req.params.id, req.body);
+    // Users with an "edit" share may change content, but visibility and sharing stay with the owner
+    const updates = { ...req.body };
+    if (material.created_by !== req.user.id && !isAdmin(req.user)) {
+      delete updates.visibility;
+      delete updates.share_actor_id;
+      delete updates.actor_members_can_edit;
+    }
+    const updated = Material.update(req.params.id, updates);
     res.json(updated);
   } catch (error) {
     console.error('[updateMaterial] ERROR:', error.message, '\nBody keys:', Object.keys(req.body || {}));
@@ -198,7 +210,7 @@ export const uploadMaterialImages = (req, res) => {
   try {
     const material = Material.findById(req.params.id);
     if (!material) return res.status(404).json({ message: 'Material not found' });
-    if (material.created_by !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    if (!canEditMaterial(req.user.id, material) && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
     if (!req.files?.length) return res.status(400).json({ message: 'No files uploaded' });
     const sortStart = parseInt(req.body.sort_start || '0', 10);
     const stepIndex = req.body.step_index !== undefined ? parseInt(req.body.step_index, 10) : null;
@@ -222,7 +234,7 @@ export const updateMaterialImage = (req, res) => {
   try {
     const material = Material.findById(req.params.id);
     if (!material) return res.status(404).json({ message: 'Material not found' });
-    if (material.created_by !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    if (!canEditMaterial(req.user.id, material) && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
     const updates = {};
     if (Object.hasOwn(req.body, 'credit')) updates.credit = req.body.credit;
     Material.updateImageMeta(req.params.imageId, updates);
@@ -236,7 +248,7 @@ export const deleteMaterialImage = (req, res) => {
   try {
     const material = Material.findById(req.params.id);
     if (!material) return res.status(404).json({ message: 'Material not found' });
-    if (material.created_by !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    if (!canEditMaterial(req.user.id, material) && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
     Material.deleteImage(req.params.imageId);
     res.json({ message: 'Image deleted' });
   } catch (error) {
@@ -250,7 +262,7 @@ export const uploadMaterialFilesCtrl = (req, res) => {
   try {
     const material = Material.findById(req.params.id);
     if (!material) return res.status(404).json({ message: 'Material not found' });
-    if (material.created_by !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    if (!canEditMaterial(req.user.id, material) && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
     if (!req.files?.length) return res.status(400).json({ message: 'No files uploaded' });
     const label = req.body.label || null;
     const saved = req.files.map(file => Material.addFile(req.params.id, file, label));
@@ -272,7 +284,7 @@ export const deleteMaterialFile = (req, res) => {
   try {
     const material = Material.findById(req.params.id);
     if (!material) return res.status(404).json({ message: 'Material not found' });
-    if (material.created_by !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    if (!canEditMaterial(req.user.id, material) && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
     Material.deleteFile(req.params.fileId);
     res.json({ message: 'File deleted' });
   } catch (error) {
@@ -293,7 +305,7 @@ export const setMaterialActors = (req, res) => {
   try {
     const material = Material.findById(req.params.id);
     if (!material) return res.status(404).json({ message: 'Material not found' });
-    if (material.created_by !== req.user.id && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
+    if (!canEditMaterial(req.user.id, material) && !isAdmin(req.user)) return res.status(403).json({ message: 'Not authorized' });
     const actorIds = Array.isArray(req.body.actor_ids) ? req.body.actor_ids : [];
     Material.setActors(req.params.id, actorIds);
     res.json({ actor_ids: actorIds });

@@ -72,7 +72,9 @@ export default function MaterialDetail() {
     );
   }
 
-  const canEdit = Boolean(isAuthenticated && (material.created_by === user?.id || user?.is_admin));
+  const isOwner = Boolean(isAuthenticated && (material.created_by === user?.id || user?.is_admin));
+  // can_edit also covers users the owner granted an "edit" share (like projects)
+  const canEdit = isOwner || Boolean(isAuthenticated && material.can_edit);
 
   // If the user landed directly on this URL (no app history), go to home instead of back
   const handleClose = () => {
@@ -86,10 +88,11 @@ export default function MaterialDetail() {
         material={material}
         onClose={handleClose}
         canEdit={canEdit}
+        isOwner={isOwner}
         onEdit={() => setEditing(true)}
         onDuplicate={isAuthenticated ? () => duplicateMutation.mutate(material) : undefined}
         duplicating={duplicateMutation.isPending}
-        onDelete={canEdit ? () => deleteMutation.mutate() : undefined}
+        onDelete={isOwner ? () => deleteMutation.mutate() : undefined}
       />
       {editing && (
         <MaterialForm

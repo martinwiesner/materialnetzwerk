@@ -668,7 +668,7 @@ export default function Materials() {
                       size="sm"
                       showCount
                     />
-                    {(isAuthenticated && (material.created_by === user?.id || user?.is_admin)) && (
+                    {(isAuthenticated && (material.created_by === user?.id || user?.is_admin || material.can_edit)) && (
                       <>
                         <button
                           onClick={(e) => {
@@ -680,6 +680,10 @@ export default function Materials() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
+                      </>
+                    )}
+                    {(isAuthenticated && (material.created_by === user?.id || user?.is_admin)) && (
+                      <>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

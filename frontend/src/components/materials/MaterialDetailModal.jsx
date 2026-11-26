@@ -572,7 +572,7 @@ function FieldLabel({ children }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // Main component
 // ══════════════════════════════════════════════════════════════════════════════
-export default function MaterialDetailModal({ material, onClose, onDelete, onUpdate, onDuplicate, duplicating = false, canEdit = false }) {
+export default function MaterialDetailModal({ material, onClose, onDelete, onUpdate, onDuplicate, duplicating = false, canEdit = false, isOwner = canEdit }) {
   const t = useT();
   const toast = useToast();
 
@@ -795,13 +795,13 @@ export default function MaterialDetailModal({ material, onClose, onDelete, onUpd
                 {duplicating ? <Loader2 className="w-5 h-5 animate-spin" /> : <CopyPlus className="w-5 h-5" />}
               </button>
             )}
-            {canEdit && (
+            {isOwner && (
               <button onClick={() => setShareOpen(true)}
                 className="p-2 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50" type="button" title="Sichtbarkeit & Freigabe">
                 <Share2 className="w-5 h-5" />
               </button>
             )}
-            {canEdit && onDelete && (
+            {isOwner && onDelete && (
               <button onClick={() => { if (window.confirm(t('materialDetail.deleteConfirm'))) onDelete(); }}
                 className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50" type="button" title={t('materialDetail.deleteTitle')}>
                 <Trash2 className="w-5 h-5" />
@@ -1392,7 +1392,7 @@ export default function MaterialDetailModal({ material, onClose, onDelete, onUpd
     {/* Share dialog */}
     {shareOpen && (
       <ShareDialog entityType="material" entityId={material.id} currentVisibility={visibilityLocal}
-        isOwner={canEdit} onClose={() => setShareOpen(false)}
+        isOwner={isOwner} onClose={() => setShareOpen(false)}
         onVisibilityChange={v => setVisibilityLocal(v)} />
     )}
 
